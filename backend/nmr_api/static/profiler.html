@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RuuPhenome Profiler</title>
+<script src="https://unpkg.com/smiles-drawer@2.0.1/dist/smiles-drawer.min.js"></script>
+<style>
+  :root {
+    --chrome: #f0f0f0;
+    --panel: #f7f7f7;
+    --border: #c8c8c8;
+    --accent: #2d6da3;
+    --gold: #e8a317;
+    --select: #2f7fd1;
+    --link: #1a5fa8;
+    --measured: #333333;
+    --fit: #8a7fc4;
+    --fit-fill: rgba(138,127,196,0.18);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 12px; color: #222; background: var(--chrome);
+    overflow: hidden;
+  }
+  #app { display: flex; flex-direction: column; height: 100vh; }
+
+  /* ── Title bar ── */
+  .titlebar {
+    background: linear-gradient(#fbfbfb, #eaeaea);
+    border-bottom: 1px solid var(--border);
+    padding: 6px 12px; display: flex; align-items: center; gap: 8px;
+    font-weight: 600; color: #444;
+  }
+  .titlebar .logo { width: 16px; height: 16px; background: var(--accent);
+    border-radius: 3px; display:inline-block; }
+
+  /* ── Menu + toolbar ── */
+  .menubar {
+    background: var(--chrome); border-bottom: 1px solid var(--border);
+    display: flex; gap: 2px; padding: 2px 8px;
+  }
+  .menubar span { padding: 3px 10px; cursor: default; border-radius: 3px; }
+  .menubar span:hover { background: #e0e0e0; }
+  .toolbar {
+    background: var(--chrome); border-bottom: 1px solid var(--border);
+    display: flex; gap: 6px; padding: 5px 10px; align-items: center;
+  }
+  .tbtn {
+    width: 28px; height: 26px; border: 1px solid transparent; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    font-size: 14px; color: #555;
+  }
+  .tbtn:hover { background: #e2e2e2; border-color: var(--border); }
+  .tsep { width: 1px; height: 20px; background: var(--border); margin: 0 3px; }
+  .tbtn.disabled { opacity: 0.35; pointer-events: none; }
+
+  /* ── Dropdown menus ── */
+  .menu { position: relative; }
+  .menu > .menu-label { padding: 3px 10px; cursor: default; border-radius: 3px; display: inline-block; }
+  .menu.open > .menu-label, .menu > .menu-label:hover { background: #e0e0e0; }
+  .menu-dropdown {
+    display: none; position: absolute; top: 100%; left: 0; min-width: 210px;
+    background: #fff; border: 1px solid var(--border); border-radius: 0 0 4px 4px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.18); z-index: 1000; padding: 4px 0;
+  }
+  .menu.open .menu-dropdown { display: block; }
+  .menu-item {
+    padding: 6px 18px 6px 16px; cursor: pointer; display: flex;
+    justify-content: space-between; gap: 28px; white-space: nowrap;
+  }
+  .menu-item:hover { background: var(--select); color: #fff; }
+  .menu-item .sc { color: #999; font-size: 11px; }
+  .menu-item:hover .sc { color: #dde7f2; }
+  .menu-item.disabled { color: #bbb; pointer-events: none; }
+  .menu-sep { height: 1px; background: #e8e8e8; margin: 4px 0; }
+
+  /* ── Modal (About / dialogs) ── */
+  .modal-bg {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+    z-index: 2000; align-items: center; justify-content: center;
+  }
+  .modal-bg.open { display: flex; }
+  .modal { background: #fff; border-radius: 8px; max-width: 900px; width: 92%;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.32); overflow: hidden; }
+  .modal-head { background: linear-gradient(#fafafa,#ececec); padding: 12px 18px;
+    font-weight: 600; border-bottom: 1px solid var(--border); }
+  .modal-body { padding: 18px; line-height: 1.65; color: #333; max-height: 60vh; overflow-y: auto; }
+  .modal-body table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .modal-body td { padding: 4px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+  .modal-body td:first-child { color: #666; white-space: nowrap; }
+  .modal-foot { padding: 12px 18px; text-align: right; border-top: 1px solid var(--border); }
+  .modal-foot button { padding: 6px 18px; border: 1px solid var(--border);
+    border-radius: 5px; background: #fff; cursor: pointer; font-size: 12px; }
+  .modal-foot button:hover { background: #eef4fb; border-color: var(--accent); }
+  .projection-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .projection-card { border:1px solid #ddd; border-radius:6px; padding:8px; background:#fcfcfc; }
+  .projection-card svg { width:100%; height:auto; display:block; background:#fff; }
+  @media (max-width: 700px) { .projection-grid { grid-template-columns:1fr; } }
+
+  /* ── Main layout ── */
+  .main { flex: 1; display: flex; min-height: 0; }
+
+  /* Left: reference card */
+  .refcard {
+    width: 280px; background: var(--panel); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+  .refcard-head {
+    background: linear-gradient(#fafafa,#ececec); border-bottom: 1px solid var(--border);
+    padding: 7px 12px; font-weight: 600; color: #555; display:flex; align-items:center; gap:6px;
+  }
+  .refcard-title {
+    text-align: center; font-size: 15px; font-weight: 600; padding: 8px;
+    border-bottom: 3px solid var(--gold); color: #333;
+  }
+  .structure {
+    margin: 12px; height: 180px; background: #fff; border: 1px solid var(--border);
+    border-radius: 4px; display: flex; align-items: center; justify-content: center;
+  }
+  .structure canvas { max-width: 100%; max-height: 100%; }
+  .prop-list { padding: 4px 14px 10px; }
+  .prop {
+    display: flex; justify-content: space-between; padding: 5px 0;
+    border-bottom: 1px solid #ececec; gap: 8px;
+  }
+  .prop .k { color: #555; }
+  .prop .k .caret { color: #999; font-size: 9px; margin-left: 3px; }
+  .prop .v { color: #222; text-align: right; font-family: "Consolas", monospace;
+    max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ext-head {
+    padding: 10px 14px 4px; font-weight: 600; color: #555;
+    border-top: 3px solid var(--gold); margin-top: 6px;
+  }
+  .ext-links { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 6px; }
+  .ext-links a { color: var(--link); text-decoration: none; }
+  .ext-links a:hover { text-decoration: underline; }
+
+  /* Right column */
+  .rightcol { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  /* Spectrum viewer */
+  .spectrum-panel { flex: 1; display: flex; flex-direction: column; background: #fff;
+    border-bottom: 1px solid var(--border); min-height: 0; }
+  .spectrum-head { padding: 8px 14px 4px; }
+  .spectrum-name { font-weight: 600; font-size: 14px; color: #333; }
+  .region-tabs { display: flex; gap: 4px; margin-top: 6px; align-items: center; flex-wrap: wrap; }
+  .region-tabs .arrow { color: #999; cursor: pointer; padding: 0 4px; }
+  .region-tab {
+    padding: 2px 9px; border-radius: 3px; cursor: pointer; color: #555; font-weight: 600;
+  }
+  .region-tab.active { background: #e6eef6; color: var(--accent); }
+  .region-tab:hover { background: #eee; }
+  .plot-wrap { flex: 1; position: relative; min-height: 0; }
+  #spectrum { width: 100%; height: 100%; display: block; }
+
+  /* Bottom: compound table + mini overview */
+  .bottom { height: 200px; display: flex; background: var(--panel); }
+  .table-area { flex: 1; display: flex; flex-direction: column; min-width: 0;
+    border-right: 1px solid var(--border); }
+  .search-bar { padding: 6px 8px; border-bottom: 1px solid var(--border); background: var(--chrome); }
+  .search-bar input {
+    width: 240px; padding: 4px 8px 4px 24px; border: 1px solid var(--border); border-radius: 12px;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") no-repeat 7px center;
+  }
+  .table-scroll { flex: 1; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    position: sticky; top: 0; background: linear-gradient(#fafafa,#ececec);
+    border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
+    padding: 6px 10px; text-align: left; font-weight: 600; color: #555;
+  }
+  thead th.conc { text-align: right; }
+  tbody td { padding: 5px 10px; border-bottom: 1px solid #ededed; color: #444; }
+  tbody td.conc { text-align: right; font-family: "Consolas", monospace; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: #eef4fb; }
+  tbody tr.selected { background: var(--select); }
+  tbody tr.selected td { color: #fff; }
+  tbody tr.identified td:first-child { font-weight: 600; }
+
+  .overview { width: 230px; background: #fff; display: flex; flex-direction: column; }
+  .overview-head { padding: 5px 8px; font-size: 11px; color: #888; border-bottom: 1px solid var(--border); }
+  #overview-canvas { flex: 1; width: 100%; }
+
+  /* Status bar */
+  .statusbar {
+    background: var(--chrome); border-top: 1px solid var(--border);
+    display: flex; gap: 0; font-size: 11px; color: #555;
+  }
+  .statusbar div { padding: 4px 14px; border-right: 1px solid var(--border); }
+  .statusbar .grow { flex: 1; border-right: none; }
+  .badge { color: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="titlebar">
+    <span class="logo"></span>
+    <span>RuuPhenome Profiler — <span style="font-weight:400;color:#888">National Phenome Institute (open-source NMR profiling)</span></span>
+  </div>
+
+  <div class="menubar" id="menubar"></div>
+
+  <div class="toolbar">
+    <div class="tbtn" title="Open dataset" onclick="ACTIONS.openDataset()">📂</div>
+    <div class="tbtn" title="Save results (CSV)" onclick="ACTIONS.saveResults()">💾</div>
+    <div class="tsep"></div>
+    <div class="tbtn" id="tb-undo" title="Undo" onclick="ACTIONS.undo()">↶</div>
+    <div class="tbtn" id="tb-redo" title="Redo" onclick="ACTIONS.redo()">↷</div>
+    <div class="tsep"></div>
+    <div class="tbtn" title="Zoom in" onclick="ACTIONS.zoomIn()">🔍</div>
+    <div class="tbtn" title="Zoom out" onclick="ACTIONS.zoomOut()">🔎</div>
+    <div class="tbtn" title="Reset view" onclick="ACTIONS.resetView()">⟲</div>
+    <div class="tsep"></div>
+    <div class="tbtn" title="Export spectrum (PNG)" onclick="ACTIONS.exportSpectrum()">🖼️</div>
+    <div class="tbtn" title="Upload dataset" onclick="ACTIONS.openDataset()">⬆️</div>
+    <input type="file" id="file-input" accept=".tsv,.txt,.csv" style="display:none">
+  </div>
+
+  <div class="main">
+    <!-- Reference Card -->
+    <aside class="refcard">
+      <div class="refcard-head">▾ Reference Card</div>
+      <div class="refcard-title" id="ref-name">—</div>
+      <div class="structure"><canvas id="structure-canvas" width="250" height="170"></canvas></div>
+      <div class="prop-list">
+        <div class="prop"><span class="k">Formula</span><span class="v" id="ref-formula">—</span></div>
+        <div class="prop"><span class="k">Weight (Da)</span><span class="v" id="ref-weight">—</span></div>
+        <div class="prop"><span class="k">IUPAC Name <span class="caret">▾</span></span><span class="v" id="ref-iupac">—</span></div>
+        <div class="prop"><span class="k">Alternate Names <span class="caret">▾</span></span><span class="v" id="ref-altnames">—</span></div>
+        <div class="prop"><span class="k">CAS Registry <span class="caret">▾</span></span><span class="v" id="ref-cas">—</span></div>
+        <div class="prop"><span class="k">PubChem CID <span class="caret">▾</span></span><span class="v" id="ref-cid">—</span></div>
+        <div class="prop"><span class="k">InChIKey <span class="caret">▾</span></span><span class="v" id="ref-inchikey">—</span></div>
+        <div class="prop"><span class="k">InChI <span class="caret">▾</span></span><span class="v" id="ref-inchi">—</span></div>
+        <div class="prop"><span class="k">SMILES <span class="caret">▾</span></span><span class="v" id="ref-smiles">—</span></div>
+        <div class="prop"><span class="k">ChEBI ID <span class="caret">▾</span></span><span class="v" id="ref-chebi">—</span></div>
+      </div>
+      <div class="ext-head">External Database References</div>
+      <div class="ext-links" id="ext-links">
+        <a href="#" target="_blank" data-ref="hmdb">HMDB MetaboCard</a>
+        <a href="#" target="_blank" data-ref="kegg">KEGG Ligand Compound</a>
+        <a href="#" target="_blank" data-ref="pubchem">PubChem Compound</a>
+        <a href="#" target="_blank" data-ref="chebi">ChEBI</a>
+      </div>
+    </aside>
+
+    <!-- Right column -->
+    <section class="rightcol">
+      <div class="spectrum-panel">
+        <div class="spectrum-head">
+          <div class="spectrum-name" id="spec-name">Select a compound</div>
+          <div class="region-tabs" id="region-tabs"></div>
+        </div>
+        <div class="plot-wrap"><canvas id="spectrum"></canvas></div>
+      </div>
+
+      <div class="bottom">
+        <div class="table-area">
+          <div class="search-bar">
+            <input type="text" id="search" placeholder="Find in Table ( Ctrl+L )">
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr>
+                <th>Compound Name ▲</th>
+                <th class="conc">Concentration (µM)</th>
+              </tr></thead>
+              <tbody id="compound-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="overview">
+          <div class="overview-head">Full spectrum</div>
+          <canvas id="overview-canvas" width="230" height="160"></canvas>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="statusbar">
+    <div><span class="badge" id="st-count">0</span> compounds</div>
+    <div><span class="badge" id="st-freq">—</span> MHz</div>
+    <div>pH <span class="badge" id="st-ph">—</span></div>
+    <div><span id="st-backend">—</span></div>
+    <div class="grow"></div>
+    <div id="st-msg">Loading…</div>
+  </div>
+
+  <!-- Modal dialog -->
+  <div class="modal-bg" id="modal-bg" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <div class="modal-head" id="modal-title">Dialog</div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-foot"><button onclick="closeModal()">Close</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────
+//  RuuPhenome Profiler — client logic
+// ─────────────────────────────────────────────────────────────────────────
+let LIBRARY = null;
+let SELECTED = null;
+let SHOW_IDENTIFIED_ONLY = false;
+let MEASURED = null;                     // Domain 1 processed spectrum + QC/assignments
+let VIEW = { min: 0.5, max: 9.0 };       // ppm window for the main plot
+const FULL = { min: 0.5, max: 9.0 };
+const PPM_HALFWIDTH = 0.006;             // Lorentzian half-width (ppm)
+
+// ── Domain 1 measured spectrum (from nmrglue backend) ──
+function setMeasured(d) {
+  const pairs = d.ppm.map((p, i) => [p, d.intensity[i]]).sort((a, b) => a[0] - b[0]);
+  MEASURED = {
+    ppm: pairs.map(p => p[0]), int: pairs.map(p => p[1]),
+    peaks: d.peaks || [], assignments: d.assignments || [],
+    quality: d.quality_control || null, processing: d.processing || [],
+    source: d.source || "spectrum",
+    sslMatches: d.self_supervised_matches || [],
+    sslStatus: d.self_supervised || null
+  };
+}
+function measuredAt(x) {
+  const a = MEASURED.ppm, v = MEASURED.int;
+  if (x <= a[0]) return v[0];
+  if (x >= a[a.length - 1]) return v[a.length - 1];
+  let lo = 0, hi = a.length - 1;
+  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (a[mid] < x) lo = mid; else hi = mid; }
+  const t = (x - a[lo]) / (a[hi] - a[lo]);
+  return v[lo] * (1 - t) + v[hi] * t;
+}
+function buildMeasured(N, vmin, vmax) {
+  if (!MEASURED) return sampleSpectrum(peaksFor(LIBRARY.compounds.filter(c => c.identified)), N, vmin, vmax);
+  const ys = new Float64Array(N);
+  for (let i = 0; i < N; i++) {
+    const ppm = vmin + (vmax - vmin) * i / (N - 1);
+    ys[i] = Math.max(0, measuredAt(ppm));
+  }
+  return ys;
+}
+
+// SmilesDrawer is loaded from a CDN; degrade gracefully if it's unavailable.
+const HAS_SMILES_DRAWER = (typeof SmilesDrawer !== "undefined");
+const smilesDrawer = HAS_SMILES_DRAWER
+  ? new SmilesDrawer.Drawer({ width: 250, height: 170, bondThickness: 1.0,
+      atomVisualization: "default", terminalCarbons: true })
+  : null;
+
+// ── Spectrum synthesis: sum of Lorentzians ──
+function lorentzian(x, x0, amp, w) {
+  return amp * (w * w) / ((x - x0) * (x - x0) + w * w);
+}
+// Sample the spectrum across the view window for a set of (shift, amp) peaks.
+function sampleSpectrum(peaks, n, vmin, vmax) {
+  const ys = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = vmin + (vmax - vmin) * i / (n - 1);
+    let y = 0;
+    for (const p of peaks) y += lorentzian(x, p.shift, p.amp, PPM_HALFWIDTH);
+    ys[i] = y;
+  }
+  return ys;
+}
+// Collect peaks from all identified compounds (measured) or one compound (fit).
+function peaksFor(compounds) {
+  const out = [];
+  for (const c of compounds) {
+    if (!c.predicted_shifts) continue;
+    const amp = c.concentration_uM ? Math.max(0.2, c.concentration_uM / 500) : 0.5;
+    for (const s of c.predicted_shifts) out.push({ shift: s, amp });
+  }
+  return out;
+}
+
+// ── Main spectrum drawing ──
+function drawSpectrum() {
+  const cv = document.getElementById("spectrum");
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  const padL = 10, padR = 55, padT = 14, padB = 28;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const N = Math.max(600, Math.floor(plotW));
+
+  // x maps ppm -> px (REVERSED: high ppm at left)
+  const xOf = ppm => padL + plotW * (VIEW.max - ppm) / (VIEW.max - VIEW.min);
+
+  // measured = Domain 1 processed spectrum (nmrglue); fit = selected compound
+  const measured = buildMeasured(N, VIEW.min, VIEW.max);
+  const fit = SELECTED ? sampleSpectrum(peaksFor([SELECTED]), N, VIEW.min, VIEW.max)
+                       : new Float64Array(N);
+
+  let ymax = 0;
+  for (let i = 0; i < N; i++) ymax = Math.max(ymax, measured[i], fit[i]);
+  ymax = ymax * 1.15 || 1;
+  const yOf = v => padT + plotH * (1 - v / ymax);
+
+  // grid + y-axis ticks (right side, like Chenomx)
+  ctx.strokeStyle = "#eee"; ctx.fillStyle = "#999";
+  ctx.font = "10px Segoe UI"; ctx.textAlign = "left";
+  for (let t = 0; t <= 4; t++) {
+    const v = ymax * t / 4, y = yOf(v);
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + plotW, y); ctx.stroke();
+    ctx.fillText(v.toFixed(2), padL + plotW + 6, y + 3);
+  }
+
+  // x-axis ppm ticks — choose a step that yields ~6-9 labels, never crowded
+  ctx.textAlign = "center";
+  const span = VIEW.max - VIEW.min;
+  const step = span > 4 ? 1 : span > 1.5 ? 0.5 : span > 0.6 ? 0.2
+             : span > 0.25 ? 0.05 : 0.02;
+  const decimals = step >= 1 ? 1 : step >= 0.1 ? 1 : 2;
+  const first = Math.ceil(VIEW.min / step) * step;
+  for (let p = first; p <= VIEW.max + 1e-9; p += step) {
+    const x = xOf(p);
+    ctx.strokeStyle = "#f0f0f0";
+    ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + plotH); ctx.stroke();
+    ctx.fillStyle = "#888";
+    ctx.fillText(p.toFixed(decimals), x, H - padB + 16);
+  }
+  // baseline
+  ctx.strokeStyle = "#9fb8d8"; ctx.beginPath();
+  ctx.moveTo(padL, yOf(0)); ctx.lineTo(padL + plotW, yOf(0)); ctx.stroke();
+
+  // fit fill + dashed line (purple)
+  if (SELECTED) {
+    ctx.beginPath(); ctx.moveTo(xOf(VIEW.max), yOf(0));
+    for (let i = 0; i < N; i++) {
+      const ppm = VIEW.min + (VIEW.max - VIEW.min) * i / (N - 1);
+      ctx.lineTo(xOf(ppm), yOf(fit[i]));
+    }
+    ctx.lineTo(xOf(VIEW.min), yOf(0)); ctx.closePath();
+    ctx.fillStyle = "var(--fit-fill)"; ctx.fillStyle = "rgba(138,127,196,0.18)"; ctx.fill();
+
+    ctx.setLineDash([5, 3]); ctx.strokeStyle = "#8a7fc4"; ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    for (let i = 0; i < N; i++) {
+      const ppm = VIEW.min + (VIEW.max - VIEW.min) * i / (N - 1);
+      const x = xOf(ppm), y = yOf(fit[i]);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // measured solid line (dark)
+  ctx.strokeStyle = "#333"; ctx.lineWidth = 1.3; ctx.beginPath();
+  for (let i = 0; i < N; i++) {
+    const ppm = VIEW.min + (VIEW.max - VIEW.min) * i / (N - 1);
+    const x = xOf(ppm), y = yOf(measured[i]);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Picked-peak markers. Only the strongest visible non-artifact peaks are
+  // shown, keeping the spectrum readable while making Domain 1 auditable.
+  if (MEASURED && MEASURED.peaks) {
+    const visible = MEASURED.peaks
+      .filter(p => !p.artifact && p.ppm >= VIEW.min && p.ppm <= VIEW.max)
+      .sort((a,b) => b.intensity - a.intensity).slice(0, 24);
+    ctx.fillStyle = "#d35345"; ctx.strokeStyle = "#d35345"; ctx.lineWidth = 1;
+    for (const p of visible) {
+      const x = xOf(p.ppm), y = yOf(Math.max(0, p.intensity));
+      ctx.beginPath(); ctx.arc(x, y, 2.2, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(x, y-3); ctx.lineTo(x, Math.max(padT, y-10)); ctx.stroke();
+    }
+  }
+}
+
+// ── Mini overview (full range, always) ──
+function drawOverview() {
+  const cv = document.getElementById("overview-canvas");
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const ctx = cv.getContext("2d"); ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  const N = Math.max(300, W);
+  const measured = buildMeasured(N, FULL.min, FULL.max);
+  let ymax = 0; for (const v of measured) ymax = Math.max(ymax, v); ymax = ymax*1.1||1;
+  const xOf = i => W * (1 - i/(N-1));   // reversed
+  ctx.strokeStyle = "#444"; ctx.lineWidth = 1; ctx.beginPath();
+  for (let i=0;i<N;i++){ const x=xOf(i), y=H-4-(measured[i]/ymax)*(H-8);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); }
+  ctx.stroke();
+  // highlight current view window
+  const wx1 = W*(1-(VIEW.max-FULL.min)/(FULL.max-FULL.min));
+  const wx2 = W*(1-(VIEW.min-FULL.min)/(FULL.max-FULL.min));
+  ctx.fillStyle = "rgba(47,127,209,0.12)";
+  ctx.fillRect(Math.min(wx1,wx2),0,Math.abs(wx2-wx1),H);
+}
+
+// ── Region tabs from selected compound's peak clusters ──
+function buildRegionTabs() {
+  const tabs = document.getElementById("region-tabs");
+  tabs.innerHTML = "";
+  if (!SELECTED || !SELECTED.predicted_shifts.length) return;
+  // cluster shifts within 0.25 ppm
+  const sorted = [...SELECTED.predicted_shifts].sort((a,b)=>b-a);
+  const clusters = [];
+  for (const s of sorted) {
+    const last = clusters[clusters.length-1];
+    if (last && Math.abs(last.center - s) < 0.25) { last.shifts.push(s);
+      last.center = last.shifts.reduce((a,b)=>a+b,0)/last.shifts.length; }
+    else clusters.push({ center: s, shifts: [s] });
+  }
+  const left = document.createElement("span"); left.className="arrow"; left.textContent="◄";
+  tabs.appendChild(left);
+  clusters.forEach((cl, idx) => {
+    const t = document.createElement("span");
+    t.className = "region-tab" + (idx===0?" active":"");
+    t.textContent = cl.center.toFixed(1);
+    t.onclick = () => {
+      document.querySelectorAll(".region-tab").forEach(e=>e.classList.remove("active"));
+      t.classList.add("active");
+      VIEW = { min: cl.center - 0.18, max: cl.center + 0.18 };
+      drawSpectrum(); drawOverview(); snapshot();
+    };
+    tabs.appendChild(t);
+  });
+  const right = document.createElement("span"); right.className="arrow"; right.textContent="►";
+  tabs.appendChild(right);
+  // default zoom to first cluster
+  VIEW = { min: clusters[0].center - 0.18, max: clusters[0].center + 0.18 };
+}
+
+// ── Reference card update ──
+function updateRefCard(c) {
+  document.getElementById("ref-name").textContent = c.name || "—";
+  document.getElementById("spec-name").textContent = c.name || "—";
+  document.getElementById("ref-formula").innerHTML = formatFormula(c.formula);
+  document.getElementById("ref-weight").textContent = c.molecular_weight ?? "—";
+  const setProp = (id, val) => {
+    const el = document.getElementById(id);
+    el.textContent = (val == null || val === "") ? "—" : val;
+    el.title = (val == null) ? "" : String(val);
+  };
+  setProp("ref-iupac", c.iupac_name);
+  setProp("ref-altnames", (c.alternate_names || []).filter(n => n.toLowerCase() !== (c.name||"").toLowerCase()).slice(0,3).join(", "));
+  setProp("ref-cas", c.cas_registry);
+  setProp("ref-cid", c.pubchem_cid);
+  setProp("ref-inchikey", c.inchikey);
+  setProp("ref-inchi", c.inchi);
+  setProp("ref-smiles", c.smiles);
+  setProp("ref-chebi", c.chebi_id);
+  // external links — resolve to the real database page, open in a new tab
+  document.querySelectorAll("#ext-links a").forEach(a => {
+    const url = c.external_refs && c.external_refs[a.dataset.ref];
+    if (url) {
+      a.href = url; a.target = "_blank"; a.rel = "noopener";
+      a.style.opacity = 1; a.style.pointerEvents = "auto"; a.title = url;
+    } else { a.removeAttribute("href"); a.style.opacity = 0.4; a.style.pointerEvents = "none"; a.title = "not available"; }
+  });
+  // structure
+  if (c.smiles && HAS_SMILES_DRAWER) {
+    try {
+      SmilesDrawer.parse(c.smiles, function(tree) {
+        smilesDrawer.draw(tree, "structure-canvas", "light", false);
+      }, function(){ clearStructure("structure unavailable"); });
+    } catch (e) { clearStructure("structure unavailable"); }
+  } else if (c.smiles) {
+    clearStructure("(structure renderer offline)");
+  } else clearStructure("no SMILES");
+}
+function clearStructure(msg) {
+  const cv = document.getElementById("structure-canvas");
+  const ctx = cv.getContext("2d"); ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle = "#bbb"; ctx.font="13px Segoe UI"; ctx.textAlign="center";
+  ctx.fillText(msg, cv.width/2, cv.height/2);
+}
+function formatFormula(f) {
+  return (f||"—").replace(/(\d+)/g, "<sub>$1</sub>");
+}
+
+// ── Compound table ──
+function renderTable(filter="") {
+  const tb = document.getElementById("compound-tbody");
+  tb.innerHTML = "";
+  const q = filter.toLowerCase();
+  for (const c of LIBRARY.compounds) {
+    if (q && !c.name.toLowerCase().includes(q)) continue;
+    if (SHOW_IDENTIFIED_ONLY && !c.identified) continue;
+    const tr = document.createElement("tr");
+    if (c.identified) tr.classList.add("identified");
+    if (SELECTED && c.name === SELECTED.name) tr.classList.add("selected");
+    tr.innerHTML = `<td>${c.name}</td>` +
+      `<td class="conc">${c.concentration_uM != null ? c.concentration_uM.toFixed(2) : "--"}</td>`;
+    tr.onclick = () => selectCompound(c);
+    tb.appendChild(tr);
+  }
+}
+
+function selectCompound(c) {
+  SELECTED = c;
+  updateRefCard(c);
+  buildRegionTabs();
+  drawSpectrum(); drawOverview();
+  renderTable(document.getElementById("search").value);
+  document.getElementById("st-msg").textContent =
+    `${c.name} — ${c.predicted_shifts.length} predicted ¹H shifts`;
+  snapshot();
+}
+
+// ── View controls ──
+function zoom(factor) {
+  const c = (VIEW.min + VIEW.max) / 2, half = (VIEW.max - VIEW.min) / 2 * factor;
+  VIEW = { min: Math.max(FULL.min, c-half), max: Math.min(FULL.max, c+half) };
+  drawSpectrum(); drawOverview();
+}
+function resetView() { VIEW = { ...FULL }; drawSpectrum(); drawOverview(); }
+
+// ── Undo / redo history (selection + view window) ──
+let HISTORY = [], HPOS = -1, RESTORING = false;
+function snapshot() {
+  if (RESTORING || !LIBRARY) return;
+  const st = { name: SELECTED ? SELECTED.name : null, view: { ...VIEW } };
+  const top = HISTORY[HPOS];
+  if (top && top.name === st.name && top.view.min === st.view.min &&
+      top.view.max === st.view.max) return;          // no change → skip
+  HISTORY = HISTORY.slice(0, HPOS + 1);
+  HISTORY.push(st); HPOS = HISTORY.length - 1;
+  updateUndoRedo();
+}
+function restore(st) {
+  RESTORING = true;
+  if (st.name) {
+    const c = LIBRARY.compounds.find(x => x.name === st.name);
+    if (c) { SELECTED = c; updateRefCard(c); buildRegionTabs(); }
+  }
+  VIEW = { ...st.view };
+  drawSpectrum(); drawOverview(); renderTable(document.getElementById("search").value);
+  document.getElementById("st-msg").textContent =
+    SELECTED ? `${SELECTED.name} — ${SELECTED.predicted_shifts.length} predicted ¹H shifts` : "Ready.";
+  RESTORING = false;
+}
+function updateUndoRedo() {
+  document.getElementById("tb-undo").classList.toggle("disabled", HPOS <= 0);
+  document.getElementById("tb-redo").classList.toggle("disabled", HPOS >= HISTORY.length - 1);
+}
+
+// ── Modal helpers ──
+function openModal(title, html) {
+  document.getElementById("modal-title").textContent = title;
+  document.getElementById("modal-body").innerHTML = html;
+  document.getElementById("modal-bg").classList.add("open");
+}
+function closeModal() { document.getElementById("modal-bg").classList.remove("open"); }
+function scatterSvg(points, xKey, yKey, xLabel, yLabel) {
+  const usable = points.filter(p => Number.isFinite(p[xKey]) && Number.isFinite(p[yKey]));
+  if (!usable.length) return '<p style="color:#777">Projection was not computed.</p>';
+  const W = 390, H = 285, pad = 38;
+  const xs = usable.map(p => p[xKey]), ys = usable.map(p => p[yKey]);
+  let xmin = Math.min(...xs), xmax = Math.max(...xs), ymin = Math.min(...ys), ymax = Math.max(...ys);
+  if (xmin === xmax) { xmin -= 1; xmax += 1; }
+  if (ymin === ymax) { ymin -= 1; ymax += 1; }
+  const mx = (xmax - xmin) * .08, my = (ymax - ymin) * .08;
+  xmin -= mx; xmax += mx; ymin -= my; ymax += my;
+  const x = v => pad + (v - xmin) / (xmax - xmin) * (W - 2 * pad);
+  const y = v => H - pad - (v - ymin) / (ymax - ymin) * (H - 2 * pad);
+  const groups = [...new Set(usable.map(p => p.group))];
+  const colors = ["#2d6da3", "#e07b39", "#5a9f68", "#8a61aa", "#bf4c68"];
+  const circles = usable.map(p => {
+    const color = colors[Math.max(0, groups.indexOf(p.group)) % colors.length];
+    return `<circle cx="${x(p[xKey]).toFixed(2)}" cy="${y(p[yKey]).toFixed(2)}" r="3.5"
+      fill="${color}" fill-opacity=".72" stroke="#fff" stroke-width=".7">
+      <title>${p.sample} · patient ${p.patient} · ${p.group}</title></circle>`;
+  }).join("");
+  const legend = groups.map((g, i) =>
+    `<span style="margin-right:12px;color:${colors[i % colors.length]}">● ${g}</span>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${xLabel} versus ${yLabel}">
+    <line x1="${pad}" y1="${H-pad}" x2="${W-pad}" y2="${H-pad}" stroke="#999"/>
+    <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${H-pad}" stroke="#999"/>
+    ${circles}
+    <text x="${W/2}" y="${H-8}" text-anchor="middle" font-size="11">${xLabel}</text>
+    <text x="12" y="${H/2}" text-anchor="middle" font-size="11"
+      transform="rotate(-90 12 ${H/2})">${yLabel}</text>
+  </svg><div style="text-align:center;font-size:11px">${legend}</div>`;
+}
+function showDomain1Report() {
+  if (!MEASURED) { setMsg("No Domain 1 spectrum is loaded."); return; }
+  const q = MEASURED.quality || {};
+  const rows = (MEASURED.assignments || []).slice(0, 15).map(a => `
+    <tr><td>${a.metabolite}</td><td><b>${a.confidence}%</b> (${a.confidence_label})</td>
+    <td>${a.matched_count}/${a.expected_count}</td><td>${a.mean_ppm_error}</td></tr>`).join("");
+  const phase = q.phase || {};
+  const sslRows = (MEASURED.sslMatches || []).map(m =>
+    `<tr><td>${m.metabolite}</td><td>${m.cosine_similarity}</td><td>${m.source}</td></tr>`).join("");
+  openModal("Domain 1 — processing, QC and assignments", `
+    <table>
+      <tr><td>Source</td><td><b>${MEASURED.source}</b></td></tr>
+      <tr><td>Quality</td><td><b>${q.score ?? "—"}/100 · ${q.grade ?? "—"}</b></td></tr>
+      <tr><td>Detected peaks</td><td>${q.peaks_non_artifact ?? MEASURED.peaks.length} non-artifact</td></tr>
+      <tr><td>Maximum SNR</td><td>${q.max_snr ?? "—"}</td></tr>
+      <tr><td>Phase correction</td><td>p0 ${phase.p0_degrees ?? "—"}° · p1 ${phase.p1_degrees ?? "—"}°</td></tr>
+      <tr><td>Assignments</td><td>${MEASURED.assignments.length} candidates</td></tr>
+      <tr><td>Self-supervised encoder</td><td>${MEASURED.sslStatus?.trained?"trained ✅":"not trained"}</td></tr>
+    </table>
+    <p style="margin-top:14px;font-weight:600">Top metabolite assignments</p>
+    <table>
+      <tr><td style="font-weight:600">Metabolite</td><td style="font-weight:600">Confidence</td>
+      <td style="font-weight:600">Peaks</td><td style="font-weight:600">Mean ppm error</td></tr>
+      ${rows || '<tr><td colspan="4">No assignments above the confidence threshold.</td></tr>'}
+    </table>
+    <p style="margin-top:14px;font-weight:600">Open-data embedding matches</p>
+    <table>
+      <tr><td style="font-weight:600">Reference</td><td style="font-weight:600">Cosine similarity</td><td style="font-weight:600">Evidence</td></tr>
+      ${sslRows || '<tr><td colspan="3">No trained self-supervised model available.</td></tr>'}
+    </table>
+    <p style="margin-top:12px;color:#666">Method: transparent reference-pattern matching. NMRformer is not claimed unless its trained runtime is installed and validated.</p>`);
+}
+
+// ── Export helpers ──
+function download(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+function toCSV() {
+  const rows = [["compound", "chebi_id", "formula", "molecular_weight",
+                 "concentration_uM", "predicted_1H_shifts_ppm", "identified", "cv_percent"]];
+  for (const c of LIBRARY.compounds) {
+    rows.push([c.name, c.chebi_id, c.formula, c.molecular_weight ?? "",
+      c.concentration_uM ?? "", `"${(c.predicted_shifts || []).join(" ")}"`,
+      c.identified, c.cv_percent ?? ""]);
+  }
+  return rows.map(r => r.join(",")).join("\n");
+}
+
+// ── All button/menu actions ──
+const ACTIONS = {
+  openDataset: () => document.getElementById("file-input").click(),
+  reloadDemo:  () => load("/compounds"),
+  saveResults: () => {
+    if (!LIBRARY) return;
+    download("ruuphenome_results.csv", toCSV(), "text/csv");
+    setMsg("Saved ruuphenome_results.csv");
+  },
+  exportSpectrum: () => {
+    if (!SELECTED) { setMsg("Select a compound first."); return; }
+    const url = document.getElementById("spectrum").toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = url; a.download = `spectrum_${SELECTED.name}.png`; a.click();
+    setMsg(`Exported spectrum_${SELECTED.name}.png`);
+  },
+  undo: () => { if (HPOS > 0) { HPOS--; restore(HISTORY[HPOS]); updateUndoRedo(); } },
+  redo: () => { if (HPOS < HISTORY.length - 1) { HPOS++; restore(HISTORY[HPOS]); updateUndoRedo(); } },
+  zoomIn:    () => { zoom(0.8);  snapshot(); },
+  zoomOut:   () => { zoom(1.25); snapshot(); },
+  resetView: () => { resetView(); snapshot(); },
+  fullSpectrum: () => { resetView(); snapshot(); },
+  findCompound: () => { const s = document.getElementById("search"); s.focus(); s.select(); },
+  nextCompound: () => stepCompound(+1),
+  prevCompound: () => stepCompound(-1),
+  toggleIdentifiedOnly: () => {
+    SHOW_IDENTIFIED_ONLY = !SHOW_IDENTIFIED_ONLY;
+    renderTable(document.getElementById("search").value);
+    setMsg(SHOW_IDENTIFIED_ONLY ? "Showing identified compounds only." : "Showing all compounds.");
+  },
+  openApiDocs: () => window.open("/docs", "_blank"),
+  openHealth:  () => window.open("/healthz", "_blank"),
+  laboratoryWorkflow: async () => {
+    setMsg("Loading the real-laboratory workflow…");
+    try {
+      const response = await fetch("/laboratory-workflow");
+      if (!response.ok) throw new Error(response.statusText);
+      const d = await response.json();
+      const rows = d.stages.map(s => `
+        <tr>
+          <td><b>${s.order}. ${s.name}</b><br><span style="color:#666">${s.owner}</span></td>
+          <td>${s.objective}<br><span style="color:#666"><b>Gate:</b> ${s.release_gate.join("; ")}</span></td>
+          <td>${s.ruuphenome_mapping}</td>
+        </tr>`).join("");
+      openModal("Real laboratory pipeline", `
+        <p><b>${d.name}</b> · version ${d.version}</p>
+        <p style="color:#a24b35">${d.intended_use}</p>
+        <table>
+          <tr><td style="font-weight:600">Stage / owner</td>
+          <td style="font-weight:600">Purpose and release gate</td>
+          <td style="font-weight:600">RuuPhenome connection</td></tr>
+          ${rows}
+        </table>
+        <p style="margin-top:14px;font-weight:600">Required before production deployment</p>
+        <ul>${d.minimum_production_components.map(x => `<li>${x}</li>`).join("")}</ul>`);
+      setMsg("Laboratory workflow loaded.");
+    } catch (e) { setMsg("Could not load laboratory workflow: " + e); }
+  },
+  evaluateCurrentQc: async () => {
+    if (!MEASURED) { setMsg("Load a Domain 1 spectrum before evaluating release."); return; }
+    const q = MEASURED.quality || {};
+    setMsg("Evaluating the current spectrum against laboratory QC gates…");
+    try {
+      const response = await fetch("/laboratory-workflow/evaluate-qc", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          qc_score: q.score ?? null,
+          max_snr: q.max_snr ?? null,
+          negative_area_fraction: q.negative_area_fraction ?? null,
+          reference_method: q.reference?.method ?? null,
+        }),
+      });
+      if (!response.ok) throw new Error((await response.json()).detail || response.statusText);
+      const d = await response.json();
+      const icon = d.decision === "pass" ? "✅" : d.decision === "fail" ? "❌" : "⚠️";
+      const rows = d.rules.map(r => `
+        <tr><td>${r.label}</td><td><b>${r.status}</b></td>
+        <td>${r.observed ?? "not supplied"}</td><td>${r.acceptance}</td></tr>`).join("");
+      openModal("Laboratory QC release evaluation", `
+        <p style="font-size:16px">${icon} Decision: <b>${d.decision.replace("_", " ")}</b></p>
+        <p>${d.release_allowed
+          ? "The supplied technical evidence satisfies the configured release rules."
+          : "Release is blocked until failed or missing evidence is resolved."}</p>
+        <table>
+          <tr><td style="font-weight:600">Rule</td><td style="font-weight:600">Status</td>
+          <td style="font-weight:600">Observed</td><td style="font-weight:600">Acceptance</td></tr>
+          ${rows}
+        </table>
+        <p style="margin-top:12px;color:#a24b35">${d.policy.warning}</p>`);
+      setMsg(`Laboratory QC decision: ${d.decision.replace("_", " ")}.`);
+    } catch (e) { setMsg("Laboratory QC evaluation failed: " + e); }
+  },
+  // Domain 2 — nested patient-grouped model comparison
+  biomarkerDiscovery: async () => {
+    setMsg("Comparing leakage-safe biomarker models…");
+    try {
+      const response = await fetch("/biomarkers-model-suite");
+      if (!response.ok) throw new Error((await response.json()).detail || response.statusText);
+      const d = await response.json();
+      const rows = d.models.map(m => `
+        <tr><td><b>${m.model}</b>${m.model===d.recommended_model?" ✅":""}</td>
+        <td>${m.roc_auc_mean} ± ${m.roc_auc_std}</td><td>${m.f1_mean}</td>
+        <td>${m.brier_mean}</td><td>${m.calibration_error_mean}</td>
+        <td>${m.feature_mode==="all"?"PCA / all features":"fold-selected features"}</td></tr>`).join("");
+      const best = d.models.find(m => m.model === d.recommended_model);
+      const representation = best?.feature_mode === "all"
+        ? best.dimensionality_reduction
+        : (best?.stable_panel || []).join(", ");
+      openModal("Domain 2 — leakage-safe model suite", `
+        <table>
+          <tr><td>Task</td><td><b>${d.task}</b></td></tr>
+          <tr><td>Samples / patients</td><td>${d.n_samples} samples · ${d.n_patients} patients</td></tr>
+          <tr><td>Validation</td><td>${d.validation.outer_splits}-fold nested patient-grouped CV · selection/PCA fitted inside folds</td></tr>
+          <tr><td>Recommended</td><td><b>${d.recommended_model}</b></td></tr>
+          <tr><td>Representation</td><td>${representation || "—"}</td></tr>
+        </table>
+        <p style="margin-top:12px;color:#a24b35">${d.outcome_warning}</p>
+        <p style="margin-top:14px;font-weight:600">Outer-fold performance</p>
+        <table>
+          <tr><td style="font-weight:600">Model</td><td style="font-weight:600">ROC-AUC</td>
+          <td style="font-weight:600">F1</td><td style="font-weight:600">Brier ↓</td>
+          <td style="font-weight:600">Calibration error ↓</td>
+          <td style="font-weight:600">Input</td></tr>
+          ${rows}
+        </table>`);
+      setMsg(`Model suite complete — recommended: ${d.recommended_model}`);
+    } catch (e) { setMsg("Discovery failed: " + e); }
+  },
+  dimensionalityAnalysis: async () => {
+    setMsg("Computing PCA and UMAP projections…");
+    try {
+      const response = await fetch("/biomarkers-projection");
+      if (!response.ok) throw new Error((await response.json()).detail || response.statusText);
+      const d = await response.json();
+      const pc1 = d.pca.top_loadings.PC1.map(x =>
+        `<tr><td>${x.feature}</td><td>${x.loading}</td></tr>`).join("");
+      const pc2 = d.pca.top_loadings.PC2.map(x =>
+        `<tr><td>${x.feature}</td><td>${x.loading}</td></tr>`).join("");
+      openModal("Domain 2 — PCA and UMAP", `
+        <table>
+          <tr><td>Task</td><td><b>${d.task}</b></td></tr>
+          <tr><td>Cohort</td><td>${d.n_samples} samples · ${d.n_features} features</td></tr>
+          <tr><td>PCA variance</td><td>PC1 ${d.pca.pc1_explained_percent}% · PC2 ${d.pca.pc2_explained_percent}% · first two ${d.pca.cumulative_first_two_percent}%</td></tr>
+          <tr><td>UMAP</td><td>${d.umap.computed
+            ? `n_neighbors ${d.umap.n_neighbors} · min_dist ${d.umap.min_dist}`
+            : "not available"}</td></tr>
+        </table>
+        <div class="projection-grid" style="margin-top:14px">
+          <div class="projection-card"><b>PCA scores</b>
+            ${scatterSvg(d.points, "pc1", "pc2",
+              `PC1 (${d.pca.pc1_explained_percent}%)`,
+              `PC2 (${d.pca.pc2_explained_percent}%)`)}</div>
+          <div class="projection-card"><b>UMAP neighborhoods</b>
+            ${scatterSvg(d.points, "umap1", "umap2", "UMAP 1", "UMAP 2")}</div>
+        </div>
+        <div class="projection-grid" style="margin-top:14px">
+          <div><b>Largest absolute PC1 loadings</b><table>${pc1}</table></div>
+          <div><b>Largest absolute PC2 loadings</b><table>${pc2}</table></div>
+        </div>
+        <p style="margin-top:12px;color:#a24b35">${d.outcome_warning}</p>
+        <p style="color:#666">${d.interpretation_warning}</p>`);
+      setMsg("PCA/UMAP projection ready.");
+    } catch (e) { setMsg("PCA/UMAP failed: " + e); }
+  },
+  // Domain 1 — process a real Bruker FID (nmrglue)
+  processFid: () => {
+    const inp = document.createElement("input");
+    inp.type = "file"; inp.accept = ".zip";
+    inp.onchange = async () => {
+      const f = inp.files[0]; if (!f) return;
+      setMsg("Processing FID with nmrglue…");
+      const fd = new FormData(); fd.append("bruker_zip", f);
+      try {
+        const r = await fetch("/process-fid", { method: "POST", body: fd });
+        if (!r.ok) { setMsg("FID error: " + (await r.json()).detail); return; }
+        const d = await r.json();
+        setMeasured(d); resetView(); drawSpectrum(); drawOverview();
+        setMsg(`Domain 1: ${d.quality_control.grade} QC · ${d.quality_control.peaks_non_artifact} peaks · ${d.assignments.length} assignments`);
+        showDomain1Report();
+      } catch (e) { setMsg("FID processing failed: " + e); }
+    };
+    inp.click();
+  },
+  processSpectrum: () => {
+    const inp = document.createElement("input");
+    inp.type = "file"; inp.accept = ".csv,.tsv,.txt";
+    inp.onchange = async () => {
+      const f = inp.files[0]; if (!f) return;
+      setMsg("Analyzing processed spectrum…");
+      const fd = new FormData(); fd.append("spectrum_file", f);
+      try {
+        const r = await fetch("/process-spectrum", { method: "POST", body: fd });
+        if (!r.ok) { setMsg("Spectrum error: " + (await r.json()).detail); return; }
+        const d = await r.json();
+        setMeasured(d); resetView(); drawSpectrum(); drawOverview();
+        setMsg(`Domain 1: ${d.quality_control.grade} QC · ${d.assignments.length} assignments`);
+        showDomain1Report();
+      } catch (e) { setMsg("Spectrum processing failed: " + e); }
+    };
+    inp.click();
+  },
+  domain1Report: () => showDomain1Report(),
+  pluginStatus: async () => {
+    const d = await (await fetch("/plugins")).json();
+    const p = d.domain1_signal_processing, a = d.domain1_peak_assignment,
+          ssl = d.domain1_self_supervised, s = d.shift_prediction,
+          b = d.domain2_biomarkers, dim = d.domain2_dimensionality;
+    openModal("Connected plugins / backends", `
+      <table>
+        <tr><td>Domain 1 — signal processing</td><td>nmrglue ${p.nmrglue} · scipy ${p.scipy} ${p.ready?"✅":"❌"}</td></tr>
+        <tr><td>Domain 1 — peak assignment</td><td><b>${a.active}</b> · NMRformer ${a.nmrformer.available?"✅":"not configured"}</td></tr>
+        <tr><td>Domain 1 — self-supervised</td><td>masked encoder ${ssl.trained?"trained ✅":"not trained"} · PyTorch ${ssl.torch || "—"}</td></tr>
+        <tr><td>Shift prediction</td><td><b>${s.active}</b> (NMRTransformer ${s.nmrtransformer?"✅":"— fallback"})</td></tr>
+        <tr><td>Domain 2 — biomarkers</td><td>scikit-learn ${b.scikit_learn} · XGBoost ${b.xgboost || "—"} ${b.ready?"✅":"❌"}</td></tr>
+        <tr><td>Domain 2 — projections</td><td>PCA ${dim.pca.available?"✅":"❌"} · UMAP ${dim.umap.available?"✅":"❌"}</td></tr>
+        <tr><td>Structure rendering</td><td>SmilesDrawer ${d.structure_rendering.rdkit?("· rdkit "+d.structure_rendering.rdkit):""}</td></tr>
+        <tr><td>Web stack</td><td>FastAPI ${d.web.fastapi} · pandas ${d.web.pandas} · numpy ${d.web.numpy}</td></tr>
+      </table>`);
+  },
+  engineInfo: () => {
+    const s = LIBRARY.spectrometer;
+    openModal("Analysis engine", `
+      <table>
+        <tr><td>Shift prediction</td><td><b>${s.prediction_backend}</b></td></tr>
+        <tr><td>Compounds</td><td>${s.compound_count}</td></tr>
+        <tr><td>Samples</td><td>${s.sample_count}</td></tr>
+        <tr><td>Frequency</td><td>${s.frequency_mhz} MHz</td></tr>
+        <tr><td>pH</td><td>${s.ph.toFixed(2)}</td></tr>
+      </table>
+      <p style="margin-top:12px;color:#666">
+        ${s.prediction_backend === "NMRTransformer"
+          ? "NMRTransformer deep-learning model is active — shifts predicted for any SMILES."
+          : "HMDB known-shift fallback is active. Run <code>setup_nmrtransformer.sh</code> to enable the NMRTransformer model for arbitrary molecules."}
+      </p>`);
+  },
+  about: () => openModal("About RuuPhenome Profiler", `
+    <p><b>RuuPhenome Profiler</b> — open-source NMR metabolite profiling for the
+    National Phenome Institute. A free replacement for closed, subscription
+    profiling software.</p>
+    <table>
+      <tr><td>Domain 1 — signal processing</td><td>nmrglue + scipy (FID → corrected spectrum → peaks + QC)</td></tr>
+      <tr><td>Domain 1 — assignment</td><td>Hybrid NMRformer adapter + confidence-ranked pattern matcher</td></tr>
+      <tr><td>Shift prediction</td><td>NMRTransformer (open-source) + HMDB fallback</td></tr>
+      <tr><td>Domain 2 — biomarkers</td><td>Nested patient-grouped logistic, SVM, gradient boosting and XGBoost</td></tr>
+      <tr><td>Domain 2 — visualization</td><td>PCA loadings and exploratory UMAP neighborhoods</td></tr>
+      <tr><td>Structure rendering</td><td>SmilesDrawer</td></tr>
+      <tr><td>Spectrum overlay</td><td>Custom Canvas (Lorentzian fit)</td></tr>
+      <tr><td>Backend</td><td>FastAPI · pandas · numpy</td></tr>
+    </table>
+    <p style="margin-top:12px;color:#666">Dataset: MetaboLights MTBLS242 (human blood serum).</p>`),
+};
+function setMsg(m) { document.getElementById("st-msg").textContent = m; }
+function stepCompound(dir) {
+  if (!LIBRARY) return;
+  const list = LIBRARY.compounds;
+  let i = SELECTED ? list.findIndex(c => c.name === SELECTED.name) : -1;
+  i = (i + dir + list.length) % list.length;
+  selectCompound(list[i]);
+  // scroll selected row into view
+  const row = [...document.querySelectorAll("#compound-tbody tr")]
+    .find(r => r.firstChild.textContent === list[i].name);
+  if (row) row.scrollIntoView({ block: "nearest" });
+}
+
+// ── Build the dropdown menu bar ──
+const MENUS = [
+  ["File", [
+    ["Open dataset…", "openDataset", "Ctrl+O"],
+    ["Save results (CSV)", "saveResults", "Ctrl+S"],
+    ["Export spectrum (PNG)", "exportSpectrum"],
+    ["sep"],
+    ["Reload demo dataset", "reloadDemo"],
+  ]],
+  ["Edit", [
+    ["Undo", "undo", "Ctrl+Z"],
+    ["Redo", "redo", "Ctrl+Y"],
+    ["sep"],
+    ["Find compound…", "findCompound", "Ctrl+L"],
+  ]],
+  ["View", [
+    ["Zoom in", "zoomIn", "+"],
+    ["Zoom out", "zoomOut", "-"],
+    ["Reset view", "resetView"],
+    ["Full spectrum", "fullSpectrum"],
+  ]],
+  ["Compound", [
+    ["Next compound", "nextCompound", "↓"],
+    ["Previous compound", "prevCompound", "↑"],
+    ["sep"],
+    ["Toggle identified-only", "toggleIdentifiedOnly"],
+  ]],
+  ["Tools", [
+    ["Real laboratory workflow…", "laboratoryWorkflow"],
+    ["Evaluate current spectrum for lab release…", "evaluateCurrentQc"],
+    ["sep"],
+    ["Biomarker discovery (Domain 2)…", "biomarkerDiscovery"],
+    ["PCA / UMAP visualization (Domain 2)…", "dimensionalityAnalysis"],
+    ["Process Bruker FID (Domain 1)…", "processFid"],
+    ["Analyze processed spectrum (CSV/TSV)…", "processSpectrum"],
+    ["Domain 1 QC / assignments…", "domain1Report"],
+    ["sep"],
+    ["Plugin / backend status…", "pluginStatus"],
+    ["Analysis engine info…", "engineInfo"],
+    ["Re-run on demo dataset", "reloadDemo"],
+  ]],
+  ["Applications", [
+    ["API documentation (Swagger)", "openApiDocs"],
+    ["Health / engine status", "openHealth"],
+  ]],
+  ["Help", [
+    ["About RuuPhenome Profiler…", "about"],
+  ]],
+];
+function buildMenus() {
+  const bar = document.getElementById("menubar");
+  bar.innerHTML = "";
+  for (const [label, items] of MENUS) {
+    const menu = document.createElement("div"); menu.className = "menu";
+    const lbl = document.createElement("span"); lbl.className = "menu-label"; lbl.textContent = label;
+    const dd = document.createElement("div"); dd.className = "menu-dropdown";
+    for (const it of items) {
+      if (it[0] === "sep") { const s = document.createElement("div"); s.className = "menu-sep"; dd.appendChild(s); continue; }
+      const [text, action, sc] = it;
+      const mi = document.createElement("div"); mi.className = "menu-item";
+      mi.innerHTML = `<span>${text}</span>` + (sc ? `<span class="sc">${sc}</span>` : "");
+      mi.onclick = (e) => { e.stopPropagation(); closeMenus(); (ACTIONS[action] || (()=>{}))(); };
+      dd.appendChild(mi);
+    }
+    lbl.onclick = (e) => {
+      e.stopPropagation();
+      const wasOpen = menu.classList.contains("open");
+      closeMenus();
+      if (!wasOpen) menu.classList.add("open");
+    };
+    lbl.onmouseenter = () => {
+      if (document.querySelector(".menu.open")) { closeMenus(); menu.classList.add("open"); }
+    };
+    menu.appendChild(lbl); menu.appendChild(dd); bar.appendChild(menu);
+  }
+}
+function closeMenus() { document.querySelectorAll(".menu.open").forEach(m => m.classList.remove("open")); }
+document.addEventListener("click", closeMenus);
+
+// ── Keyboard shortcuts ──
+document.addEventListener("keydown", (e) => {
+  const typing = document.activeElement === document.getElementById("search");
+  if (e.key === "Escape") { closeMenus(); closeModal(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "o") { e.preventDefault(); ACTIONS.openDataset(); }
+  else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); ACTIONS.saveResults(); }
+  else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); ACTIONS.undo(); }
+  else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); ACTIONS.redo(); }
+  else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") { e.preventDefault(); ACTIONS.findCompound(); }
+  else if (!typing && (e.key === "+" || e.key === "=")) { ACTIONS.zoomIn(); }
+  else if (!typing && e.key === "-") { ACTIONS.zoomOut(); }
+  else if (!typing && e.key === "ArrowDown") { e.preventDefault(); ACTIONS.nextCompound(); }
+  else if (!typing && e.key === "ArrowUp") { e.preventDefault(); ACTIONS.prevCompound(); }
+});
+
+// ── Load library ──
+async function load(url, opts) {
+  document.getElementById("st-msg").textContent = "Loading dataset…";
+  const res = await fetch(url, opts);
+  if (!res.ok) { document.getElementById("st-msg").textContent =
+    "Error: " + (await res.text()); return; }
+  LIBRARY = await res.json();
+  const s = LIBRARY.spectrometer;
+  document.getElementById("st-count").textContent = s.compound_count;
+  document.getElementById("st-freq").textContent = s.frequency_mhz;
+  document.getElementById("st-ph").textContent = s.ph.toFixed(2);
+  document.getElementById("st-backend").textContent = "engine: " + s.prediction_backend;
+  HISTORY = []; HPOS = -1;          // fresh history per dataset
+  // Domain 1: fetch the nmrglue-processed measured spectrum
+  try {
+    const sp = await fetch("/demo-spectrum");
+    if (sp.ok) setMeasured(await sp.json());
+  } catch (e) { MEASURED = null; }
+  renderTable();
+  resetView(); drawOverview();
+  // auto-select first identified compound
+  const first = LIBRARY.compounds.find(c => c.identified);
+  if (first) selectCompound(first);
+  document.getElementById("st-msg").textContent = "Ready.";
+  updateUndoRedo();
+}
+
+// search
+document.getElementById("search").addEventListener("input", e => renderTable(e.target.value));
+// upload
+document.getElementById("file-input").addEventListener("change", async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const fd = new FormData(); fd.append("nmr_results_tsv", f);
+  await load("/compounds-upload", { method: "POST", body: fd });
+});
+// redraw on resize
+window.addEventListener("resize", () => { if (LIBRARY) { drawSpectrum(); drawOverview(); } });
+
+buildMenus();
+load("/compounds");
+</script>
+</body>
+</html>

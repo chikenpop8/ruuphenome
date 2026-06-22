@@ -1,0 +1,53 @@
+{
+  "checkpoint": "/Applications/Vibing coding/Noom copy cat/backend/nmr_api/models/masked_nmr_encoder.pt",
+  "device": "mps",
+  "n_open_reference_spectra": 12,
+  "embedding_dim": 64,
+  "initial_loss": 0.0241916,
+  "final_loss": 0.0127029,
+  "loss_history": [
+    0.0241916,
+    0.0175289,
+    0.0150941,
+    0.0145941,
+    0.0166269,
+    0.0167444,
+    0.0142424,
+    0.0146507,
+    0.01426,
+    0.0146748,
+    0.0141068,
+    0.0136493,
+    0.0140131,
+    0.0147391,
+    0.0148625,
+    0.0123559,
+    0.013282,
+    0.0138326,
+    0.0129465,
+    0.0127029
+  ],
+  "self_supervised": true,
+  "labels_used_during_pretraining": false,
+  "reference_labels": [
+    "L-alanine",
+    "L-glutamine",
+    "L-histidine",
+    "L-leucine",
+    "L-phenylalanine",
+    "L-tyrosine",
+    "L-valine",
+    "citrate",
+    "glycine",
+    "creatinine",
+    "L-lactic acid",
+    "D-glucose"
+  ],
+  "retrieval_benchmark": {
+    "queries": 120,
+    "top1_accuracy": 0.975,
+    "top5_accuracy": 1.0,
+    "mean_reciprocal_rank": 0.9875,
+    "warning": "Augmented retrieval against the same open reference collection; not an external mixture-identification estimate."
+  }
+}

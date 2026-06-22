@@ -1,0 +1,29 @@
+{
+  "total_metabolites": 21,
+  "total_samples": 465,
+  "metabolites_with_smiles": 20,
+  "nmr_predictions_run": 21,
+  "domain1_peaks_annotated": 35,
+  "top_matches": [
+    {
+      "metabolite_identification": "histidine",
+      "match_score": 100.0
+    },
+    {
+      "metabolite_identification": "L-allo-Isoleucine",
+      "match_score": 100.0
+    },
+    {
+      "metabolite_identification": "Pyruvic acid",
+      "match_score": 100.0
+    },
+    {
+      "metabolite_identification": "methanol",
+      "match_score": 100.0
+    },
+    {
+      "metabolite_identification": "citrate",
+      "match_score": 100.0
+    }
+  ]
+}

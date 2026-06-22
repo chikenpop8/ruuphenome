@@ -1,0 +1,21 @@
+{
+  "dataset": "RuuPhenome curated BMRB 1D 1H reference corpus",
+  "source": "Biological Magnetic Resonance Bank metabolomics standards",
+  "data_policy": "Publicly available free of charge; preserve entry attribution and DOI.",
+  "policy_url": "https://bmrb.io/metabolomics/data_policy.shtml",
+  "selection": "Aqueous metabolites relevant to the MTBLS242 serum panel; experiment 1 is a 1D 1H spectrum.",
+  "entries": [
+    {"id": "bmse000028", "name": "L-alanine", "experiment": 1, "doi": "10.13018/BMSE000028"},
+    {"id": "bmse000038", "name": "L-glutamine", "experiment": 1, "doi": "10.13018/BMSE000038"},
+    {"id": "bmse000039", "name": "L-histidine", "experiment": 1, "doi": "10.13018/BMSE000039"},
+    {"id": "bmse000042", "name": "L-leucine", "experiment": 1, "doi": "10.13018/BMSE000042"},
+    {"id": "bmse000045", "name": "L-phenylalanine", "experiment": 1, "doi": "10.13018/BMSE000045"},
+    {"id": "bmse000051", "name": "L-tyrosine", "experiment": 1, "doi": "10.13018/BMSE000051"},
+    {"id": "bmse000052", "name": "L-valine", "experiment": 1, "doi": "10.13018/BMSE000052"},
+    {"id": "bmse000076", "name": "citrate", "experiment": 1, "doi": "10.13018/BMSE000076"},
+    {"id": "bmse000089", "name": "glycine", "experiment": 1, "doi": "10.13018/BMSE000089"},
+    {"id": "bmse000155", "name": "creatinine", "experiment": 1, "doi": "10.13018/BMSE000155"},
+    {"id": "bmse000208", "name": "L-lactic acid", "experiment": 1, "doi": "10.13018/BMSE000208"},
+    {"id": "bmse000015", "name": "D-glucose", "experiment": 1, "doi": "10.13018/BMSE000015"}
+  ]
+}

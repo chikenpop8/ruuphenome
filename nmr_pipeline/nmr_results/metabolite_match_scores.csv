@@ -1,0 +1,22 @@
+metabolite_identification,chebi_id,smiles,predicted_shifts,peaks_matched,match_score,matched_peaks,mean_abundance,cv_%
+histidine,CHEBI:27570,NC(Cc1c[nH]cn1)C(O)=O,"[3.19, 3.28, 7.08, 7.78]",5,100.0,Choline≈3.19; Histidine≈7.08; Meso-Inositol≈3.28; Guanine≈7.78; Xanthurinate≈7.78,63.73085559763444,17.4251009780639
+L-allo-Isoleucine,CHEBI:43433,CC[C@@H](C)[C@H](N)C(O)=O,"[0.93, 0.95, 1.47, 1.98, 3.68]",5,100.0,Pyroglutamate≈1.98; Alanine≈1.47; Valine≈0.93; Leucine≈0.93; Isoleucine≈0.93,48.39975560322579,27.68850183797537
+Pyruvic acid,CHEBI:32816,CC(=O)C(O)=O,[2.37],2,100.0,Succinate≈2.37; Glutamate≈2.37,99.18008064305364,55.147705825701266
+methanol,CHEBI:17790,CO,[3.36],1,100.0,Methanol≈3.36,242.39287930255912,66.73530466096693
+citrate,CHEBI:30769,OC(=O)CC(O)(CC(O)=O)C(O)=O,"[2.54, 2.67]",3,100.0,Aspartate≈2.67; Citrate≈2.54; Malate≈2.67,112.67375260637846,39.50284635460601
+acetate,CHEBI:15366,CC(O)=O,[1.92],2,100.0,4-Aminobutyrate≈1.92; Acetate≈1.92,50.99658599234409,46.12614559246522
+L-valine,CHEBI:16414,CC(C)[C@H](N)C(O)=O,"[0.94, 0.99, 2.28, 3.61]",3,75.0,Valine≈0.94; Leucine≈0.94; Isoleucine≈0.94,280.9899274694624,26.52592330744956
+D-phenylalanine,CHEBI:16998,N[C@H](Cc1ccccc1)C(O)=O,"[3.12, 3.27, 7.31, 7.35, 7.42]",3,60.0,Tryptophan≈7.31; Phenylalanine≈7.31; Meso-Inositol≈3.27,139.33307859827727,21.433702097227233
+L-leucine,CHEBI:15603,CC(C)C[C@H](N)C(O)=O,"[0.94, 0.96, 1.7, 1.72, 3.73]",3,60.0,Valine≈0.94; Leucine≈0.94; Isoleucine≈0.94,366.2940484301722,39.36092242226646
+L-Lactic acid,CHEBI:422,C[C@H](O)C(O)=O,"[1.33, 4.31]",1,50.0,Threonine≈1.33,1847.504452451612,41.051740788089504
+isopropanol,CHEBI:17824,CC(C)O,"[1.17, 4.02]",1,50.0,Ethanol≈1.17,69.00892581384733,129.47187538647373
+(R)-3-Hydroxybutyric acid,CHEBI:17066,C[C@@H](O)CC(O)=O,"[1.2, 2.3, 2.44, 4.17]",2,50.0,Succinate≈2.44; Ethanol≈1.20,26.320262780146244,196.38630484227986
+L-glutamine,CHEBI:18050,N[C@@H](CCC(N)=O)C(O)=O,"[1.88, 2.13, 2.47, 3.76]",2,50.0,4-Aminobutyrate≈1.88; Acetate≈1.88,1022.4760952582795,18.158977598875346
+L-alanine,CHEBI:16977,C[C@H](N)C(O)=O,"[1.48, 3.78]",1,50.0,Alanine≈1.48,1151.0463235705374,20.221322623951245
+L-tyrosine,CHEBI:17895,N[C@@H](Cc1ccc(O)cc1)C(O)=O,"[3.04, 3.19, 6.89, 7.18]",2,50.0,Choline≈3.19; Tyrosine≈6.89,104.50479749247327,27.315856546692974
+glycine,CHEBI:15428,NCC(O)=O,[3.55],0,0.0,,363.57546426329054,28.447464683482572
+creatinine,CHEBI:16737,CN1CC(=O)NC1=N,"[3.04, 3.77, 4.06]",0,0.0,,109.10997862027965,26.501617345232344
+lipoproteins,CHEBI:6495,,[],0,0.0,,28584.914202408596,31.511095638288495
+hypoxanthine,CHEBI:17368,O=c1[nH]cnc2nc[nH]c12,"[8.12, 8.19]",0,0.0,,5.322293414507532,81.15472191481022
+Dimethyl sulfone,CHEBI:9349,CS(C)(=O)=O,[3.14],0,0.0,,84.20658164634627,86.33643543379763
+acetoacetate,CHEBI:15344,CC(=O)CC(O)=O,"[2.28, 3.43]",0,0.0,,86.30694286056342,107.50284824965988
