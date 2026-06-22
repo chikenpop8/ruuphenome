@@ -18,6 +18,7 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
+from .biology import annotate as annotate_biology
 from .enrich import enrich
 from .pipeline import load_domain2
 from .shifts_db import predict_shifts
@@ -108,6 +109,7 @@ def build_library(tsv_bytes: bytes) -> Dict:
             "identified": bool(shifts),
             "cv_percent": _round(row.get("cv_percent")),
             "external_refs": meta.get("external_refs") or external_refs(chebi, name),
+            "biology": annotate_biology(name),   # HMDB-curated biological role/disease/pathways
         })
 
     # Identified (has fit) first, then by concentration desc, like Chenomx.

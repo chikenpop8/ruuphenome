@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse
 
 try:
     from . import (
+        biology,
         biomarker_engine,
         biomarkers,
         dimensionality,
@@ -28,6 +29,7 @@ try:
     from .models import AnalysisResponse, HealthResponse, LaboratoryQCRequest
     from .shifts_db import HMDB_KNOWN_SHIFTS, nmrtransformer_available, predict_shifts
 except ImportError:  # pragma: no cover - direct script execution fallback
+    import biology  # type: ignore
     import biomarker_engine  # type: ignore
     import biomarkers  # type: ignore
     import dimensionality  # type: ignore
@@ -512,7 +514,27 @@ def biomarkers_safe(group_a: int | None = None, group_b: int | None = None,
     )
     res["task"] = f"time-point {group_a} vs {group_b}"
     res["n_patients"] = int(len(set(patients)))
+    # Biological interpretation of the stable panel (per-metabolite + pathway enrichment)
+    res["biological_interpretation"] = biology.interpret_panel(
+        res.get("stable_panel", []),
+        background=list(Xs.columns),
+    )
     return res
+
+
+@app.get("/biology")
+def biology_interpret(metabolites: str):
+    """
+    Biological interpretation for a comma-separated list of metabolite names.
+
+    Returns HMDB-curated per-metabolite roles/disease associations plus
+    hypergeometric pathway over-representation analysis. Example:
+        /biology?metabolites=lactate,alanine,glucose,pyruvate
+    """
+    names = [m.strip() for m in metabolites.split(",") if m.strip()]
+    if not names:
+        raise HTTPException(status_code=422, detail="No metabolite names supplied.")
+    return biology.interpret_panel(names)
 
 
 @app.get("/biomarkers-model-suite")
