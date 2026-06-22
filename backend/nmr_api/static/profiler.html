@@ -863,6 +863,77 @@ const ACTIONS = {
       setMsg(`Model suite complete — recommended: ${d.recommended_model}`);
     } catch (e) { setMsg("Discovery failed: " + e); }
   },
+  // Domain 2 — biological interpretation of the discovered biomarker panel
+  biologicalInterpretation: async () => {
+    setMsg("Interpreting biomarker panel — pathways & disease associations…");
+    try {
+      const response = await fetch("/biomarkers-safe");
+      if (!response.ok) throw new Error((await response.json()).detail || response.statusText);
+      const d = await response.json();
+      const bi = d.biological_interpretation || {};
+      const enrich = bi.pathway_enrichment || [];
+      const cards = bi.metabolite_biology || [];
+
+      // Pathway enrichment table with significance bars (-log10 p).
+      const maxLp = Math.max(...enrich.map(e => -Math.log10(e.p_value || 1)), 1);
+      const enrichRows = enrich.length ? enrich.map(e => {
+        const lp = -Math.log10(e.p_value || 1);
+        const pct = Math.max(4, Math.round((lp / maxLp) * 100));
+        const sig = (e.p_value < 0.05);
+        const bar = `<div style="background:#eef0f3;border-radius:3px;height:14px;width:100%;position:relative">
+          <div style="background:${sig ? "#2e8b57" : "#b8b8b8"};height:14px;width:${pct}%;border-radius:3px"></div></div>`;
+        return `<tr>
+          <td><b>${e.pathway}</b>${sig ? ' <span style="color:#2e8b57">★</span>' : ""}</td>
+          <td>${e.p_value < 0.001 ? e.p_value.toExponential(1) : e.p_value}</td>
+          <td>${e.fold_enrichment}×</td>
+          <td>${e.overlap}/${e.pathway_size}</td>
+          <td style="width:160px">${bar}</td>
+          <td style="font-size:12px;color:#666">${e.metabolites.join(", ")}</td></tr>`;
+      }).join("") : `<tr><td colspan="6" style="color:#888">No pathway enriched at ≥2 overlapping metabolites.</td></tr>`;
+
+      // Per-metabolite biology cards (role + the "why it matters" disease line).
+      const cardHtml = cards.map(c => {
+        const b = c.biology;
+        if (!b) return `<div style="padding:8px 0;border-bottom:1px solid #eee">
+          <b>${c.metabolite}</b> <span style="color:#999">— no curated annotation</span></div>`;
+        const chips = (b.pathways || []).map(p =>
+          `<span style="background:#eef4fb;border:1px solid #cfe0f2;border-radius:10px;padding:1px 8px;font-size:11px;color:#2c5a8c;margin-right:4px">${p}</span>`).join("");
+        return `<div style="padding:10px 0;border-bottom:1px solid #eee">
+          <b>${c.metabolite}</b>
+          <div style="color:#444;margin:3px 0">${b.role}</div>
+          <div style="color:#a24b35;margin:3px 0"><b>Clinical:</b> ${b.disease_associations}</div>
+          <div style="margin-top:5px">${chips}</div></div>`;
+      }).join("");
+
+      const headline = bi.top_pathway
+        ? `<div style="background:#f0f7f2;border-left:4px solid #2e8b57;padding:12px 14px;margin-bottom:14px;border-radius:0 6px 6px 0">
+            🧬 <b>Biological story:</b> the discovered biomarkers concentrate in
+            <b>${bi.top_pathway}</b>${enrich[0] && enrich[0].p_value < 0.05
+              ? ` (p = ${enrich[0].p_value < 0.001 ? enrich[0].p_value.toExponential(1) : enrich[0].p_value}, over-represented)` : ""}.</div>`
+        : "";
+
+      openModal("Domain 2 — biological interpretation", `
+        ${headline}
+        <table>
+          <tr><td>Task</td><td><b>${d.task}</b></td></tr>
+          <tr><td>Biomarker panel</td><td>${(d.stable_panel || []).join(", ") || "—"}</td></tr>
+          <tr><td>Annotated</td><td>${bi.coverage ? `${bi.coverage.annotated}/${bi.coverage.total} metabolites` : "—"}</td></tr>
+        </table>
+        <p style="margin-top:16px;font-weight:600">Pathway over-representation (hypergeometric test)</p>
+        <table>
+          <tr><td style="font-weight:600">Pathway</td><td style="font-weight:600">p-value</td>
+          <td style="font-weight:600">Fold</td><td style="font-weight:600">Overlap</td>
+          <td style="font-weight:600">Significance</td><td style="font-weight:600">Metabolites</td></tr>
+          ${enrichRows}
+        </table>
+        <p style="font-size:12px;color:#888;margin-top:6px">★ = significant at p &lt; 0.05. Same over-representation method as MetaboAnalyst.</p>
+        <p style="margin-top:16px;font-weight:600">Per-metabolite biology <span style="font-weight:400;color:#888;font-size:12px">(HMDB 5.0 curated)</span></p>
+        ${cardHtml}`);
+      setMsg(bi.top_pathway
+        ? `Biological interpretation complete — top pathway: ${bi.top_pathway}`
+        : "Biological interpretation complete.");
+    } catch (e) { setMsg("Interpretation failed: " + e); }
+  },
   dimensionalityAnalysis: async () => {
     setMsg("Computing PCA and UMAP projections…");
     try {
@@ -1031,6 +1102,7 @@ const MENUS = [
     ["Evaluate current spectrum for lab release…", "evaluateCurrentQc"],
     ["sep"],
     ["Biomarker discovery (Domain 2)…", "biomarkerDiscovery"],
+    ["Biological interpretation & pathways (Domain 2)…", "biologicalInterpretation"],
     ["PCA / UMAP visualization (Domain 2)…", "dimensionalityAnalysis"],
     ["Process Bruker FID (Domain 1)…", "processFid"],
     ["Analyze processed spectrum (CSV/TSV)…", "processSpectrum"],
