@@ -7,6 +7,12 @@ from pathlib import Path
 if not os.environ.get("LOKY_MAX_CPU_COUNT"):
     os.environ["LOKY_MAX_CPU_COUNT"] = "1"
 
+# macOS: XGBoost and scikit-learn each ship their own OpenMP runtime. When
+# XGBoost runs inside the server's worker thread, the duplicate libomp load
+# hard-crashes (segfault) the process. Allow the duplicate load. Must be set
+# before numpy/sklearn/xgboost import below. Harmless on Linux.
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
