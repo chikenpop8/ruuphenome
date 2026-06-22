@@ -23,14 +23,19 @@ if [ "$(uname)" = "Darwin" ] && ! python -c "import xgboost" >/dev/null 2>&1; th
   fi
 fi
 
+# HOST: 127.0.0.1 locally (default), 0.0.0.0 on the VM so judges can reach it.
+# Override: NMR_HOST=0.0.0.0 bash run.sh
+HOST="${NMR_HOST:-127.0.0.1}"
+PORT="${NMR_PORT:-8100}"
+
 echo ""
-echo "Starting NMR API on http://127.0.0.1:8100"
-echo "Interactive docs:  http://127.0.0.1:8100/docs"
+echo "Starting NMR API on http://${HOST}:${PORT}"
+echo "Interactive docs:  http://${HOST}:${PORT}/docs"
 echo ""
 
-# Activate the local SSL-encoder NMRformer adapter (hybrid assignment mode).
+# Activate the real NMRformer transformer adapter (hybrid assignment mode).
 export NMRFORMER_ADAPTER_MODULE=nmr_api.nmrformer_adapter
 
 # Run from backend/ so the 'nmr_api' package imports resolve.
 cd ..
-exec python -m uvicorn nmr_api.main:app --reload --host 127.0.0.1 --port 8100
+exec python -m uvicorn nmr_api.main:app --reload --host "${HOST}" --port "${PORT}"

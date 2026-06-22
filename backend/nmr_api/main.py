@@ -50,7 +50,7 @@ STATIC_DIR = APP_DIR / "static"
 DEFAULT_TSV = Path(
     os.environ.get(
         "NMR_DEFAULT_TSV",
-        "/Users/bigray/Downloads/Domain_2_NMR_results_MTBLS242 (2).tsv",
+        str(APP_DIR / "open_data" / "demo_mtbls242.tsv"),
     )
 )
 
