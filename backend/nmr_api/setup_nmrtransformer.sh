@@ -6,23 +6,30 @@ set -e
 cd "$(dirname "$0")"
 
 if [ ! -d ".venv" ]; then
+  echo "Creating virtual environment..."
   python3 -m venv .venv
 fi
-source .venv/bin/activate
-pip install -q --upgrade pip
+
+PIP=".venv/bin/pip"
+PYTHON=".venv/bin/python"
+
+$PIP install -q --upgrade pip
+
+echo "Installing project requirements..."
+$PIP install -q -r requirements.txt
 
 echo "Installing RDKit..."
-pip install -q rdkit
+$PIP install -q rdkit
 
 # Do NOT reinstall torch — use the existing MPS/GPU build already in the venv.
-python -c "import torch; print('  torch ok:', torch.__version__)" 2>/dev/null \
-  || { echo "Installing PyTorch..."; pip install -q torch; }
+$PYTHON -c "import torch; print('  torch ok:', torch.__version__)" 2>/dev/null \
+  || { echo "Installing PyTorch..."; $PIP install -q torch; }
 
 echo "Cloning + installing NMRTransformer..."
 if [ ! -d "NMRTransformer" ]; then
   git clone --depth 1 https://github.com/liningtonlab/NMRTransformer.git
 fi
-pip install -q -e NMRTransformer
+$PIP install -q -e NMRTransformer
 
 echo ""
 echo "✓ NMRTransformer installed. /analyze will now report backend=NMRTransformer."
