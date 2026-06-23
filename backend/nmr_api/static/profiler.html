@@ -1029,6 +1029,43 @@ const ACTIONS = {
         <p style="margin-top:10px;color:#666;font-size:12px">Active: <b id="active-ds">${DATASET}</b></p>`);
     } catch (e) { setMsg("Could not list datasets: " + e); }
   },
+  // Track 1 — full automated pipeline: binned spectra → annotate → biomarkers → biology
+  spectralPipeline: async () => {
+    progress.start("Running Track 1 → Track 2 automated pipeline…");
+    try {
+      const r = await fetch("/spectral/demo-pipeline");
+      if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+      const d = await r.json();
+      const a = d.annotation, bm = d.biomarkers || {}, bi = bm.biological_interpretation || {};
+      const topMets = (a.metabolites || []).slice(0, 10).map(m =>
+        `<tr><td><b>${m.metabolite}</b></td><td>${(m.coverage*100).toFixed(0)}%</td>
+         <td>${m.matched_count}/${m.expected_shifts}</td>
+         <td style="font-size:11px;color:#666">${m.matched_shifts.join(", ")} ppm</td></tr>`).join("");
+      const enrich = (bi.pathway_enrichment || []).slice(0,3).map(e =>
+        `<tr><td><b>${e.pathway}</b>${e.significant?' <span style="color:#2e8b57">★</span>':''}</td>
+         <td>${e.p_value<0.001?e.p_value.toExponential(1):e.p_value}</td>
+         <td>${e.fold_enrichment}×</td><td style="font-size:11px;color:#666">${e.metabolites.join(", ")}</td></tr>`).join("");
+      openModal("Track 1 → Track 2 — automated pipeline", `
+        <div class="bio-headline">
+          🔬 <b>One automated pipeline:</b> binned spectra → annotation → biomarkers → biology.
+          ${d.note ? `<div style="color:#9a6a1c;font-size:12px;margin-top:5px">${d.note}</div>`:''}
+        </div>
+        <table>
+          <tr><td>Pipeline</td><td><b>load → PQN normalize → annotate bins → discover → interpret</b></td></tr>
+          <tr><td>Cohort</td><td>${a.n_samples} samples × ${a.n_bins} ppm-bins (${a.ppm_range[0]}–${a.ppm_range[1]} ppm)</td></tr>
+          <tr><td>Annotated</td><td>${a.n_metabolites_annotated} metabolites (of ${a.reference_library_size} reference fingerprints)</td></tr>
+          <tr><td>Biomarker AUC</td><td><b>${bm.honest_roc_auc ?? "—"}</b> (leakage-safe, patient-grouped CV)</td></tr>
+          <tr><td>Stable panel</td><td>${(bm.stable_panel||[]).join(", ") || "—"}</td></tr>
+        </table>
+        <div class="bio-section-title">Step 3 — Annotation (bins → metabolites) <span class="sub">targeted reference-shift matching</span></div>
+        <table><tr><td style="font-weight:600">Metabolite</td><td style="font-weight:600">Coverage</td>
+          <td style="font-weight:600">Shifts</td><td style="font-weight:600">Matched ppm</td></tr>${topMets}</table>
+        <div class="bio-section-title">Step 5 — Pathway enrichment <span class="sub">on the discovered panel</span></div>
+        <table><tr><td style="font-weight:600">Pathway</td><td style="font-weight:600">p-value</td>
+          <td style="font-weight:600">Fold</td><td style="font-weight:600">Metabolites</td></tr>${enrich || '<tr><td colspan="4" style="color:#888">—</td></tr>'}</table>`);
+      progress.done(`Pipeline complete — ${a.n_metabolites_annotated} metabolites, AUC ${bm.honest_roc_auc ?? "—"}, top pathway: ${bi.top_pathway || "—"}`);
+    } catch (e) { progress.done("Pipeline failed: " + e); }
+  },
   // Demo helper: interpret a hand-picked diabetes-like panel (strong example)
   biologyExample: async () => {
     progress.start("Interpreting example diabetes-signature panel…");
@@ -1241,6 +1278,8 @@ const MENUS = [
   ["Tools", [
     ["Real laboratory workflow…", "laboratoryWorkflow"],
     ["Evaluate current spectrum for lab release…", "evaluateCurrentQc"],
+    ["sep"],
+    ["Track 1 → 2 automated pipeline (binned spectra)…", "spectralPipeline"],
     ["sep"],
     ["Select Domain 2 dataset…", "selectDataset"],
     ["Biomarker discovery (Domain 2)…", "biomarkerDiscovery"],

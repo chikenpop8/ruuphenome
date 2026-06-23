@@ -31,6 +31,7 @@ try:
         pipeline,
         self_supervised,
         signal_processing,
+        spectral_cohort,
     )
     from .models import AnalysisResponse, HealthResponse, LaboratoryQCRequest
     from .shifts_db import HMDB_KNOWN_SHIFTS, nmrtransformer_available, predict_shifts
@@ -47,6 +48,7 @@ except ImportError:  # pragma: no cover - direct script execution fallback
     import pipeline  # type: ignore
     import self_supervised  # type: ignore
     import signal_processing  # type: ignore
+    import spectral_cohort  # type: ignore
     from models import AnalysisResponse, HealthResponse, LaboratoryQCRequest  # type: ignore
     from shifts_db import HMDB_KNOWN_SHIFTS, nmrtransformer_available, predict_shifts  # type: ignore
 
@@ -593,6 +595,138 @@ def biomarkers_safe(group_a: int | None = None, group_b: int | None = None,
         background=list(Xs.columns),
     )
     return res
+
+
+# ── Track 1: binned-spectra cohort pipeline (annotate → visualize → bridge) ──
+def _run_cohort_pipeline(X, bin_ppm, label_map=None, normalize="pqn",
+                         include_biomarkers=True):
+    """Shared engine: binned matrix → normalize → annotate → (optional) Track 2."""
+    import numpy as np
+    Xn = (spectral_cohort.pqn_normalize(X) if normalize == "pqn"
+          else spectral_cohort.total_area_normalize(X) if normalize == "total_area"
+          else X)
+    ann = spectral_cohort.annotate(Xn, bin_ppm)
+    M = ann.pop("annotated_matrix")
+    out = {
+        "annotation": ann,
+        "visualization": spectral_cohort.overlay_traces(Xn),
+        "normalization": normalize,
+        "sample_metabolite_shape": list(M.shape),
+    }
+    if include_biomarkers and label_map and not M.empty:
+        rows = [s for s in M.index if str(s) in label_map]
+        if len(set(label_map[str(s)] for s in rows)) >= 2 and len(rows) >= 8:
+            sub = M.loc[rows]
+            y = np.array([label_map[str(s)] for s in rows])
+            groups = np.array([str(s) for s in rows])
+            disc = biomarker_engine.discover(
+                sub.values, y, k=8, repeats=3,
+                feature_names=list(sub.columns), groups=groups)
+            disc["biological_interpretation"] = biology.interpret_panel(
+                disc.get("stable_panel", []), background=list(sub.columns))
+            out["biomarkers"] = disc
+    return out
+
+
+@app.get("/spectral/demo-pipeline")
+def spectral_demo_pipeline():
+    """
+    Self-contained Track-1 → Track-2 demo: simulate a binned ¹H cohort, annotate
+    bins → metabolites, then run biomarker discovery + biological interpretation.
+    Shows the full automated pipeline without any upload.
+    """
+    X, bin_ppm, labels = spectral_cohort.make_demo_binned()
+    result = _run_cohort_pipeline(X, bin_ppm, label_map=labels, normalize="pqn")
+    result["task"] = "demo: simulated case vs control (BCAA signal planted)"
+    result["note"] = "Synthetic cohort for pipeline demonstration, not real data."
+    return result
+
+
+@app.post("/spectral/annotate")
+async def spectral_annotate(
+    binned_matrix: UploadFile = File(...),
+    normalize: str = Form(default="pqn"),
+):
+    """
+    Upload a binned NMR matrix (sample × ppm-bin). Returns metabolite annotation
+    (bins → metabolites), multi-sample overlay traces, and the sample × metabolite
+    table that feeds Track 2.
+    """
+    raw = await binned_matrix.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    try:
+        X, bin_ppm = spectral_cohort.load_binned_matrix(raw)
+        return _run_cohort_pipeline(X, bin_ppm, normalize=normalize,
+                                    include_biomarkers=False)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Annotation failed: {exc}")
+
+
+@app.post("/spectral/pipeline")
+async def spectral_pipeline(
+    binned_matrix: UploadFile = File(...),
+    metadata: UploadFile = File(...),
+    normalize: str = Form(default="pqn"),
+    label_column: str | None = Form(default=None),
+):
+    """
+    Full automated pipeline: binned matrix + metadata (Table 2) → annotate →
+    derive labels → biomarker discovery → biological interpretation.
+    """
+    raw = await binned_matrix.read()
+    meta_raw = await metadata.read()
+    if not raw or not meta_raw:
+        raise HTTPException(status_code=400, detail="Both files are required.")
+    try:
+        X, bin_ppm = spectral_cohort.load_binned_matrix(raw)
+        meta = spectral_cohort.parse_metadata(meta_raw)
+        label_map, info = spectral_cohort.derive_labels(
+            meta, [str(s) for s in X.index], label_column=label_column)
+        result = _run_cohort_pipeline(X, bin_ppm, label_map=label_map,
+                                      normalize=normalize)
+        result["label_info"] = info
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Pipeline failed: {exc}")
+
+
+@app.post("/track2/discover-with-metadata")
+async def track2_with_metadata(
+    metabolite_table: UploadFile = File(...),
+    metadata: UploadFile = File(...),
+    label_column: str | None = Form(default=None),
+):
+    """
+    Track 2 on a processed table + separate metadata file. Joins Table 1
+    (metabolite × sample) to Table 2 (metadata) on sample ID, derives the binary
+    task, and runs leakage-safe discovery + biology.
+    """
+    import numpy as np
+    raw = await metabolite_table.read()
+    meta_raw = await metadata.read()
+    if not raw or not meta_raw:
+        raise HTTPException(status_code=400, detail="Both files are required.")
+    try:
+        X, _names, _g = biomarkers.build_matrix(raw)     # samples × metabolites
+        meta = spectral_cohort.parse_metadata(meta_raw)
+        label_map, info = spectral_cohort.derive_labels(
+            meta, [str(s) for s in X.index], label_column=label_column)
+        rows = [s for s in X.index if str(s) in label_map]
+        if len(set(label_map[str(s)] for s in rows)) < 2:
+            raise ValueError("Need two classes among matched samples.")
+        sub = X.loc[rows].dropna(axis=1, how="all")
+        y = np.array([label_map[str(s)] for s in rows])
+        groups = np.array([str(s) for s in rows])
+        disc = biomarker_engine.discover(
+            sub.values, y, k=8, repeats=3,
+            feature_names=list(sub.columns), groups=groups)
+        disc["label_info"] = info
+        disc["biological_interpretation"] = biology.interpret_panel(
+            disc.get("stable_panel", []), background=list(sub.columns))
+        return disc
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Discovery failed: {exc}")
 
 
 @app.get("/biology")
