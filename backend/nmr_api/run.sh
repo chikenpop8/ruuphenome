@@ -4,6 +4,11 @@
 set -e
 cd "$(dirname "$0")"
 
+# macOS: prevent the XGBoost/scikit-learn duplicate-OpenMP crash. Exported in the
+# shell so it is guaranteed set before Python loads any native library. Harmless
+# on Linux (the VM).
+export KMP_DUPLICATE_LIB_OK=TRUE
+
 if [ ! -d ".venv" ]; then
   echo "Creating virtual environment..."
   python3 -m venv .venv
