@@ -153,6 +153,30 @@ METABOLITE_BIOLOGY: Dict[str, Dict] = {
         "pathways": ["Valine, leucine and isoleucine degradation", "BCAA metabolism"],
         "category": "Amino acid — BCAA", "direction": "up",
     },
+    "2-oxoisovalerate": {
+        "role": "Branched-chain keto-acid from valine transamination (BCKA).",
+        "disease_associations": "↑ with BCAA catabolism defects and insulin resistance.",
+        "pathways": ["Valine, leucine and isoleucine degradation", "BCAA metabolism"],
+        "category": "Amino acid — BCAA", "direction": "up",
+    },
+    "2-oxoisocaproate": {
+        "role": "Branched-chain keto-acid from leucine transamination (BCKA).",
+        "disease_associations": "↑ with impaired BCAA catabolism and insulin resistance.",
+        "pathways": ["Valine, leucine and isoleucine degradation", "BCAA metabolism"],
+        "category": "Amino acid — BCAA", "direction": "up",
+    },
+    "2-oxo-3-methylvalerate": {
+        "role": "Branched-chain keto-acid from isoleucine transamination (BCKA).",
+        "disease_associations": "↑ with impaired BCAA catabolism and insulin resistance.",
+        "pathways": ["Valine, leucine and isoleucine degradation", "BCAA metabolism"],
+        "category": "Amino acid — BCAA", "direction": "up",
+    },
+    "2-hydroxybutyrate": {
+        "role": "Organic acid from glutathione synthesis and lipid oxidation under metabolic stress.",
+        "disease_associations": "↑ is an early marker of insulin resistance and impaired glucose tolerance.",
+        "pathways": ["Cysteine and methionine metabolism", "Propanoate metabolism"],
+        "category": "Energy / glycolysis", "direction": "up",
+    },
     # ── Amino acids — aromatic ───────────────────────────────────────────
     "phenylalanine": {
         "role": "Essential aromatic amino acid; precursor of tyrosine and catecholamines.",

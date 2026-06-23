@@ -62,6 +62,33 @@ DEFAULT_TSV = Path(
     )
 )
 
+# Bundled real-disease dataset: MTBLS1 (human urine NMR, type-2 diabetes vs
+# control). Labels come from the study sample sheet, not the sample IDs.
+MTBLS1_TSV = APP_DIR / "open_data" / "demo_mtbls1.tsv"
+MTBLS1_LABELS = APP_DIR / "open_data" / "demo_mtbls1_labels.json"
+
+# Registry of selectable demo datasets for the UI switcher.
+DATASETS = {
+    "mtbls242": {
+        "label": "MTBLS242 — gastric-bypass time series (time-point 0 vs 4)",
+        "kind": "longitudinal",
+        "tsv": DEFAULT_TSV,
+    },
+    "mtbls1": {
+        "label": "MTBLS1 — type-2 diabetes vs control (urine NMR)",
+        "kind": "labeled",
+        "tsv": MTBLS1_TSV,
+        "labels": MTBLS1_LABELS,
+        "task": "diabetes vs control",
+        "class_names": {0: "control", 1: "diabetes"},
+    },
+}
+
+
+def _load_label_map() -> dict:
+    """Sample-name → 0/1 disease label for the MTBLS1 dataset."""
+    return {k: int(v) for k, v in json.loads(MTBLS1_LABELS.read_text()).items()}
+
 app = FastAPI(
     title="RuuPhenome NMR API",
     version="0.1.0",
@@ -463,6 +490,24 @@ def _biomarker_task(raw: bytes, group_a: int | None, group_b: int | None):
     return matrix, y, patients, group_a, group_b
 
 
+def _labeled_biomarker_task(raw: bytes, label_map: dict):
+    """
+    Build a binary task from an explicit sample→label map (cross-sectional
+    disease-vs-control study, e.g. MTBLS1). Each sample is its own group, so
+    grouped CV reduces to stratified CV (no repeated-patient leakage to control).
+    """
+    import numpy as np
+
+    X, _names, _groups = biomarkers.build_matrix(raw)
+    rows = [s for s in X.index if s in label_map]
+    if len(set(label_map[s] for s in rows)) < 2:
+        raise ValueError("Need both classes present in the labeled samples.")
+    matrix = X.loc[rows].dropna(axis=1, how="all")
+    y = np.array([label_map[s] for s in rows])
+    patients = np.array(rows)            # one sample = one patient
+    return matrix, y, patients
+
+
 def _dimensionality_task(
     raw: bytes,
     group_a: int | None,
@@ -497,19 +542,40 @@ def _dimensionality_task(
     return result
 
 
+@app.get("/datasets")
+def list_datasets():
+    """Selectable bundled demo datasets for the UI switcher."""
+    return {
+        "datasets": [
+            {"id": k, "label": v["label"], "kind": v["kind"],
+             "available": Path(v["tsv"]).exists()}
+            for k, v in DATASETS.items()
+        ]
+    }
+
+
 @app.get("/biomarkers-safe")
 def biomarkers_safe(group_a: int | None = None, group_b: int | None = None,
-                    k: int = 8, repeats: int = 3):
+                    k: int = 8, repeats: int = 3, dataset: str = "mtbls242"):
     """
     Leakage-safe biomarker discovery (fold-internal selection + FDR + nested CV
     + Top-k stability). Reports honest AUC/F1, the leaky AUC for comparison, and
-    the stable panel. This is the rubric-compliant engine.
+    the stable panel. `dataset=mtbls1` runs the real diabetes-vs-control study.
     """
-    if not DEFAULT_TSV.exists():
-        raise HTTPException(status_code=404, detail="Default dataset not found.")
-    Xs, y, patients, group_a, group_b = _biomarker_task(
-        DEFAULT_TSV.read_bytes(), group_a, group_b
-    )
+    if dataset == "mtbls1":
+        if not MTBLS1_TSV.exists():
+            raise HTTPException(status_code=404, detail="MTBLS1 dataset not bundled.")
+        Xs, y, patients = _labeled_biomarker_task(
+            MTBLS1_TSV.read_bytes(), _load_label_map()
+        )
+        task = DATASETS["mtbls1"]["task"]
+    else:
+        if not DEFAULT_TSV.exists():
+            raise HTTPException(status_code=404, detail="Default dataset not found.")
+        Xs, y, patients, group_a, group_b = _biomarker_task(
+            DEFAULT_TSV.read_bytes(), group_a, group_b
+        )
+        task = f"time-point {group_a} vs {group_b}"
     res = biomarker_engine.discover(
         Xs.values,
         y,
@@ -518,7 +584,8 @@ def biomarkers_safe(group_a: int | None = None, group_b: int | None = None,
         feature_names=list(Xs.columns),
         groups=patients,
     )
-    res["task"] = f"time-point {group_a} vs {group_b}"
+    res["task"] = task
+    res["dataset"] = dataset
     res["n_patients"] = int(len(set(patients)))
     # Biological interpretation of the stable panel (per-metabolite + pathway enrichment)
     res["biological_interpretation"] = biology.interpret_panel(
@@ -549,17 +616,30 @@ def biomarkers_model_suite(
     group_b: int | None = None,
     k: int = 8,
     repeats: int = 2,
+    dataset: str = "mtbls242",
 ):
     """
     Nested patient-grouped comparison of elastic-net logistic regression,
     linear SVM, histogram gradient boosting and XGBoost (when installed).
+    `dataset=mtbls1` runs the real diabetes-vs-control study.
     """
-    if not DEFAULT_TSV.exists():
-        raise HTTPException(status_code=404, detail="Default dataset not found.")
     try:
-        Xs, y, patients, group_a, group_b = _biomarker_task(
-            DEFAULT_TSV.read_bytes(), group_a, group_b
-        )
+        if dataset == "mtbls1":
+            if not MTBLS1_TSV.exists():
+                raise HTTPException(status_code=404, detail="MTBLS1 dataset not bundled.")
+            Xs, y, patients = _labeled_biomarker_task(
+                MTBLS1_TSV.read_bytes(), _load_label_map()
+            )
+            task = DATASETS["mtbls1"]["task"]
+            warning = "Cross-sectional diabetes-vs-control study (real disease labels)."
+        else:
+            if not DEFAULT_TSV.exists():
+                raise HTTPException(status_code=404, detail="Default dataset not found.")
+            Xs, y, patients, group_a, group_b = _biomarker_task(
+                DEFAULT_TSV.read_bytes(), group_a, group_b
+            )
+            task = f"time-point {group_a} vs {group_b}"
+            warning = "This dataset measures longitudinal surgery time points, not disease vs control."
         result = model_suite.compare_models(
             Xs.values,
             y,
@@ -568,11 +648,12 @@ def biomarkers_model_suite(
             repeats=repeats,
             feature_names=list(Xs.columns),
         )
-        result["task"] = f"time-point {group_a} vs {group_b}"
-        result["outcome_warning"] = (
-            "This dataset measures longitudinal surgery time points, not disease vs control."
-        )
+        result["task"] = task
+        result["dataset"] = dataset
+        result["outcome_warning"] = warning
         return result
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Model comparison failed: {exc}")
 
@@ -612,11 +693,30 @@ def biomarkers_projection(
     include_umap: bool = True,
     n_neighbors: int = 15,
     min_dist: float = 0.1,
+    dataset: str = "mtbls242",
 ):
     """Return exploratory PCA scores/loadings and optional UMAP coordinates."""
-    if not DEFAULT_TSV.exists():
-        raise HTTPException(status_code=404, detail="Default dataset not found.")
     try:
+        if dataset == "mtbls1":
+            if not MTBLS1_TSV.exists():
+                raise HTTPException(status_code=404, detail="MTBLS1 dataset not bundled.")
+            Xs, y, patients = _labeled_biomarker_task(
+                MTBLS1_TSV.read_bytes(), _load_label_map()
+            )
+            names = DATASETS["mtbls1"]["class_names"]
+            labels = [names[int(v)] for v in y]
+            result = dimensionality.project(
+                Xs.values, labels,
+                sample_names=list(Xs.index), patient_ids=patients,
+                feature_names=list(Xs.columns),
+                include_umap=include_umap, n_neighbors=n_neighbors, min_dist=min_dist,
+            )
+            result["task"] = DATASETS["mtbls1"]["task"]
+            result["dataset"] = dataset
+            result["outcome_warning"] = "Real diabetes-vs-control labels; PCA/UMAP remain exploratory."
+            return result
+        if not DEFAULT_TSV.exists():
+            raise HTTPException(status_code=404, detail="Default dataset not found.")
         return _dimensionality_task(
             DEFAULT_TSV.read_bytes(),
             group_a,
@@ -625,6 +725,8 @@ def biomarkers_projection(
             n_neighbors=n_neighbors,
             min_dist=min_dist,
         )
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Projection failed: {exc}")
 

@@ -354,6 +354,7 @@ let LIBRARY = null;
 let SELECTED = null;
 let SHOW_IDENTIFIED_ONLY = false;
 let MEASURED = null;                     // Domain 1 processed spectrum + QC/assignments
+let DATASET = "mtbls242";                // active Domain 2 dataset for biomarker/biology/PCA
 let VIEW = { min: 0.5, max: 9.0 };       // ppm window for the main plot
 const FULL = { min: 0.5, max: 9.0 };
 const PPM_HALFWIDTH = 0.006;             // Lorentzian half-width (ppm)
@@ -698,6 +699,17 @@ function openModal(title, html) {
   document.getElementById("modal-bg").classList.add("open");
 }
 function closeModal() { document.getElementById("modal-bg").classList.remove("open"); }
+// Activate a dataset chosen from the dataset-picker modal.
+window.__pickDataset = (id) => {
+  DATASET = id;
+  const a = document.getElementById("active-ds"); if (a) a.textContent = id;
+  document.querySelectorAll("#modal-body tr").forEach(tr => {
+    const idCell = tr.querySelector("td:nth-child(2) b");
+    if (idCell) tr.querySelector("td:first-child").textContent =
+      (idCell.textContent === id ? "✅" : "○");
+  });
+  setMsg(`Active dataset: ${id} — run Biomarker discovery / Biological interpretation to analyse it.`);
+};
 // Render the animated biological-interpretation panel (shared by real + example).
 function renderBiology(title, bi, task, panel) {
   const fmtP = p => (p < 0.001 ? p.toExponential(1) : p);
@@ -952,7 +964,7 @@ const ACTIONS = {
   biomarkerDiscovery: async () => {
     progress.start("Comparing leakage-safe biomarker models (nested CV)…");
     try {
-      const response = await fetch("/biomarkers-model-suite");
+      const response = await fetch("/biomarkers-model-suite?dataset=" + DATASET);
       if (!response.ok) throw new Error((await response.json()).detail || response.statusText);
       const d = await response.json();
       const rows = d.models.map(m => `
@@ -988,7 +1000,7 @@ const ACTIONS = {
   biologicalInterpretation: async () => {
     progress.start("Discovering biomarkers & interpreting biology…");
     try {
-      const response = await fetch("/biomarkers-safe");
+      const response = await fetch("/biomarkers-safe?dataset=" + DATASET);
       if (!response.ok) throw new Error((await response.json()).detail || response.statusText);
       const d = await response.json();
       renderBiology("Domain 2 — biological interpretation",
@@ -998,6 +1010,24 @@ const ACTIONS = {
         ? `Biological interpretation complete — top pathway: ${bi.top_pathway}`
         : "Biological interpretation complete.");
     } catch (e) { progress.done("Interpretation failed: " + e); }
+  },
+  // Switch the active Domain 2 dataset (affects biomarker / biology / PCA)
+  selectDataset: async () => {
+    try {
+      const d = await (await fetch("/datasets")).json();
+      const rows = d.datasets.map(ds => `
+        <tr style="cursor:pointer" onclick="window.__pickDataset('${ds.id}')">
+          <td>${ds.id === DATASET ? "✅" : "○"}</td>
+          <td><b>${ds.id}</b></td>
+          <td>${ds.label}</td>
+          <td>${ds.available ? "" : '<span style="color:#b0413e">missing</span>'}</td></tr>`).join("");
+      openModal("Select Domain 2 dataset", `
+        <p>Choose the cohort used by biomarker discovery, biological interpretation
+        and PCA/UMAP. Click a row to activate it.</p>
+        <table><tr><td></td><td style="font-weight:600">ID</td>
+          <td style="font-weight:600">Dataset</td><td></td></tr>${rows}</table>
+        <p style="margin-top:10px;color:#666;font-size:12px">Active: <b id="active-ds">${DATASET}</b></p>`);
+    } catch (e) { setMsg("Could not list datasets: " + e); }
   },
   // Demo helper: interpret a hand-picked diabetes-like panel (strong example)
   biologyExample: async () => {
@@ -1015,7 +1045,7 @@ const ACTIONS = {
   dimensionalityAnalysis: async () => {
     progress.start("Computing PCA and UMAP projections…");
     try {
-      const response = await fetch("/biomarkers-projection");
+      const response = await fetch("/biomarkers-projection?dataset=" + DATASET);
       if (!response.ok) throw new Error((await response.json()).detail || response.statusText);
       const d = await response.json();
       const pc1 = d.pca.top_loadings.PC1.map(x =>
@@ -1212,6 +1242,7 @@ const MENUS = [
     ["Real laboratory workflow…", "laboratoryWorkflow"],
     ["Evaluate current spectrum for lab release…", "evaluateCurrentQc"],
     ["sep"],
+    ["Select Domain 2 dataset…", "selectDataset"],
     ["Biomarker discovery (Domain 2)…", "biomarkerDiscovery"],
     ["Biological interpretation & pathways (Domain 2)…", "biologicalInterpretation"],
     ["Example: diabetes metabolic signature…", "biologyExample"],
