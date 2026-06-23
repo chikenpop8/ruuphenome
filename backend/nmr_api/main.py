@@ -64,32 +64,62 @@ DEFAULT_TSV = Path(
     )
 )
 
-# Bundled real-disease dataset: MTBLS1 (human urine NMR, type-2 diabetes vs
-# control). Labels come from the study sample sheet, not the sample IDs.
-MTBLS1_TSV = APP_DIR / "open_data" / "demo_mtbls1.tsv"
-MTBLS1_LABELS = APP_DIR / "open_data" / "demo_mtbls1_labels.json"
+_OPEN = APP_DIR / "open_data"
+MTBLS1_TSV = _OPEN / "demo_mtbls1.tsv"
+MTBLS1_LABELS = _OPEN / "demo_mtbls1_labels.json"
 
-# Registry of selectable demo datasets for the UI switcher.
+# Registry of bundled, ready-to-run demo datasets (all public MetaboLights NMR).
+# Adding a dataset = drop in its files + one entry here; endpoints + UI adapt.
 DATASETS = {
     "mtbls242": {
         "label": "MTBLS242 — gastric-bypass time series (time-point 0 vs 4)",
         "kind": "longitudinal",
         "tsv": DEFAULT_TSV,
+        "source": "MetaboLights MTBLS242 (¹H NMR, serum)",
     },
     "mtbls1": {
         "label": "MTBLS1 — type-2 diabetes vs control (urine NMR)",
         "kind": "labeled",
         "tsv": MTBLS1_TSV,
-        "labels": MTBLS1_LABELS,
+        "labels": _OPEN / "demo_mtbls1_labels.json",
         "task": "diabetes vs control",
         "class_names": {0: "control", 1: "diabetes"},
+        "source": "MetaboLights MTBLS1 (¹H NMR, urine)",
+    },
+    "mtbls424": {
+        "label": "MTBLS424 — breast-cancer relapse vs no-relapse (serum NMR)",
+        "kind": "labeled",
+        "tsv": _OPEN / "demo_mtbls424.tsv",
+        "labels": _OPEN / "demo_mtbls424_labels.json",
+        "task": "breast-cancer relapse vs no-relapse",
+        "class_names": {0: "no-relapse", 1: "relapse"},
+        "source": "MetaboLights MTBLS424 (¹H NMR, serum)",
     },
 }
 
 
-def _load_label_map() -> dict:
-    """Sample-name → 0/1 disease label for the MTBLS1 dataset."""
-    return {k: int(v) for k, v in json.loads(MTBLS1_LABELS.read_text()).items()}
+def _load_label_map(path=MTBLS1_LABELS) -> dict:
+    """Sample-name → 0/1 label map from a bundled labels JSON."""
+    return {k: int(v) for k, v in json.loads(Path(path).read_text()).items()}
+
+
+def _load_dataset_task(dataset: str, group_a=None, group_b=None):
+    """
+    Generic loader → (Xs [samples×metabolites], y, patients, task_label).
+    Handles both 'longitudinal' (time-point) and 'labeled' (disease) datasets.
+    """
+    cfg = DATASETS.get(dataset)
+    if cfg is None:
+        raise HTTPException(status_code=404, detail=f"Unknown dataset '{dataset}'.")
+    tsv = Path(cfg["tsv"])
+    if not tsv.exists():
+        raise HTTPException(status_code=404, detail=f"Dataset '{dataset}' not bundled.")
+    if cfg["kind"] == "labeled":
+        Xs, y, patients = _labeled_biomarker_task(
+            tsv.read_bytes(), _load_label_map(cfg["labels"]))
+        return Xs, y, patients, cfg["task"]
+    Xs, y, patients, ga, gb = _biomarker_task(tsv.read_bytes(), group_a, group_b)
+    return Xs, y, patients, f"time-point {ga} vs {gb}"
 
 app = FastAPI(
     title="RuuPhenome NMR API",
@@ -564,20 +594,7 @@ def biomarkers_safe(group_a: int | None = None, group_b: int | None = None,
     + Top-k stability). Reports honest AUC/F1, the leaky AUC for comparison, and
     the stable panel. `dataset=mtbls1` runs the real diabetes-vs-control study.
     """
-    if dataset == "mtbls1":
-        if not MTBLS1_TSV.exists():
-            raise HTTPException(status_code=404, detail="MTBLS1 dataset not bundled.")
-        Xs, y, patients = _labeled_biomarker_task(
-            MTBLS1_TSV.read_bytes(), _load_label_map()
-        )
-        task = DATASETS["mtbls1"]["task"]
-    else:
-        if not DEFAULT_TSV.exists():
-            raise HTTPException(status_code=404, detail="Default dataset not found.")
-        Xs, y, patients, group_a, group_b = _biomarker_task(
-            DEFAULT_TSV.read_bytes(), group_a, group_b
-        )
-        task = f"time-point {group_a} vs {group_b}"
+    Xs, y, patients, task = _load_dataset_task(dataset, group_a, group_b)
     res = biomarker_engine.discover(
         Xs.values,
         y,
@@ -802,22 +819,10 @@ def biomarkers_model_suite(
     `dataset=mtbls1` runs the real diabetes-vs-control study.
     """
     try:
-        if dataset == "mtbls1":
-            if not MTBLS1_TSV.exists():
-                raise HTTPException(status_code=404, detail="MTBLS1 dataset not bundled.")
-            Xs, y, patients = _labeled_biomarker_task(
-                MTBLS1_TSV.read_bytes(), _load_label_map()
-            )
-            task = DATASETS["mtbls1"]["task"]
-            warning = "Cross-sectional diabetes-vs-control study (real disease labels)."
-        else:
-            if not DEFAULT_TSV.exists():
-                raise HTTPException(status_code=404, detail="Default dataset not found.")
-            Xs, y, patients, group_a, group_b = _biomarker_task(
-                DEFAULT_TSV.read_bytes(), group_a, group_b
-            )
-            task = f"time-point {group_a} vs {group_b}"
-            warning = "This dataset measures longitudinal surgery time points, not disease vs control."
+        Xs, y, patients, task = _load_dataset_task(dataset, group_a, group_b)
+        warning = ("Cross-sectional real-disease labels."
+                   if DATASETS.get(dataset, {}).get("kind") == "labeled"
+                   else "Longitudinal time-point contrast, not disease vs control.")
         result = model_suite.compare_models(
             Xs.values,
             y,
@@ -875,23 +880,20 @@ def biomarkers_projection(
 ):
     """Return exploratory PCA scores/loadings and optional UMAP coordinates."""
     try:
-        if dataset == "mtbls1":
-            if not MTBLS1_TSV.exists():
-                raise HTTPException(status_code=404, detail="MTBLS1 dataset not bundled.")
-            Xs, y, patients = _labeled_biomarker_task(
-                MTBLS1_TSV.read_bytes(), _load_label_map()
-            )
-            names = DATASETS["mtbls1"]["class_names"]
-            labels = [names[int(v)] for v in y]
+        cfg = DATASETS.get(dataset, {})
+        if cfg.get("kind") == "labeled":
+            Xs, y, patients, task = _load_dataset_task(dataset)
+            names = cfg.get("class_names", {0: "class 0", 1: "class 1"})
+            labels = [names.get(int(v), str(v)) for v in y]
             result = dimensionality.project(
                 Xs.values, labels,
                 sample_names=list(Xs.index), patient_ids=patients,
                 feature_names=list(Xs.columns),
                 include_umap=include_umap, n_neighbors=n_neighbors, min_dist=min_dist,
             )
-            result["task"] = DATASETS["mtbls1"]["task"]
+            result["task"] = task
             result["dataset"] = dataset
-            result["outcome_warning"] = "Real diabetes-vs-control labels; PCA/UMAP remain exploratory."
+            result["outcome_warning"] = "Real disease labels; PCA/UMAP remain exploratory."
             return result
         if not DEFAULT_TSV.exists():
             raise HTTPException(status_code=404, detail="Default dataset not found.")
