@@ -599,13 +599,13 @@ def biomarkers_safe(group_a: int | None = None, group_b: int | None = None,
 
 # ── Track 1: binned-spectra cohort pipeline (annotate → visualize → bridge) ──
 def _run_cohort_pipeline(X, bin_ppm, label_map=None, normalize="pqn",
-                         include_biomarkers=True):
+                         include_biomarkers=True, identified_peaks=None):
     """Shared engine: binned matrix → normalize → annotate → (optional) Track 2."""
     import numpy as np
     Xn = (spectral_cohort.pqn_normalize(X) if normalize == "pqn"
           else spectral_cohort.total_area_normalize(X) if normalize == "total_area"
           else X)
-    ann = spectral_cohort.annotate(Xn, bin_ppm)
+    ann = spectral_cohort.annotate(Xn, bin_ppm, identified_peaks=identified_peaks)
     M = ann.pop("annotated_matrix")
     out = {
         "annotation": ann,
@@ -645,20 +645,29 @@ def spectral_demo_pipeline():
 @app.post("/spectral/annotate")
 async def spectral_annotate(
     binned_matrix: UploadFile = File(...),
+    identified_peaks: UploadFile | None = File(default=None),
     normalize: str = Form(default="pqn"),
 ):
     """
-    Upload a binned NMR matrix (sample × ppm-bin). Returns metabolite annotation
-    (bins → metabolites), multi-sample overlay traces, and the sample × metabolite
-    table that feeds Track 2.
+    Upload a binned NMR matrix (sample × ppm-bin). Optionally upload the
+    organizer-provided identified-peaks file (ppm, metabolite) to pin known
+    assignments. Returns annotation (bins → metabolites), overlay traces, and
+    the sample × metabolite table that feeds Track 2.
     """
     raw = await binned_matrix.read()
     if not raw:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    pins = None
+    if identified_peaks is not None:
+        pin_raw = await identified_peaks.read()
+        if pin_raw:
+            pins = spectral_cohort.parse_identified_peaks(pin_raw)
     try:
         X, bin_ppm = spectral_cohort.load_binned_matrix(raw)
-        return _run_cohort_pipeline(X, bin_ppm, normalize=normalize,
-                                    include_biomarkers=False)
+        result = _run_cohort_pipeline(X, bin_ppm, normalize=normalize,
+                                      include_biomarkers=False, identified_peaks=pins)
+        result["identified_peaks_used"] = len(pins) if pins else 0
+        return result
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Annotation failed: {exc}")
 
@@ -667,28 +676,63 @@ async def spectral_annotate(
 async def spectral_pipeline(
     binned_matrix: UploadFile = File(...),
     metadata: UploadFile = File(...),
+    identified_peaks: UploadFile | None = File(default=None),
     normalize: str = Form(default="pqn"),
     label_column: str | None = Form(default=None),
 ):
     """
-    Full automated pipeline: binned matrix + metadata (Table 2) → annotate →
-    derive labels → biomarker discovery → biological interpretation.
+    Full automated pipeline: binned matrix + metadata (Table 2) [+ optional
+    identified-peaks file] → annotate → derive labels → biomarker discovery →
+    biological interpretation.
     """
     raw = await binned_matrix.read()
     meta_raw = await metadata.read()
     if not raw or not meta_raw:
         raise HTTPException(status_code=400, detail="Both files are required.")
+    pins = None
+    if identified_peaks is not None:
+        pin_raw = await identified_peaks.read()
+        if pin_raw:
+            pins = spectral_cohort.parse_identified_peaks(pin_raw)
     try:
         X, bin_ppm = spectral_cohort.load_binned_matrix(raw)
         meta = spectral_cohort.parse_metadata(meta_raw)
         label_map, info = spectral_cohort.derive_labels(
             meta, [str(s) for s in X.index], label_column=label_column)
         result = _run_cohort_pipeline(X, bin_ppm, label_map=label_map,
-                                      normalize=normalize)
+                                      normalize=normalize, identified_peaks=pins)
         result["label_info"] = info
+        result["identified_peaks_used"] = len(pins) if pins else 0
         return result
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Pipeline failed: {exc}")
+
+
+@app.post("/track2/metadata-columns")
+async def track2_metadata_columns(metadata: UploadFile = File(...)):
+    """
+    Preview a metadata file (Table 2): list columns and their value counts so the
+    user can choose which phenotype column defines the biomarker task.
+    """
+    raw = await metadata.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    try:
+        meta = spectral_cohort.parse_metadata(raw)
+        cols = []
+        for c in meta.columns:
+            vals = meta[c].dropna().astype(str)
+            nun = int(vals.nunique())
+            usable = 2 <= nun <= 6      # binary/multiclass phenotype candidate
+            top = vals.value_counts().head(6).to_dict()
+            cols.append({
+                "column": str(c), "n_unique": nun,
+                "usable_as_label": usable,
+                "value_counts": {str(k): int(v) for k, v in top.items()},
+            })
+        return {"n_rows": int(len(meta)), "columns": cols}
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Metadata preview failed: {exc}")
 
 
 @app.post("/track2/discover-with-metadata")

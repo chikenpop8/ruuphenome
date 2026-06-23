@@ -50,6 +50,20 @@ class SpectralCohortTests(unittest.TestCase):
         self.assertEqual(len(lm), 8)
         self.assertEqual(set(lm.values()), {0, 1})
 
+    def test_parse_identified_peaks_csv_and_tsv(self):
+        for sep in (",", "\t"):
+            raw = (f"ppm{sep}metabolite\n1.33{sep}lactate\n"
+                   f"3.04{sep}creatinine\n").encode()
+            pins = sc.parse_identified_peaks(raw)
+            self.assertEqual(pins.get(1.33), "lactate")
+            self.assertEqual(pins.get(3.04), "creatinine")
+
+    def test_identified_peaks_feed_annotation(self):
+        X, bins, _ = sc.make_demo_binned(n_per_group=8)
+        pins = {1.92: "acetate"}   # pin an extra assignment
+        res = sc.annotate(sc.pqn_normalize(X), bins, identified_peaks=pins)
+        self.assertIn("acetate", {m["metabolite"] for m in res["metabolites"]})
+
     def test_full_pipeline_recovers_planted_signal(self):
         X, bins, labels = sc.make_demo_binned(n_per_group=20)
         res = sc.annotate(sc.pqn_normalize(X), bins)

@@ -254,6 +254,44 @@ def overlay_traces(X: pd.DataFrame, max_samples: int = 8, points: int = 400) -> 
     return {"ppm": ppm, "traces": traces, "n_total_samples": int(X.shape[0])}
 
 
+# ── organizer-provided identified peaks (Track 1) ────────────────────────────
+def parse_identified_peaks(raw: bytes) -> Dict[float, str]:
+    """
+    Parse an organizer-provided identified-peaks file into {ppm: metabolite}.
+
+    Accepts CSV or TSV with a ppm/shift column and a metabolite/name column
+    (header names are matched loosely; falls back to first two columns).
+    """
+    text = raw.decode("utf-8", errors="replace")
+    sep = "\t" if text[:2048].count("\t") >= text[:2048].count(",") else ","
+    df = pd.read_csv(io.StringIO(text), sep=sep, low_memory=False)
+    if df.shape[1] < 2:
+        return {}
+
+    def find(colnames, *keys):
+        for c in colnames:
+            k = str(c).strip().lower()
+            if any(key in k for key in keys):
+                return c
+        return None
+
+    ppm_col = find(df.columns, "ppm", "shift", "bin", "region", "position")
+    name_col = find(df.columns, "metabolite", "compound", "name", "assignment", "annotation")
+    if ppm_col is None or name_col is None:
+        ppm_col, name_col = df.columns[0], df.columns[1]
+
+    out: Dict[float, str] = {}
+    for _, row in df.iterrows():
+        try:
+            ppm = float(str(row[ppm_col]).replace("ppm", "").strip())
+        except (ValueError, TypeError):
+            continue
+        name = str(row[name_col]).strip()
+        if name and name.lower() not in ("nan", "none", ""):
+            out[ppm] = name
+    return out
+
+
 # ── Track 2: metadata join (Table 1 metabolites + Table 2 metadata) ──────────
 def parse_metadata(raw: bytes) -> pd.DataFrame:
     """Load a metadata table (Table 2). Rows = samples, columns = phenotypes."""
