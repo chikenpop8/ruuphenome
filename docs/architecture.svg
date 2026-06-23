@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 720" font-family="-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#5a6b7b"/>
+    </marker>
+    <linearGradient id="d1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#eaf3fb"/><stop offset="1" stop-color="#dcebf8"/>
+    </linearGradient>
+    <linearGradient id="d2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#eafaf0"/><stop offset="1" stop-color="#d7f0e0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- title -->
+  <text x="40" y="46" font-size="26" font-weight="700" fill="#1f2d3d">RuuPhenome — System Architecture</text>
+  <text x="40" y="70" font-size="14" fill="#6b7b8b">Open-source, explainable NMR metabolomics profiler · free Chenomx alternative · National Phenome Institute</text>
+
+  <!-- INPUTS -->
+  <text x="40" y="116" font-size="13" font-weight="700" fill="#5a6b7b">INPUTS</text>
+  <g font-size="12.5" fill="#27384a">
+    <rect x="40" y="128" width="190" height="46" rx="7" fill="#fff" stroke="#c3d2e0"/>
+    <text x="135" y="150" text-anchor="middle">Raw Bruker FID (.zip)</text>
+    <text x="135" y="166" text-anchor="middle" fill="#7a8a99" font-size="11">1D ¹H spectrometer output</text>
+    <rect x="40" y="184" width="190" height="46" rx="7" fill="#fff" stroke="#c3d2e0"/>
+    <text x="135" y="206" text-anchor="middle">Processed spectrum CSV</text>
+    <text x="135" y="222" text-anchor="middle" fill="#7a8a99" font-size="11">ppm · intensity</text>
+    <rect x="40" y="240" width="190" height="46" rx="7" fill="#fff" stroke="#c3d2e0"/>
+    <text x="135" y="262" text-anchor="middle">Sample × metabolite table</text>
+    <text x="135" y="278" text-anchor="middle" fill="#7a8a99" font-size="11">MetaboLights MAF (MTBLS242/1)</text>
+  </g>
+
+  <!-- DOMAIN 1 LANE -->
+  <rect x="270" y="96" width="560" height="200" rx="10" fill="url(#d1)" stroke="#b9cce0"/>
+  <text x="290" y="120" font-size="14" font-weight="700" fill="#3f4f8c">DOMAIN 1 — Spectrum → Metabolite identification</text>
+  <g font-size="12" fill="#27384a">
+    <rect x="290" y="134" width="120" height="58" rx="7" fill="#fff" stroke="#c3d2e0"/>
+    <text x="350" y="156" text-anchor="middle" font-weight="600">Signal proc.</text>
+    <text x="350" y="172" text-anchor="middle" fill="#7a8a99" font-size="10.5">nmrglue + scipy</text>
+    <text x="350" y="185" text-anchor="middle" fill="#7a8a99" font-size="10.5">phase · baseline · FFT</text>
+
+    <rect x="424" y="134" width="116" height="58" rx="7" fill="#fff" stroke="#c3d2e0"/>
+    <text x="482" y="156" text-anchor="middle" font-weight="600">Peak picking</text>
+    <text x="482" y="172" text-anchor="middle" fill="#7a8a99" font-size="10.5">MAD noise · SNR</text>
+    <text x="482" y="185" text-anchor="middle" fill="#7a8a99" font-size="10.5">+ QC score</text>
+
+    <rect x="554" y="134" width="124" height="58" rx="7" fill="#fff" stroke="#c3d2e0"/>
+    <text x="616" y="153" text-anchor="middle" font-weight="600">NMRformer</text>
+    <text x="616" y="169" text-anchor="middle" fill="#7a8a99" font-size="10.5">transformer · 72</text>
+    <text x="616" y="182" text-anchor="middle" fill="#7a8a99" font-size="10.5">metabolites</text>
+
+    <rect x="692" y="134" width="122" height="58" rx="7" fill="#fff" stroke="#c3d2e0"/>
+    <text x="753" y="153" text-anchor="middle" font-weight="600">SSL encoder</text>
+    <text x="753" y="169" text-anchor="middle" fill="#7a8a99" font-size="10.5">masked 1D CNN</text>
+    <text x="753" y="182" text-anchor="middle" fill="#7a8a99" font-size="10.5">BMRB embeddings</text>
+
+    <rect x="290" y="214" width="524" height="58" rx="7" fill="#f7fbff" stroke="#c3d2e0"/>
+    <text x="552" y="237" text-anchor="middle" font-weight="600">Confidence-ranked metabolite assignments + HMDB shift fallback</text>
+    <text x="552" y="256" text-anchor="middle" fill="#7a8a99" font-size="11">coverage · ppm error · ambiguity · per-spectrum QC release gate</text>
+  </g>
+  <line x1="410" y1="163" x2="422" y2="163" stroke="#5a6b7b" marker-end="url(#arrow)"/>
+  <line x1="540" y1="163" x2="552" y2="163" stroke="#5a6b7b" marker-end="url(#arrow)"/>
+  <line x1="678" y1="163" x2="690" y2="163" stroke="#5a6b7b" marker-end="url(#arrow)"/>
+
+  <!-- DOMAIN 2 LANE -->
+  <rect x="270" y="312" width="560" height="200" rx="10" fill="url(#d2)" stroke="#aed8be"/>
+  <text x="290" y="336" font-size="14" font-weight="700" fill="#2e7d52">DOMAIN 2 — Cohort → Biomarkers → Biology</text>
+  <g font-size="12" fill="#27384a">
+    <rect x="290" y="350" width="150" height="60" rx="7" fill="#fff" stroke="#bcd9c7"/>
+    <text x="365" y="372" text-anchor="middle" font-weight="600">Leakage-safe engine</text>
+    <text x="365" y="388" text-anchor="middle" fill="#7a8a99" font-size="10.5">fold-internal FDR</text>
+    <text x="365" y="401" text-anchor="middle" fill="#7a8a99" font-size="10.5">patient-grouped CV</text>
+
+    <rect x="454" y="350" width="150" height="60" rx="7" fill="#fff" stroke="#bcd9c7"/>
+    <text x="529" y="372" text-anchor="middle" font-weight="600">Model suite</text>
+    <text x="529" y="388" text-anchor="middle" fill="#7a8a99" font-size="10.5">logistic · SVM · PCA</text>
+    <text x="529" y="401" text-anchor="middle" fill="#7a8a99" font-size="10.5">HGB · XGBoost</text>
+
+    <rect x="618" y="350" width="196" height="60" rx="7" fill="#fff" stroke="#bcd9c7"/>
+    <text x="716" y="372" text-anchor="middle" font-weight="600">Biological interpretation</text>
+    <text x="716" y="388" text-anchor="middle" fill="#7a8a99" font-size="10.5">HMDB roles · disease links</text>
+    <text x="716" y="401" text-anchor="middle" fill="#7a8a99" font-size="10.5">hypergeometric pathway enrichment</text>
+
+    <rect x="290" y="430" width="524" height="62" rx="7" fill="#f5fcf8" stroke="#bcd9c7"/>
+    <text x="552" y="453" text-anchor="middle" font-weight="600">Honest AUC + stable panel · PCA / UMAP · enriched pathways</text>
+    <text x="552" y="473" text-anchor="middle" fill="#7a8a99" font-size="11">demo: MTBLS1 diabetes vs control → AUC 0.92, BCAA degradation enriched (p=0.024)</text>
+  </g>
+  <line x1="440" y1="380" x2="452" y2="380" stroke="#5a6b7b" marker-end="url(#arrow)"/>
+  <line x1="604" y1="380" x2="616" y2="380" stroke="#5a6b7b" marker-end="url(#arrow)"/>
+
+  <!-- input arrows -->
+  <line x1="230" y1="151" x2="286" y2="151" stroke="#5a6b7b" marker-end="url(#arrow)"/>
+  <line x1="230" y1="207" x2="286" y2="180" stroke="#5a6b7b" marker-end="url(#arrow)"/>
+  <line x1="230" y1="263" x2="286" y2="400" stroke="#5a6b7b" marker-end="url(#arrow)"/>
+
+  <!-- SERVING LAYER -->
+  <text x="870" y="116" font-size="13" font-weight="700" fill="#5a6b7b">SERVING</text>
+  <rect x="870" y="128" width="270" height="158" rx="10" fill="#fff7ee" stroke="#e4cfa9"/>
+  <text x="1005" y="150" font-size="13" font-weight="700" fill="#9a6a1c" text-anchor="middle">FastAPI backend</text>
+  <g font-size="11.5" fill="#27384a">
+    <text x="888" y="174">• 29 REST endpoints (/docs)</text>
+    <text x="888" y="194">• Chenomx-style web Profiler UI</text>
+    <text x="888" y="214">• Reference cards + 2D structures</text>
+    <text x="888" y="234">• Biomarker / biology / PCA panels</text>
+    <text x="888" y="254">• 23 tests · run.sh one-command</text>
+    <text x="888" y="274" fill="#7a8a99">deploys on KKU VM (Docker/uvicorn)</text>
+  </g>
+
+  <!-- OUTPUTS -->
+  <text x="870" y="336" font-size="13" font-weight="700" fill="#5a6b7b">OUTPUTS (judge-facing)</text>
+  <g font-size="12" fill="#27384a">
+    <rect x="870" y="350" width="270" height="34" rx="6" fill="#eef4fb" stroke="#c3d2e0"/>
+    <text x="1005" y="372" text-anchor="middle">Ranked, explainable metabolite IDs</text>
+    <rect x="870" y="392" width="270" height="34" rx="6" fill="#eef4fb" stroke="#c3d2e0"/>
+    <text x="1005" y="414" text-anchor="middle">Stable biomarker panel + honest AUC</text>
+    <rect x="870" y="434" width="270" height="34" rx="6" fill="#eef4fb" stroke="#c3d2e0"/>
+    <text x="1005" y="456" text-anchor="middle">Enriched pathways + disease biology</text>
+    <rect x="870" y="476" width="270" height="34" rx="6" fill="#eef4fb" stroke="#c3d2e0"/>
+    <text x="1005" y="498" text-anchor="middle">PCA / UMAP cohort visualization</text>
+  </g>
+  <line x1="830" y1="200" x2="868" y2="200" stroke="#5a6b7b" marker-end="url(#arrow)"/>
+  <line x1="830" y1="410" x2="868" y2="410" stroke="#5a6b7b" marker-end="url(#arrow)"/>
+
+  <!-- OPEN ASSETS footer -->
+  <rect x="40" y="556" width="1100" height="120" rx="10" fill="#fbfcfe" stroke="#dde6ef"/>
+  <text x="60" y="582" font-size="13" font-weight="700" fill="#5a6b7b">OPEN-SOURCE ASSETS &amp; PIPELINE PLUGINS</text>
+  <g font-size="12" fill="#27384a">
+    <text x="60" y="608">▪ NMRformer (72-metabolite transformer)</text>
+    <text x="60" y="630">▪ BMRB ¹H reference corpus + masked SSL encoder</text>
+    <text x="60" y="652">▪ HMDB 5.0 curated biology (49 metabolites, 29 pathways)</text>
+    <text x="600" y="608">▪ nmrglue · scipy · scikit-learn · XGBoost · umap-learn</text>
+    <text x="600" y="630">▪ PubChem / ChEBI / KEGG enrichment (cached)</text>
+    <text x="600" y="652">▪ Datasets: MTBLS242 (time-series) · MTBLS1 (diabetes)</text>
+  </g>
+</svg>
