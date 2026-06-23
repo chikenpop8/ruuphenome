@@ -89,12 +89,13 @@
   @keyframes modalFade { from { opacity: 0; } to { opacity: 1; } }
   @keyframes modalPop { from { opacity:0; transform: translateY(14px) scale(.985); }
     to { opacity:1; transform: translateY(0) scale(1); } }
-  @keyframes riseIn { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
-  @keyframes barGrow { from { width: 0 !important; } }
+  @keyframes riseIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+  /* scaleX is GPU-accelerated (no layout reflow) → smooth bar growth */
+  @keyframes barGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
   /* ── biological interpretation panel ── */
   .bio-headline { background: linear-gradient(110deg,#f0f7f2,#eafaf0);
     border-left: 4px solid #2e8b57; padding: 13px 16px; margin-bottom: 16px;
-    border-radius: 0 8px 8px 0; animation: riseIn .4s ease both;
+    border-radius: 0 8px 8px 0; animation: riseIn .42s cubic-bezier(.22,.61,.36,1) both;
     box-shadow: 0 1px 4px rgba(46,139,87,.12); }
   .bio-headline.null { background: linear-gradient(110deg,#fbf6ee,#fdf3e6); border-left-color:#c2741c;
     box-shadow:0 1px 4px rgba(194,116,28,.12); }
@@ -102,14 +103,16 @@
   .bio-section-title .sub { font-weight: 400; color: #999; font-size: 11px; }
   .bio-chipline { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 2px; }
   .bio-cat-chip { color:#fff; border-radius:11px; padding:2px 10px; font-size:11px; font-weight:600;
-    animation: riseIn .4s ease both; }
-  .enr-row { animation: riseIn .42s ease both; }
+    animation: riseIn .42s cubic-bezier(.22,.61,.36,1) both; }
+  .enr-row { animation: riseIn .42s cubic-bezier(.22,.61,.36,1) both; }
   .enr-bar-track { background:#eef0f3; border-radius:4px; height:15px; width:100%; overflow:hidden; }
-  .enr-bar { height:15px; border-radius:4px; animation: barGrow .7s cubic-bezier(.2,.7,.3,1) both; }
+  .enr-bar { height:15px; border-radius:4px; transform-origin:left center;
+    animation: barGrow .6s cubic-bezier(.22,.61,.36,1) both; will-change: transform; }
   .pval-pill { display:inline-block; padding:1px 8px; border-radius:9px; font-size:11px; font-weight:600; }
   .pval-sig { background:#e3f4ea; color:#1f7a43; }
   .pval-ns { background:#f0f0f0; color:#888; }
-  .bio-card { padding:11px 0 11px; border-bottom:1px solid #eee; animation: riseIn .45s ease both; }
+  .bio-card { padding:11px 0 11px; border-bottom:1px solid #eee;
+    animation: riseIn .42s cubic-bezier(.22,.61,.36,1) both; transition: background .15s ease; }
   .bio-card:hover { background:#fafcff; }
   .bio-card .name { font-weight:600; font-size:13px; }
   .bio-card .dir { font-size:11px; padding:0 6px; border-radius:8px; margin-left:6px; font-weight:600; }
@@ -130,6 +133,13 @@
   #progress.active { opacity: 1; animation: progShimmer 1.4s linear infinite; }
   @keyframes progShimmer { from { background-position: 0% 0; } to { background-position: -200% 0; } }
   .statusbar #st-msg.busy::before { content:"⏳ "; }
+  /* Respect users who prefer reduced motion (and avoids any jank on low-end GPUs) */
+  @media (prefers-reduced-motion: reduce) {
+    .modal-bg.open, .modal-bg.open .modal, .bio-headline, .bio-cat-chip,
+    .enr-row, .enr-bar, .bio-card { animation: none !important; }
+    #progress.active { animation: none !important; }
+    .enr-bar { transform: none !important; }
+  }
   .modal-head { background: linear-gradient(#fafafa,#ececec); padding: 12px 18px;
     font-weight: 600; border-bottom: 1px solid var(--border); }
   .modal-body { padding: 18px; line-height: 1.65; color: #333; max-height: 60vh; overflow-y: auto; }
@@ -720,26 +730,26 @@ function renderBiology(title, bi, task, panel) {
   const enrichRows = enrich.length ? enrich.map((e, i) => {
     const pct = Math.max(5, Math.round((-Math.log10(e.p_value || 1) / maxLp) * 100));
     const color = e.significant ? "#2e8b57" : "#b8b8b8";
-    return `<tr class="enr-row" style="animation-delay:${i * 60}ms">
+    return `<tr class="enr-row" style="animation-delay:${Math.min(i,10) * 45}ms">
       <td><b>${e.pathway}</b>${e.significant ? ' <span style="color:#2e8b57">★</span>' : ""}</td>
       <td><span class="pval-pill ${e.significant ? "pval-sig" : "pval-ns"}">${fmtP(e.p_value)}</span></td>
       <td>${e.fold_enrichment}×</td>
       <td>${e.overlap}/${e.pathway_size}</td>
       <td style="width:150px"><div class="enr-bar-track">
-        <div class="enr-bar" style="width:${pct}%;background:${color};animation-delay:${i * 60}ms"></div></div></td>
+        <div class="enr-bar" style="width:${pct}%;background:${color};animation-delay:${Math.min(i,10) * 45}ms"></div></div></td>
       <td style="font-size:12px;color:#666">${e.metabolites.join(", ")}</td></tr>`;
   }).join("") : `<tr><td colspan="6" style="color:#888">No pathway over-represented at ≥2 overlapping metabolites.</td></tr>`;
 
   const cardHtml = cards.map((c, i) => {
     const b = c.biology;
-    if (!b) return `<div class="bio-card" style="animation-delay:${i * 45}ms">
+    if (!b) return `<div class="bio-card" style="animation-delay:${Math.min(i,10) * 40}ms">
       <span class="name">${c.metabolite}</span> <span style="color:#999">— no curated annotation</span></div>`;
     const dirCls = b.direction === "up" ? "dir-up" : b.direction === "down" ? "dir-down" : "dir-either";
     const dirTxt = b.direction === "up" ? "↑ disease" : b.direction === "down" ? "↓ disease" : "context";
     const chips = (b.pathways || []).map(p => `<span class="path-chip">${p}</span>`).join("");
     const cat = b.category
-      ? `<span class="bio-cat-chip" style="background:${b.category_color};animation-delay:${i * 45}ms">${b.category}</span>` : "";
-    return `<div class="bio-card" style="animation-delay:${i * 45}ms">
+      ? `<span class="bio-cat-chip" style="background:${b.category_color};animation-delay:${Math.min(i,10) * 40}ms">${b.category}</span>` : "";
+    return `<div class="bio-card" style="animation-delay:${Math.min(i,10) * 40}ms">
       <div><span class="name">${c.metabolite}</span><span class="dir ${dirCls}">${dirTxt}</span> ${cat}</div>
       <div class="role">${b.role}</div>
       <div class="clin"><b>Clinical:</b> ${b.disease_associations}</div>
