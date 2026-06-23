@@ -4,9 +4,14 @@
 set -e
 cd "$(dirname "$0")"
 
-# macOS: prevent the XGBoost/scikit-learn duplicate-OpenMP crash. Exported in the
-# shell so it is guaranteed set before Python loads any native library. Harmless
-# on Linux (the VM).
+# macOS: prevent the XGBoost/scikit-learn OpenMP crash. Single-threaded native
+# math + duplicate-lib guard, exported before Python loads any native library.
+# Datasets here are small, so there is no meaningful speed cost. Harmless on Linux.
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
 export KMP_DUPLICATE_LIB_OK=TRUE
 
 if [ ! -d ".venv" ]; then
