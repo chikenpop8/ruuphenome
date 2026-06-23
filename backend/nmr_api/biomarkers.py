@@ -41,7 +41,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.inspection import permutation_importance
 
-from .pipeline import NON_SAMPLE_COLS, META_COLS
+from .pipeline import NON_SAMPLE_COLS, META_COLS, read_results_table
 
 
 _GROUP_RE = re.compile(r"^(\d+)[_-]")
@@ -74,7 +74,7 @@ def sample_patient_groups(sample_cols: List[str]) -> Dict[str, str]:
 
 def build_matrix(tsv_bytes: bytes) -> Tuple[pd.DataFrame, List[str], Dict[str, int]]:
     """Return (abundance matrix [samples × metabolites], metabolite names, groups)."""
-    df = pd.read_csv(io.BytesIO(tsv_bytes), sep="\t", low_memory=False)
+    df = read_results_table(tsv_bytes)   # CSV/TSV + header-variant tolerant
     sample_cols = [c for c in df.columns if c not in NON_SAMPLE_COLS]
     names = df["metabolite_identification"].fillna("unknown").tolist()
 

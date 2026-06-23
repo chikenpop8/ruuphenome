@@ -35,6 +35,44 @@ META_COLS = [
     "inchi", "metabolite_identification", "chemical_shift", "multiplicity",
 ]
 
+# Aliases for the metabolite-name column (organizers' tables vary).
+_NAME_ALIASES = {
+    "metabolite_identification", "metabolite_identification_",
+    "metabolite", "metabolite_name", "metabolitename",
+    "name", "compound", "compound_name", "identification",
+}
+
+
+def read_results_table(raw: bytes) -> pd.DataFrame:
+    """
+    Robustly read a Domain-2 results table (Table 1).
+
+    Handles CSV *or* TSV (auto-sniffed) and normalizes the metabolite-name
+    column header (e.g. "metabolite identification", "Metabolite", "compound")
+    to the canonical ``metabolite_identification``. Sample columns are left as-is.
+    """
+    text = raw.decode("utf-8", errors="replace")
+    head = text[:8192]
+    sep = "\t" if head.count("\t") >= head.count(",") else ","
+    df = pd.read_csv(io.StringIO(text), sep=sep, low_memory=False)
+
+    rename: Dict[str, str] = {}
+    for col in df.columns:
+        key = str(col).strip().lower().replace(" ", "_").replace("-", "_")
+        if key in _NAME_ALIASES:
+            rename[col] = "metabolite_identification"
+        elif key in NON_SAMPLE_COLS:
+            rename[col] = key
+    df = df.rename(columns=rename)
+
+    # Fallback: if no name column matched, use the first non-numeric column.
+    if "metabolite_identification" not in df.columns:
+        for col in df.columns:
+            if not pd.api.types.is_numeric_dtype(df[col]):
+                df = df.rename(columns={col: "metabolite_identification"})
+                break
+    return df
+
 
 # ── Domain 1: default annotated peak list (from the processed-spectrum PDF) ──
 DEFAULT_DOMAIN1_PEAKS: List[Dict] = [
@@ -78,7 +116,7 @@ def load_domain2(tsv_bytes: bytes) -> Tuple[pd.DataFrame, pd.DataFrame, List[str
       df_abundance — numeric sample-abundance matrix
       sample_cols  — list of sample-column names
     """
-    df = pd.read_csv(io.BytesIO(tsv_bytes), sep="\t", low_memory=False)
+    df = read_results_table(tsv_bytes)
 
     sample_cols = [c for c in df.columns if c not in NON_SAMPLE_COLS]
     df_meta = df[[c for c in META_COLS if c in df.columns]].copy()
