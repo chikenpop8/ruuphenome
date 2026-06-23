@@ -82,9 +82,44 @@
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35);
     z-index: 2000; align-items: center; justify-content: center;
   }
-  .modal-bg.open { display: flex; }
+  .modal-bg.open { display: flex; animation: modalFade .22s ease; }
   .modal { background: #fff; border-radius: 8px; max-width: 900px; width: 92%;
     box-shadow: 0 12px 48px rgba(0,0,0,0.32); overflow: hidden; }
+  .modal-bg.open .modal { animation: modalPop .26s cubic-bezier(.16,.84,.44,1); }
+  @keyframes modalFade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes modalPop { from { opacity:0; transform: translateY(14px) scale(.985); }
+    to { opacity:1; transform: translateY(0) scale(1); } }
+  @keyframes riseIn { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
+  @keyframes barGrow { from { width: 0 !important; } }
+  /* ── biological interpretation panel ── */
+  .bio-headline { background: linear-gradient(110deg,#f0f7f2,#eafaf0);
+    border-left: 4px solid #2e8b57; padding: 13px 16px; margin-bottom: 16px;
+    border-radius: 0 8px 8px 0; animation: riseIn .4s ease both;
+    box-shadow: 0 1px 4px rgba(46,139,87,.12); }
+  .bio-headline.null { background: linear-gradient(110deg,#fbf6ee,#fdf3e6); border-left-color:#c2741c;
+    box-shadow:0 1px 4px rgba(194,116,28,.12); }
+  .bio-section-title { margin-top: 18px; font-weight: 600; font-size: 13px; letter-spacing:.2px; }
+  .bio-section-title .sub { font-weight: 400; color: #999; font-size: 11px; }
+  .bio-chipline { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 2px; }
+  .bio-cat-chip { color:#fff; border-radius:11px; padding:2px 10px; font-size:11px; font-weight:600;
+    animation: riseIn .4s ease both; }
+  .enr-row { animation: riseIn .42s ease both; }
+  .enr-bar-track { background:#eef0f3; border-radius:4px; height:15px; width:100%; overflow:hidden; }
+  .enr-bar { height:15px; border-radius:4px; animation: barGrow .7s cubic-bezier(.2,.7,.3,1) both; }
+  .pval-pill { display:inline-block; padding:1px 8px; border-radius:9px; font-size:11px; font-weight:600; }
+  .pval-sig { background:#e3f4ea; color:#1f7a43; }
+  .pval-ns { background:#f0f0f0; color:#888; }
+  .bio-card { padding:11px 0 11px; border-bottom:1px solid #eee; animation: riseIn .45s ease both; }
+  .bio-card:hover { background:#fafcff; }
+  .bio-card .name { font-weight:600; font-size:13px; }
+  .bio-card .dir { font-size:11px; padding:0 6px; border-radius:8px; margin-left:6px; font-weight:600; }
+  .dir-up { background:#fdeaea; color:#b0413e; }
+  .dir-down { background:#e8f0fb; color:#2c5a8c; }
+  .dir-either { background:#f0f0f0; color:#777; }
+  .bio-card .role { color:#444; margin:4px 0; }
+  .bio-card .clin { color:#a24b35; margin:4px 0; }
+  .path-chip { background:#eef4fb; border:1px solid #cfe0f2; border-radius:10px;
+    padding:1px 8px; font-size:11px; color:#2c5a8c; }
   .modal-head { background: linear-gradient(#fafafa,#ececec); padding: 12px 18px;
     font-weight: 600; border-bottom: 1px solid var(--border); }
   .modal-body { padding: 18px; line-height: 1.65; color: #333; max-height: 60vh; overflow-y: auto; }
@@ -651,6 +686,80 @@ function openModal(title, html) {
   document.getElementById("modal-bg").classList.add("open");
 }
 function closeModal() { document.getElementById("modal-bg").classList.remove("open"); }
+// Render the animated biological-interpretation panel (shared by real + example).
+function renderBiology(title, bi, task, panel) {
+  const fmtP = p => (p < 0.001 ? p.toExponential(1) : p);
+  const enrich = bi.pathway_enrichment || [];
+  const cards = bi.metabolite_biology || [];
+  const maxLp = Math.max(...enrich.map(e => -Math.log10(e.p_value || 1)), 1);
+
+  const enrichRows = enrich.length ? enrich.map((e, i) => {
+    const pct = Math.max(5, Math.round((-Math.log10(e.p_value || 1) / maxLp) * 100));
+    const color = e.significant ? "#2e8b57" : "#b8b8b8";
+    return `<tr class="enr-row" style="animation-delay:${i * 60}ms">
+      <td><b>${e.pathway}</b>${e.significant ? ' <span style="color:#2e8b57">★</span>' : ""}</td>
+      <td><span class="pval-pill ${e.significant ? "pval-sig" : "pval-ns"}">${fmtP(e.p_value)}</span></td>
+      <td>${e.fold_enrichment}×</td>
+      <td>${e.overlap}/${e.pathway_size}</td>
+      <td style="width:150px"><div class="enr-bar-track">
+        <div class="enr-bar" style="width:${pct}%;background:${color};animation-delay:${i * 60}ms"></div></div></td>
+      <td style="font-size:12px;color:#666">${e.metabolites.join(", ")}</td></tr>`;
+  }).join("") : `<tr><td colspan="6" style="color:#888">No pathway over-represented at ≥2 overlapping metabolites.</td></tr>`;
+
+  const cardHtml = cards.map((c, i) => {
+    const b = c.biology;
+    if (!b) return `<div class="bio-card" style="animation-delay:${i * 45}ms">
+      <span class="name">${c.metabolite}</span> <span style="color:#999">— no curated annotation</span></div>`;
+    const dirCls = b.direction === "up" ? "dir-up" : b.direction === "down" ? "dir-down" : "dir-either";
+    const dirTxt = b.direction === "up" ? "↑ disease" : b.direction === "down" ? "↓ disease" : "context";
+    const chips = (b.pathways || []).map(p => `<span class="path-chip">${p}</span>`).join("");
+    const cat = b.category
+      ? `<span class="bio-cat-chip" style="background:${b.category_color};animation-delay:${i * 45}ms">${b.category}</span>` : "";
+    return `<div class="bio-card" style="animation-delay:${i * 45}ms">
+      <div><span class="name">${c.metabolite}</span><span class="dir ${dirCls}">${dirTxt}</span> ${cat}</div>
+      <div class="role">${b.role}</div>
+      <div class="clin"><b>Clinical:</b> ${b.disease_associations}</div>
+      <div class="bio-chipline">${chips}</div></div>`;
+  }).join("");
+
+  // category distribution mini-bar
+  const cc = bi.category_counts || {};
+  const catEntries = Object.entries(cc).sort((a, b) => b[1] - a[1]);
+
+  const sig = bi.top_pathway_significant;
+  const headline = bi.top_pathway
+    ? `<div class="bio-headline ${sig ? "" : "null"}">
+        🧬 <b>Biological story:</b> the panel concentrates in <b>${bi.top_pathway}</b>${
+          enrich[0] ? (sig
+            ? ` — significantly over-represented (p = ${fmtP(enrich[0].p_value)}, ${enrich[0].fold_enrichment}× enriched).`
+            : ` (p = ${fmtP(enrich[0].p_value)}, not significant — signal looks exogenous, not disease biology).`) : "."}
+        ${bi.n_significant_pathways ? ` <b>${bi.n_significant_pathways}</b> pathway(s) reach significance.` : ""}</div>`
+    : `<div class="bio-headline null">🧬 No pathway reached over-representation for this panel.</div>`;
+
+  const catBar = catEntries.length
+    ? `<div class="bio-chipline" style="margin-top:8px">${catEntries.map(([name, n]) =>
+        `<span class="bio-cat-chip" style="background:${(cards.find(c => c.biology && c.biology.category === name)?.biology.category_color) || "#3f6fb0"}">${name} · ${n}</span>`).join("")}</div>`
+    : "";
+
+  openModal(title, `
+    ${headline}
+    <table>
+      <tr><td>Task</td><td><b>${task}</b></td></tr>
+      <tr><td>Panel</td><td>${(panel || []).join(", ") || "—"}</td></tr>
+      <tr><td>Annotated</td><td>${bi.coverage ? `${bi.coverage.annotated}/${bi.coverage.total} metabolites curated` : "—"}</td></tr>
+    </table>
+    ${catBar}
+    <div class="bio-section-title">Pathway over-representation <span class="sub">(hypergeometric test — same method as MetaboAnalyst)</span></div>
+    <table>
+      <tr><td style="font-weight:600">Pathway</td><td style="font-weight:600">p-value</td>
+      <td style="font-weight:600">Fold</td><td style="font-weight:600">Overlap</td>
+      <td style="font-weight:600">Significance</td><td style="font-weight:600">Metabolites</td></tr>
+      ${enrichRows}
+    </table>
+    <p style="font-size:12px;color:#888;margin-top:6px">★ = significant at p &lt; 0.05.</p>
+    <div class="bio-section-title">Per-metabolite biology <span class="sub">(HMDB 5.0 curated)</span></div>
+    ${cardHtml}`);
+}
 function scatterSvg(points, xKey, yKey, xLabel, yLabel) {
   const usable = points.filter(p => Number.isFinite(p[xKey]) && Number.isFinite(p[yKey]));
   if (!usable.length) return '<p style="color:#777">Projection was not computed.</p>';
@@ -870,69 +979,26 @@ const ACTIONS = {
       const response = await fetch("/biomarkers-safe");
       if (!response.ok) throw new Error((await response.json()).detail || response.statusText);
       const d = await response.json();
+      renderBiology("Domain 2 — biological interpretation",
+        d.biological_interpretation || {}, d.task, d.stable_panel || []);
       const bi = d.biological_interpretation || {};
-      const enrich = bi.pathway_enrichment || [];
-      const cards = bi.metabolite_biology || [];
-
-      // Pathway enrichment table with significance bars (-log10 p).
-      const maxLp = Math.max(...enrich.map(e => -Math.log10(e.p_value || 1)), 1);
-      const enrichRows = enrich.length ? enrich.map(e => {
-        const lp = -Math.log10(e.p_value || 1);
-        const pct = Math.max(4, Math.round((lp / maxLp) * 100));
-        const sig = (e.p_value < 0.05);
-        const bar = `<div style="background:#eef0f3;border-radius:3px;height:14px;width:100%;position:relative">
-          <div style="background:${sig ? "#2e8b57" : "#b8b8b8"};height:14px;width:${pct}%;border-radius:3px"></div></div>`;
-        return `<tr>
-          <td><b>${e.pathway}</b>${sig ? ' <span style="color:#2e8b57">★</span>' : ""}</td>
-          <td>${e.p_value < 0.001 ? e.p_value.toExponential(1) : e.p_value}</td>
-          <td>${e.fold_enrichment}×</td>
-          <td>${e.overlap}/${e.pathway_size}</td>
-          <td style="width:160px">${bar}</td>
-          <td style="font-size:12px;color:#666">${e.metabolites.join(", ")}</td></tr>`;
-      }).join("") : `<tr><td colspan="6" style="color:#888">No pathway enriched at ≥2 overlapping metabolites.</td></tr>`;
-
-      // Per-metabolite biology cards (role + the "why it matters" disease line).
-      const cardHtml = cards.map(c => {
-        const b = c.biology;
-        if (!b) return `<div style="padding:8px 0;border-bottom:1px solid #eee">
-          <b>${c.metabolite}</b> <span style="color:#999">— no curated annotation</span></div>`;
-        const chips = (b.pathways || []).map(p =>
-          `<span style="background:#eef4fb;border:1px solid #cfe0f2;border-radius:10px;padding:1px 8px;font-size:11px;color:#2c5a8c;margin-right:4px">${p}</span>`).join("");
-        return `<div style="padding:10px 0;border-bottom:1px solid #eee">
-          <b>${c.metabolite}</b>
-          <div style="color:#444;margin:3px 0">${b.role}</div>
-          <div style="color:#a24b35;margin:3px 0"><b>Clinical:</b> ${b.disease_associations}</div>
-          <div style="margin-top:5px">${chips}</div></div>`;
-      }).join("");
-
-      const headline = bi.top_pathway
-        ? `<div style="background:#f0f7f2;border-left:4px solid #2e8b57;padding:12px 14px;margin-bottom:14px;border-radius:0 6px 6px 0">
-            🧬 <b>Biological story:</b> the discovered biomarkers concentrate in
-            <b>${bi.top_pathway}</b>${enrich[0] && enrich[0].p_value < 0.05
-              ? ` (p = ${enrich[0].p_value < 0.001 ? enrich[0].p_value.toExponential(1) : enrich[0].p_value}, over-represented)` : ""}.</div>`
-        : "";
-
-      openModal("Domain 2 — biological interpretation", `
-        ${headline}
-        <table>
-          <tr><td>Task</td><td><b>${d.task}</b></td></tr>
-          <tr><td>Biomarker panel</td><td>${(d.stable_panel || []).join(", ") || "—"}</td></tr>
-          <tr><td>Annotated</td><td>${bi.coverage ? `${bi.coverage.annotated}/${bi.coverage.total} metabolites` : "—"}</td></tr>
-        </table>
-        <p style="margin-top:16px;font-weight:600">Pathway over-representation (hypergeometric test)</p>
-        <table>
-          <tr><td style="font-weight:600">Pathway</td><td style="font-weight:600">p-value</td>
-          <td style="font-weight:600">Fold</td><td style="font-weight:600">Overlap</td>
-          <td style="font-weight:600">Significance</td><td style="font-weight:600">Metabolites</td></tr>
-          ${enrichRows}
-        </table>
-        <p style="font-size:12px;color:#888;margin-top:6px">★ = significant at p &lt; 0.05. Same over-representation method as MetaboAnalyst.</p>
-        <p style="margin-top:16px;font-weight:600">Per-metabolite biology <span style="font-weight:400;color:#888;font-size:12px">(HMDB 5.0 curated)</span></p>
-        ${cardHtml}`);
       setMsg(bi.top_pathway
         ? `Biological interpretation complete — top pathway: ${bi.top_pathway}`
         : "Biological interpretation complete.");
     } catch (e) { setMsg("Interpretation failed: " + e); }
+  },
+  // Demo helper: interpret a hand-picked diabetes-like panel (strong example)
+  biologyExample: async () => {
+    setMsg("Interpreting example diabetes-signature panel…");
+    try {
+      const panel = ["L-Valine","L-Leucine","L-Isoleucine","L-Tyrosine","L-Phenylalanine","glycine","glucose","lactate"];
+      const r = await fetch("/biology?metabolites=" + encodeURIComponent(panel.join(",")));
+      if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+      const bi = await r.json();
+      renderBiology("Example — diabetes metabolic signature", bi,
+        "example BCAA / aromatic-amino-acid signature", panel);
+      setMsg(`Example interpreted — top pathway: ${bi.top_pathway}`);
+    } catch (e) { setMsg("Example failed: " + e); }
   },
   dimensionalityAnalysis: async () => {
     setMsg("Computing PCA and UMAP projections…");
@@ -1103,6 +1169,7 @@ const MENUS = [
     ["sep"],
     ["Biomarker discovery (Domain 2)…", "biomarkerDiscovery"],
     ["Biological interpretation & pathways (Domain 2)…", "biologicalInterpretation"],
+    ["Example: diabetes metabolic signature…", "biologyExample"],
     ["PCA / UMAP visualization (Domain 2)…", "dimensionalityAnalysis"],
     ["Process Bruker FID (Domain 1)…", "processFid"],
     ["Analyze processed spectrum (CSV/TSV)…", "processSpectrum"],
