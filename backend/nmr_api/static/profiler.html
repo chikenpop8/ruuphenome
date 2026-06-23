@@ -120,6 +120,16 @@
   .bio-card .clin { color:#a24b35; margin:4px 0; }
   .path-chip { background:#eef4fb; border:1px solid #cfe0f2; border-radius:10px;
     padding:1px 8px; font-size:11px; color:#2c5a8c; }
+  /* ── top loading bar ── */
+  #progress { position: fixed; top: 0; left: 0; height: 3px; width: 0;
+    z-index: 3000; opacity: 0; border-radius: 0 2px 2px 0;
+    background: linear-gradient(90deg,#3f6fb0,#2e8b57,#3f6fb0);
+    background-size: 200% 100%;
+    box-shadow: 0 0 8px rgba(63,111,176,.55);
+    transition: width .3s cubic-bezier(.2,.7,.3,1), opacity .4s ease; }
+  #progress.active { opacity: 1; animation: progShimmer 1.4s linear infinite; }
+  @keyframes progShimmer { from { background-position: 0% 0; } to { background-position: -200% 0; } }
+  .statusbar #st-msg.busy::before { content:"⏳ "; }
   .modal-head { background: linear-gradient(#fafafa,#ececec); padding: 12px 18px;
     font-weight: 600; border-bottom: 1px solid var(--border); }
   .modal-body { padding: 18px; line-height: 1.65; color: #333; max-height: 60vh; overflow-y: auto; }
@@ -314,6 +324,8 @@
       </div>
     </section>
   </div>
+
+  <div id="progress"></div>
 
   <div class="statusbar">
     <div><span class="badge" id="st-count">0</span> compounds</div>
@@ -938,7 +950,7 @@ const ACTIONS = {
   },
   // Domain 2 — nested patient-grouped model comparison
   biomarkerDiscovery: async () => {
-    setMsg("Comparing leakage-safe biomarker models…");
+    progress.start("Comparing leakage-safe biomarker models (nested CV)…");
     try {
       const response = await fetch("/biomarkers-model-suite");
       if (!response.ok) throw new Error((await response.json()).detail || response.statusText);
@@ -969,12 +981,12 @@ const ACTIONS = {
           <td style="font-weight:600">Input</td></tr>
           ${rows}
         </table>`);
-      setMsg(`Model suite complete — recommended: ${d.recommended_model}`);
-    } catch (e) { setMsg("Discovery failed: " + e); }
+      progress.done(`Model suite complete — recommended: ${d.recommended_model}`);
+    } catch (e) { progress.done("Discovery failed: " + e); }
   },
   // Domain 2 — biological interpretation of the discovered biomarker panel
   biologicalInterpretation: async () => {
-    setMsg("Interpreting biomarker panel — pathways & disease associations…");
+    progress.start("Discovering biomarkers & interpreting biology…");
     try {
       const response = await fetch("/biomarkers-safe");
       if (!response.ok) throw new Error((await response.json()).detail || response.statusText);
@@ -982,14 +994,14 @@ const ACTIONS = {
       renderBiology("Domain 2 — biological interpretation",
         d.biological_interpretation || {}, d.task, d.stable_panel || []);
       const bi = d.biological_interpretation || {};
-      setMsg(bi.top_pathway
+      progress.done(bi.top_pathway
         ? `Biological interpretation complete — top pathway: ${bi.top_pathway}`
         : "Biological interpretation complete.");
-    } catch (e) { setMsg("Interpretation failed: " + e); }
+    } catch (e) { progress.done("Interpretation failed: " + e); }
   },
   // Demo helper: interpret a hand-picked diabetes-like panel (strong example)
   biologyExample: async () => {
-    setMsg("Interpreting example diabetes-signature panel…");
+    progress.start("Interpreting example diabetes-signature panel…");
     try {
       const panel = ["L-Valine","L-Leucine","L-Isoleucine","L-Tyrosine","L-Phenylalanine","glycine","glucose","lactate"];
       const r = await fetch("/biology?metabolites=" + encodeURIComponent(panel.join(",")));
@@ -997,11 +1009,11 @@ const ACTIONS = {
       const bi = await r.json();
       renderBiology("Example — diabetes metabolic signature", bi,
         "example BCAA / aromatic-amino-acid signature", panel);
-      setMsg(`Example interpreted — top pathway: ${bi.top_pathway}`);
-    } catch (e) { setMsg("Example failed: " + e); }
+      progress.done(`Example interpreted — top pathway: ${bi.top_pathway}`);
+    } catch (e) { progress.done("Example failed: " + e); }
   },
   dimensionalityAnalysis: async () => {
-    setMsg("Computing PCA and UMAP projections…");
+    progress.start("Computing PCA and UMAP projections…");
     try {
       const response = await fetch("/biomarkers-projection");
       if (!response.ok) throw new Error((await response.json()).detail || response.statusText);
@@ -1033,8 +1045,8 @@ const ACTIONS = {
         </div>
         <p style="margin-top:12px;color:#a24b35">${d.outcome_warning}</p>
         <p style="color:#666">${d.interpretation_warning}</p>`);
-      setMsg("PCA/UMAP projection ready.");
-    } catch (e) { setMsg("PCA/UMAP failed: " + e); }
+      progress.done("PCA/UMAP projection ready.");
+    } catch (e) { progress.done("PCA/UMAP failed: " + e); }
   },
   // Domain 1 — process a real Bruker FID (nmrglue)
   processFid: () => {
@@ -1124,6 +1136,39 @@ const ACTIONS = {
     <p style="margin-top:12px;color:#666">Dataset: MetaboLights MTBLS242 (human blood serum).</p>`),
 };
 function setMsg(m) { document.getElementById("st-msg").textContent = m; }
+// Top loading bar. Use set(pct) for real multi-step progress, or start()/done()
+// for single requests where true % is unknown (bar trickles toward 90%).
+const progress = {
+  el: () => document.getElementById("progress"),
+  timer: null, val: 0,
+  _busy(on) { document.getElementById("st-msg").classList.toggle("busy", on); },
+  start(label) {
+    if (label) setMsg(label);
+    this._busy(true);
+    this.val = 8;
+    const e = this.el(); e.classList.add("active"); e.style.width = "8%";
+    clearInterval(this.timer);
+    this.timer = setInterval(() => {
+      this.val += Math.max(0.4, (90 - this.val) * 0.07);   // ease toward 90%
+      if (this.val >= 90) { this.val = 90; clearInterval(this.timer); }
+      e.style.width = this.val.toFixed(1) + "%";
+    }, 200);
+  },
+  set(pct, label) {
+    if (label) setMsg(label);
+    this._busy(true);
+    clearInterval(this.timer);
+    this.val = pct;
+    const e = this.el(); e.classList.add("active"); e.style.width = pct + "%";
+  },
+  done(label) {
+    if (label) setMsg(label);
+    this._busy(false);
+    clearInterval(this.timer);
+    const e = this.el(); e.style.width = "100%";
+    setTimeout(() => { e.classList.remove("active"); e.style.width = "0%"; }, 450);
+  }
+};
 function stepCompound(dir) {
   if (!LIBRARY) return;
   const list = LIBRARY.compounds;
@@ -1234,10 +1279,13 @@ document.addEventListener("keydown", (e) => {
 
 // ── Load library ──
 async function load(url, opts) {
-  document.getElementById("st-msg").textContent = "Loading dataset…";
-  const res = await fetch(url, opts);
-  if (!res.ok) { document.getElementById("st-msg").textContent =
-    "Error: " + (await res.text()); return; }
+  progress.set(15, "Uploading & reading dataset…");
+  let res;
+  try {
+    res = await fetch(url, opts);
+  } catch (e) { progress.done("Network error: " + e); return; }
+  if (!res.ok) { progress.done("Error: " + (await res.text())); return; }
+  progress.set(45, "Parsing compound library & predicting shifts…");
   LIBRARY = await res.json();
   const s = LIBRARY.spectrometer;
   document.getElementById("st-count").textContent = s.compound_count;
@@ -1246,16 +1294,18 @@ async function load(url, opts) {
   document.getElementById("st-backend").textContent = "engine: " + s.prediction_backend;
   HISTORY = []; HPOS = -1;          // fresh history per dataset
   // Domain 1: fetch the nmrglue-processed measured spectrum
+  progress.set(70, "Processing Domain 1 spectrum (nmrglue)…");
   try {
     const sp = await fetch("/demo-spectrum");
     if (sp.ok) setMeasured(await sp.json());
   } catch (e) { MEASURED = null; }
+  progress.set(90, "Rendering compounds…");
   renderTable();
   resetView(); drawOverview();
   // auto-select first identified compound
   const first = LIBRARY.compounds.find(c => c.identified);
   if (first) selectCompound(first);
-  document.getElementById("st-msg").textContent = "Ready.";
+  progress.done(`Ready — ${s.compound_count} compounds loaded.`);
   updateUndoRedo();
 }
 
