@@ -1065,11 +1065,15 @@ const ACTIONS = {
       const r = await fetch("/spectral/demo-pipeline");
       if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
       const d = await r.json();
-      const a = d.annotation, bm = d.biomarkers || {}, bi = bm.biological_interpretation || {};
+      const a = d.annotation, q = d.quantification || {}, bm = d.biomarkers || {}, bi = bm.biological_interpretation || {};
       const topMets = (a.metabolites || []).slice(0, 10).map(m =>
         `<tr><td><b>${m.metabolite}</b></td><td>${(m.coverage*100).toFixed(0)}%</td>
          <td>${m.matched_count}/${m.expected_shifts}</td>
          <td style="font-size:11px;color:#666">${m.matched_shifts.join(", ")} ppm</td></tr>`).join("");
+      const quantRows = (q.metabolites || []).slice(0, 10).map(m =>
+        `<tr><td><b>${m.metabolite}</b>${m.passes_fdr?' <span style="color:#2e8b57">★</span>':''}</td>
+         <td>${m.mean_concentration}</td><td>${m.snr_vs_decoy}×</td>
+         <td>${(m.detection_rate*100).toFixed(0)}%</td></tr>`).join("");
       const enrich = (bi.pathway_enrichment || []).slice(0,3).map(e =>
         `<tr><td><b>${e.pathway}</b>${e.significant?' <span style="color:#2e8b57">★</span>':''}</td>
          <td>${e.p_value<0.001?e.p_value.toExponential(1):e.p_value}</td>
@@ -1089,6 +1093,10 @@ const ACTIONS = {
         <div class="bio-section-title">Step 3 — Annotation (bins → metabolites) <span class="sub">targeted reference-shift matching</span></div>
         <table><tr><td style="font-weight:600">Metabolite</td><td style="font-weight:600">Coverage</td>
           <td style="font-weight:600">Shifts</td><td style="font-weight:600">Matched ppm</td></tr>${topMets}</table>
+        <div class="bio-section-title">Step 4 — Quantification <span class="sub">NNLS deconvolution (ASICS-style) · fit R² ${q.mean_fit_r2 ?? "—"} · ${q.n_passing_fdr ?? 0}/${q.n_quantified ?? 0} pass FDR ${q.fdr_level ?? ""}</span></div>
+        <table><tr><td style="font-weight:600">Metabolite</td><td style="font-weight:600">Conc.</td>
+          <td style="font-weight:600">SNR vs decoy</td><td style="font-weight:600">Detection</td></tr>${quantRows || '<tr><td colspan="4" style="color:#888">—</td></tr>'}</table>
+        <p style="font-size:12px;color:#888;margin-top:6px">★ = passes target–decoy FDR. Overlapping peaks resolved by linear-combination fitting.</p>
         <div class="bio-section-title">Step 5 — Pathway enrichment <span class="sub">on the discovered panel</span></div>
         <table><tr><td style="font-weight:600">Pathway</td><td style="font-weight:600">p-value</td>
           <td style="font-weight:600">Fold</td><td style="font-weight:600">Metabolites</td></tr>${enrich || '<tr><td colspan="4" style="color:#888">—</td></tr>'}</table>`);

@@ -624,8 +624,12 @@ def _run_cohort_pipeline(X, bin_ppm, label_map=None, normalize="pqn",
           else X)
     ann = spectral_cohort.annotate(Xn, bin_ppm, identified_peaks=identified_peaks)
     M = ann.pop("annotated_matrix")
+    # ASICS-style NNLS deconvolution → overlap-resolved quantification + FDR
+    deconv = spectral_cohort.deconvolve(Xn, bin_ppm)
+    deconv.pop("concentrations", None)        # drop the matrix (not JSON-serializable)
     out = {
         "annotation": ann,
+        "quantification": deconv,
         "visualization": spectral_cohort.overlay_traces(Xn),
         "normalization": normalize,
         "sample_metabolite_shape": list(M.shape),

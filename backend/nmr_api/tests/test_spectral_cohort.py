@@ -64,6 +64,21 @@ class SpectralCohortTests(unittest.TestCase):
         res = sc.annotate(sc.pqn_normalize(X), bins, identified_peaks=pins)
         self.assertIn("acetate", {m["metabolite"] for m in res["metabolites"]})
 
+    def test_nnls_deconvolution_quantifies_and_fdr(self):
+        X, bins, _ = sc.make_demo_binned(n_per_group=12)
+        res = sc.deconvolve(sc.pqn_normalize(X), bins)
+        # good fit and a sensible number passing FDR
+        self.assertGreater(res["mean_fit_r2"], 0.5)
+        self.assertGreater(res["n_passing_fdr"], 3)
+        self.assertEqual(res["concentrations"].shape[0], X.shape[0])
+        # planted core metabolites should be quantified and pass FDR
+        passing = {m["metabolite"] for m in res["metabolites"] if m["passes_fdr"]}
+        for expected in ("valine", "leucine", "isoleucine", "glucose"):
+            self.assertIn(expected, passing)
+        # decoys must never appear in target output
+        self.assertFalse(any(m["metabolite"].startswith("decoy::")
+                             for m in res["metabolites"]))
+
     def test_full_pipeline_recovers_planted_signal(self):
         X, bins, labels = sc.make_demo_binned(n_per_group=20)
         res = sc.annotate(sc.pqn_normalize(X), bins)

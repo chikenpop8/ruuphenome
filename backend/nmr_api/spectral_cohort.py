@@ -25,6 +25,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
+from scipy.optimize import nnls
 
 
 # ── reference ¹H shift fingerprints (ppm), HMDB 5.0 — name-keyed ─────────────
@@ -309,6 +310,111 @@ def annotate(
         "metabolites": metabolites,
         "annotated_matrix": annotated,        # samples × metabolite (for Track 2)
         "reference_library_size": len(refs),
+    }
+
+
+# ── ASICS-style deconvolution (NNLS) + target-decoy annotation FDR ───────────
+def _reference_matrix(bin_ppm, refs, sigma_ppm) -> Tuple[np.ndarray, List[str]]:
+    """Build a (n_metabolites × n_bins) matrix of unit-area Gaussian reference
+    spectra from the fingerprint shifts."""
+    bins = np.asarray(bin_ppm, dtype=float)
+    names = list(refs.keys())
+    R = np.zeros((len(names), len(bins)))
+    for i, nm in enumerate(names):
+        for sh in refs[nm]:
+            R[i] += np.exp(-((bins - sh) ** 2) / (2.0 * sigma_ppm ** 2))
+    areas = R.sum(axis=1, keepdims=True)
+    areas[areas == 0] = 1.0
+    return R / areas, names
+
+
+def deconvolve(
+    X: pd.DataFrame,
+    bin_ppm: np.ndarray,
+    *,
+    reference_shifts: Optional[Dict[str, List[float]]] = None,
+    sigma_ppm: float = 0.012,
+    decoy_shift_ppm: float = 0.37,
+    fdr: float = 0.05,
+) -> Dict:
+    """
+    Quantify metabolites by modelling each binned spectrum as a non-negative
+    linear combination of reference spectra (the ASICS / linear-combination
+    method, via NNLS). This *resolves overlapping peaks* — a bin shared by two
+    metabolites is apportioned by the fit, which simple peak-matching cannot do.
+
+    Annotation confidence uses a **target–decoy** null (proteomics-style):
+    duplicate every reference shifted by `decoy_shift_ppm` into typically-empty
+    space; a real metabolite's fitted concentration is significant only if it
+    exceeds the decoy null. FDR = (#decoys ≥ t) / (#targets ≥ t).
+    """
+    refs = reference_shifts or REFERENCE_SHIFTS
+    ppm_max = float(np.max(bin_ppm))
+    decoys = {f"decoy::{n}": [((s + decoy_shift_ppm) % ppm_max) for s in sh]
+              for n, sh in refs.items()}
+    R, names = _reference_matrix(bin_ppm, {**refs, **decoys}, sigma_ppm)
+    A = R.T                                   # bins × (targets+decoys)
+    n_target = len(refs)
+
+    conc = np.zeros((X.shape[0], len(names)))
+    fit_r2 = []
+    for r in range(X.shape[0]):
+        s = np.clip(X.iloc[r].values.astype(float), 0, None)
+        c, _ = nnls(A, s)
+        conc[r] = c
+        pred = A @ c
+        ss_tot = float(np.sum((s - s.mean()) ** 2))
+        fit_r2.append(1.0 - np.sum((s - pred) ** 2) / ss_tot if ss_tot > 0 else 0.0)
+
+    conc = np.asarray(conc)
+    target_conc = conc[:, :n_target]
+    decoy_conc = conc[:, n_target:]
+    target_names = names[:n_target]
+
+    # per-metabolite mean concentration; decoy null = 95th pct of decoy means
+    target_mean = target_conc.mean(axis=0)
+    decoy_mean = decoy_conc.mean(axis=0)
+    null_level = float(np.quantile(decoy_mean, 0.95)) if decoy_mean.size else 0.0
+
+    # target–decoy FDR at the chosen level → detection threshold
+    order = np.argsort(target_mean)[::-1]
+    chosen = []
+    for idx in order:
+        t = target_mean[idx]
+        if t <= 0:
+            break
+        n_dec = int(np.sum(decoy_mean >= t))
+        n_tar = int(np.sum(target_mean >= t))
+        if n_tar and (n_dec / n_tar) <= fdr:
+            chosen.append(idx)
+    chosen = set(chosen)
+
+    conc_df = pd.DataFrame(target_conc, index=X.index, columns=target_names)
+    detection_rate = (target_conc > null_level).mean(axis=0)
+
+    metabolites = []
+    for i, nm in enumerate(target_names):
+        if target_mean[i] <= 0:
+            continue
+        snr = float(target_mean[i] / (null_level + 1e-9))
+        metabolites.append({
+            "metabolite": nm,
+            "mean_concentration": round(float(target_mean[i]), 5),
+            "detection_rate": round(float(detection_rate[i]), 3),
+            "snr_vs_decoy": round(snr, 2),
+            "passes_fdr": bool(i in chosen),
+        })
+    metabolites.sort(key=lambda m: -m["mean_concentration"])
+
+    return {
+        "method": "NNLS linear-combination deconvolution (ASICS-style)",
+        "concentrations": conc_df,                 # samples × metabolite (overlap-resolved)
+        "mean_fit_r2": round(float(np.mean(fit_r2)), 4),
+        "fdr_level": fdr,
+        "n_passing_fdr": len(chosen),
+        "n_quantified": len(metabolites),
+        "decoy_null_level": round(null_level, 6),
+        "metabolites": metabolites,
     }
 
 
