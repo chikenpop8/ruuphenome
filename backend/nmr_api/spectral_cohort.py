@@ -70,6 +70,80 @@ REFERENCE_SHIFTS: Dict[str, List[float]] = {
     "succinate": [2.41],
     "hypoxanthine": [8.19, 8.21],
     "isopropanol": [1.17, 4.02],
+    # ── expanded human serum/urine ¹H NMR panel (HMDB/literature reference
+    #    shifts) → ~100-metabolite real-world-scale annotation library ──
+    # amino acids & derivatives
+    "asparagine": [2.85, 2.96, 4.00],
+    "aspartate": [2.68, 2.80, 3.89],
+    "serine": [3.84, 3.95, 3.98],
+    "cysteine": [3.00, 3.12, 3.97],
+    "ornithine": [1.81, 1.94, 3.05, 3.78],
+    "citrulline": [1.57, 1.86, 3.14, 3.78],
+    "hydroxyproline": [2.07, 2.43, 3.42, 4.30],
+    "sarcosine": [2.74, 3.61],
+    "beta-alanine": [2.55, 3.18],
+    "gaba": [1.91, 2.30, 3.01],
+    "4-aminobutyrate": [1.91, 2.30, 3.01],
+    "1-methylhistidine": [3.15, 3.23, 7.07, 7.78],
+    "3-methylhistidine": [3.13, 3.22, 7.06, 7.77],
+    "carnosine": [2.66, 3.02, 3.20, 7.10, 8.00],
+    "guanidoacetate": [3.80],
+    "creatine phosphate": [3.04, 3.94],
+    # organic acids
+    "fumarate": [6.52],
+    "malate": [2.37, 2.67, 4.30],
+    "2-oxoglutarate": [2.44, 3.00],
+    "alpha-ketoglutarate": [2.44, 3.00],
+    "propionate": [1.05, 2.18],
+    "butyrate": [0.89, 1.56, 2.16],
+    "isobutyrate": [1.13, 2.38],
+    "3-hydroxyisovalerate": [1.27, 2.36],
+    "2-hydroxyisobutyrate": [1.36],
+    "methylmalonate": [1.24, 3.14],
+    "malonate": [3.11],
+    "glycolate": [3.93],
+    "acetone": [2.23],
+    "hippurate": [3.97, 7.55, 7.64, 7.84],
+    "benzoate": [7.48, 7.55, 7.87],
+    "4-hydroxyphenylacetate": [3.45, 6.86, 7.16],
+    "phenylacetate": [3.53, 7.30, 7.37],
+    "allantoin": [5.39],
+    # sugars & polyols
+    "fructose": [3.55, 3.80, 3.99, 4.11],
+    "galactose": [3.48, 3.70, 3.92, 4.58, 5.27],
+    "mannose": [3.38, 3.55, 3.78, 3.88, 5.18],
+    "lactose": [3.50, 3.60, 4.45, 5.23],
+    "scyllo-inositol": [3.34],
+    "mannitol": [3.68, 3.78, 3.87],
+    "1,5-anhydroglucitol": [3.25, 3.50, 3.70, 3.85],
+    # choline / lipid-related
+    "phosphocholine": [3.22, 3.60, 4.18],
+    "glycerophosphocholine": [3.23, 3.62, 4.32],
+    "acetylcarnitine": [2.14, 3.19, 3.60],
+    "o-acetylcarnitine": [2.14, 3.19, 3.60],
+    "carnitine": [2.44, 3.23, 3.42, 4.56],
+    # amines
+    "ethanolamine": [3.13, 3.82],
+    "putrescine": [1.77, 3.05],
+    "methylguanidine": [2.83],
+    # nucleobases / nucleosides / NAD-related
+    "xanthine": [7.90],
+    "uracil": [5.80, 7.53],
+    "uridine": [5.90, 5.92, 7.87],
+    "inosine": [6.10, 8.23, 8.34],
+    "nicotinamide": [8.25, 8.71, 8.94, 9.28],
+    "1-methylnicotinamide": [4.48, 8.19, 8.90, 8.96, 9.28],
+    "trigonelline": [4.44, 8.08, 8.84, 9.13],
+    # gut-microbial / xenobiotic
+    "phenylacetylglutamine": [1.99, 2.27, 3.68, 7.36, 7.42],
+    "propylene glycol": [1.13, 3.42, 3.53, 3.87],
+    "p-cresol": [2.25, 6.85, 7.15],
+    "4-cresol sulfate": [2.34, 7.20, 7.28],
+    "indoxyl sulfate": [7.20, 7.28, 7.36, 7.51, 7.70],
+    "dimethyl sulfone": [3.14],
+    "trimethylamine": [2.88],
+    "2-oxoisocaproate": [0.94, 2.10, 2.62],
+    "2-oxo-3-methylvalerate": [0.90, 1.10, 1.70, 2.95],
 }
 
 
@@ -374,9 +448,11 @@ def make_demo_binned(
     n_per_group: int = 30, bin_width: float = 0.01, seed: int = 7
 ) -> Tuple[pd.DataFrame, np.ndarray, Dict[str, int]]:
     """
-    Simulate a two-group binned ¹H cohort from the reference fingerprints, with a
-    real, plant-able difference (BCAAs ↑ in the 'case' group). For demoing the
-    full Track-1 → Track-2 pipeline without external files.
+    Simulate a two-group binned ¹H cohort from a realistic serum subset of the
+    reference fingerprints, with a real, plant-able difference (BCAAs ↑ in the
+    'case' group). For demoing the full Track-1 → Track-2 pipeline without
+    external files. Uses a fixed core panel (not the whole library) so the
+    spectrum density stays realistic regardless of library size.
     """
     rng = np.random.default_rng(seed)
     bins = np.round(np.arange(0.5, 9.0, bin_width), 5)
@@ -385,11 +461,18 @@ def make_demo_binned(
     rows = []
     labels = {}
     elevated = {"valine", "leucine", "isoleucine", "2-oxoisovalerate"}
+    # fixed realistic serum panel (~25 metabolites) — keeps demo density stable
+    core = ["alanine", "valine", "leucine", "isoleucine", "lactate", "glucose",
+            "citrate", "creatinine", "glutamine", "glycine", "histidine",
+            "tyrosine", "phenylalanine", "pyruvate", "acetate", "3-hydroxybutyrate",
+            "2-oxoisovalerate", "threonine", "methionine", "choline", "taurine",
+            "succinate", "formate", "myo-inositol", "betaine"]
+    core_refs = {m: REFERENCE_SHIFTS[m] for m in core if m in REFERENCE_SHIFTS}
     for s in names:
         is_case = s.startswith("case")
         labels[s] = 1 if is_case else 0
         spec = rng.normal(0.0, 0.002, len(bins)).clip(min=0)
-        for met, shifts in REFERENCE_SHIFTS.items():
+        for met, shifts in core_refs.items():
             base = rng.uniform(0.2, 1.0)
             if met in elevated and is_case:
                 base *= rng.uniform(1.6, 2.4)        # plant the diabetes-like signal
