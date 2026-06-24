@@ -721,10 +721,11 @@ window.__pickDataset = (id) => {
   setMsg(`Active dataset: ${id} — run Biomarker discovery / Biological interpretation to analyse it.`);
 };
 // Render the animated biological-interpretation panel (shared by real + example).
-function renderBiology(title, bi, task, panel) {
+function renderBiology(title, bi, task, panel, validation) {
   const fmtP = p => (p < 0.001 ? p.toExponential(1) : p);
   const enrich = bi.pathway_enrichment || [];
   const cards = bi.metabolite_biology || [];
+  const vip = (validation && validation.vip) || {};
   const maxLp = Math.max(...enrich.map(e => -Math.log10(e.p_value || 1)), 1);
 
   const enrichRows = enrich.length ? enrich.map((e, i) => {
@@ -749,8 +750,11 @@ function renderBiology(title, bi, task, panel) {
     const chips = (b.pathways || []).map(p => `<span class="path-chip">${p}</span>`).join("");
     const cat = b.category
       ? `<span class="bio-cat-chip" style="background:${b.category_color};animation-delay:${Math.min(i,10) * 40}ms">${b.category}</span>` : "";
+    const v = vip[c.metabolite];
+    const vipBadge = (v != null)
+      ? `<span class="dir ${v >= 1 ? "dir-up" : "dir-either"}" title="VIP from PLS-DA; >1 = influential">VIP ${v}</span>` : "";
     return `<div class="bio-card" style="animation-delay:${Math.min(i,10) * 40}ms">
-      <div><span class="name">${c.metabolite}</span><span class="dir ${dirCls}">${dirTxt}</span> ${cat}</div>
+      <div><span class="name">${c.metabolite}</span><span class="dir ${dirCls}">${dirTxt}</span> ${vipBadge} ${cat}</div>
       <div class="role">${b.role}</div>
       <div class="clin"><b>Clinical:</b> ${b.disease_associations}</div>
       <div class="bio-chipline">${chips}</div></div>`;
@@ -775,11 +779,23 @@ function renderBiology(title, bi, task, panel) {
         `<span class="bio-cat-chip" style="background:${(cards.find(c => c.biology && c.biology.category === name)?.biology.category_color) || "#3f6fb0"}">${name} · ${n}</span>`).join("")}</div>`
     : "";
 
+  // validation strip (AUC, Q², permutation p) — metabolomics best-practice metrics
+  let validRow = "";
+  if (validation && validation.auc != null) {
+    const sigP = validation.perm_p != null && validation.perm_p < 0.05;
+    validRow = `<tr><td>Validation</td><td>
+      ROC-AUC <b>${validation.auc}</b> ·
+      Q² <b>${validation.q2 ?? "—"}</b> ·
+      permutation p <span class="pval-pill ${sigP ? "pval-sig" : "pval-ns"}">${
+        validation.perm_p != null ? (validation.perm_p < 0.001 ? validation.perm_p.toExponential(1) : validation.perm_p) : "—"}</span>
+      <span style="color:#888;font-size:11px">(leakage-safe CV)</span></td></tr>`;
+  }
   openModal(title, `
     ${headline}
     <table>
       <tr><td>Task</td><td><b>${task}</b></td></tr>
       <tr><td>Panel</td><td>${(panel || []).join(", ") || "—"}</td></tr>
+      ${validRow}
       <tr><td>Annotated</td><td>${bi.coverage ? `${bi.coverage.annotated}/${bi.coverage.total} metabolites curated` : "—"}</td></tr>
     </table>
     ${catBar}
@@ -1014,7 +1030,10 @@ const ACTIONS = {
       if (!response.ok) throw new Error((await response.json()).detail || response.statusText);
       const d = await response.json();
       renderBiology("Domain 2 — biological interpretation",
-        d.biological_interpretation || {}, d.task, d.stable_panel || []);
+        d.biological_interpretation || {}, d.task, d.stable_panel || [], {
+          auc: d.honest_roc_auc, q2: d.honest_q2,
+          perm_p: d.permutation_p_value, vip: d.vip_scores || {},
+        });
       const bi = d.biological_interpretation || {};
       progress.done(bi.top_pathway
         ? `Biological interpretation complete — top pathway: ${bi.top_pathway}`

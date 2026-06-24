@@ -26,6 +26,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 from scipy.stats import t as _tdist
+from sklearn.cross_decomposition import PLSRegression
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import f1_score, roc_auc_score
 from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold
@@ -89,6 +90,80 @@ def _fit_eval(Xtr, ytr, Xte, sel):
     return clf.predict_proba(sc.transform(Xte[:, sel]))[:, 1]
 
 
+def _q2_score(y: np.ndarray, oof: np.ndarray) -> float:
+    """Q² (predictive R²) from out-of-fold predictions — the metabolomics
+    robustness standard. Q² = 1 − PRESS/TSS; >0 means predictive, ~1 is strong."""
+    y = np.asarray(y, dtype=float)
+    oof = np.asarray(oof, dtype=float)
+    mask = ~np.isnan(oof)
+    if mask.sum() < 2:
+        return float("nan")
+    yt, ot = y[mask], oof[mask]
+    ss_tot = float(np.sum((yt - yt.mean()) ** 2))
+    if ss_tot <= 0:
+        return float("nan")
+    return float(1.0 - np.sum((yt - ot) ** 2) / ss_tot)
+
+
+def _vip_scores(X, y, feature_names, n_components: int = 2) -> Dict[str, float]:
+    """
+    Variable Importance in Projection (VIP) from PLS-DA — the standard
+    metabolomics biomarker-ranking score. VIP > 1 marks influential features.
+    """
+    Xs = StandardScaler().fit_transform(np.asarray(X, dtype=float))
+    p = Xs.shape[1]
+    ncomp = max(1, min(n_components, p, Xs.shape[0] - 1))
+    try:
+        pls = PLSRegression(n_components=ncomp)
+        pls.fit(Xs, np.asarray(y, dtype=float))
+    except Exception:
+        return {}
+    t = pls.x_scores_                      # (n_samples, ncomp)
+    w = pls.x_weights_                     # (p, ncomp), unit-norm columns
+    q = pls.y_loadings_.ravel()            # (ncomp,)
+    ssy = np.sum((t ** 2), axis=0) * (q ** 2)   # explained Y SS per component
+    total = float(np.sum(ssy))
+    if total <= 0:
+        return {}
+    vip = np.sqrt(p * ((w ** 2) @ ssy) / total)
+    return {feature_names[i]: round(float(vip[i]), 3) for i in range(p)}
+
+
+def _cv_auc_once(X, y, k, fdr, n_splits, seed, groups) -> float:
+    """One leakage-safe CV pass → ROC-AUC (used by the permutation test)."""
+    skf = (StratifiedGroupKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+           if groups is not None
+           else StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed))
+    oof = np.full(len(y), np.nan)
+    for tr, te in skf.split(X, y, groups):
+        sel = _select_in_fold(X[tr], y[tr], k, fdr)
+        oof[te] = _fit_eval(X[tr], y[tr], X[te], sel)
+    return roc_auc_score(y, oof)
+
+
+def _permutation_pvalue(X, y, k, fdr, n_splits, seed, groups, real_auc,
+                        n_perm: int = 100) -> float:
+    """
+    Label-permutation test (best practice for metabolomics validation): shuffle
+    the outcome n_perm times, recompute the leakage-safe CV AUC, and report
+    p = (1 + #{perm AUC ≥ real}) / (n_perm + 1).
+    """
+    rng = np.random.default_rng(seed)
+    count = 0
+    done = 0
+    for i in range(n_perm):
+        yp = rng.permutation(y)
+        if len(np.unique(yp)) < 2:
+            continue
+        try:
+            if _cv_auc_once(X, yp, k, fdr, n_splits, seed + i + 1, groups) >= real_auc:
+                count += 1
+            done += 1
+        except Exception:
+            continue
+    return (1 + count) / (done + 1)
+
+
 def discover(
     X: np.ndarray,
     y: np.ndarray,
@@ -99,10 +174,12 @@ def discover(
     seed: int = 0,
     feature_names: Optional[Sequence[str]] = None,
     groups: Optional[Sequence] = None,
+    permutations: int = 100,
+    compute_vip: bool = True,
 ) -> Dict:
     """
-    Honest p>>n biomarker discovery. Returns AUC, F1, Top-k stability, the
-    stable panel, and the leaky AUC for comparison.
+    Honest p>>n biomarker discovery. Returns AUC, F1, Q², permutation p-value,
+    Top-k stability + VIP-ranked stable panel, and the leaky AUC for comparison.
     """
     X = np.asarray(X, dtype=float)
     y = np.asarray(y, dtype=int)
@@ -115,7 +192,7 @@ def discover(
         n_splits = min(n_splits, min(per_class_groups), len(np.unique(groups_array)))
 
     fold_sets: List[set] = []
-    rep_aucs, rep_f1s = [], []
+    rep_aucs, rep_f1s, rep_q2s = [], [], []
 
     for rep in range(repeats):
         skf = (
@@ -134,9 +211,11 @@ def discover(
             oof[te] = _fit_eval(X[tr], y[tr], X[te], sel)
         rep_aucs.append(roc_auc_score(y, oof))
         rep_f1s.append(f1_score(y, (oof >= 0.5).astype(int)))
+        rep_q2s.append(_q2_score(y, oof))
 
     honest_auc = float(np.mean(rep_aucs))
     honest_f1 = float(np.mean(rep_f1s))
+    honest_q2 = float(np.nanmean(rep_q2s))
 
     # Top-k stability — mean pairwise Jaccard of the per-fold selections
     def jac(a, b):
@@ -157,20 +236,44 @@ def discover(
     def name(i):
         return feature_names[i] if feature_names is not None else f"feature_{i}"
 
+    stable_names = [name(i) for i in stable_idx]
+
+    # VIP (PLS-DA) ranking of the stable panel — standard biomarker importance
+    vip_panel = {}
+    if compute_vip and stable_idx:
+        names_all = [name(i) for i in range(X.shape[1])]
+        all_vip = _vip_scores(X, y, names_all)
+        vip_panel = {nm: all_vip.get(nm) for nm in stable_names if nm in all_vip}
+
+    # Permutation test p-value on the honest AUC (label-shuffle null)
+    perm_p = None
+    if permutations and permutations > 0:
+        perm_p = _permutation_pvalue(
+            X, y, k, fdr, n_splits, seed, groups_array, honest_auc, n_perm=permutations)
+
     return {
         "n_samples": int(len(y)),
         "n_features": int(X.shape[1]),
         "honest_roc_auc": round(honest_auc, 4),
         "honest_f1": round(honest_f1, 4),
+        "honest_q2": round(honest_q2, 4),
+        "permutation_p_value": round(perm_p, 4) if perm_p is not None else None,
+        "n_permutations": int(permutations) if perm_p is not None else 0,
         "leaky_roc_auc": round(leaky, 4),
         "leakage_inflation": round(leaky - honest_auc, 4),
         "topk_stability_jaccard": round(stability, 4),
-        "stable_panel": [name(i) for i in stable_idx],
+        "stable_panel": stable_names,
         "stable_panel_counts": {name(i): cnt[i] for i in stable_idx},
+        "vip_scores": vip_panel,
         "validation": (
             "patient-grouped repeated stratified CV"
             if groups_array is not None
             else "repeated stratified CV"
+        ),
+        "validation_notes": (
+            "Q² = predictive R² from out-of-fold predictions; "
+            "permutation p-value from label-shuffle null; "
+            "VIP > 1 marks PLS-DA-influential metabolites."
         ),
         "params": {"k": k, "fdr": fdr, "n_splits": n_splits, "repeats": repeats},
     }
