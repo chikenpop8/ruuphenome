@@ -23,6 +23,7 @@ try:
         biomarker_engine,
         biomarkers,
         dimensionality,
+        enrich,
         laboratory_workflow,
         library,
         model_suite,
@@ -40,6 +41,7 @@ except ImportError:  # pragma: no cover - direct script execution fallback
     import biomarker_engine  # type: ignore
     import biomarkers  # type: ignore
     import dimensionality  # type: ignore
+    import enrich  # type: ignore
     import laboratory_workflow  # type: ignore
     import library  # type: ignore
     import model_suite  # type: ignore
@@ -165,6 +167,14 @@ def plugins():
         except Exception:
             return None
     return {
+        "data_governance": {
+            "offline_mode": enrich.offline_mode(),
+            "outbound_network": "blocked — zero data leaves the host"
+                if enrich.offline_mode()
+                else "enabled (PubChem enrichment of metabolite names only)",
+            "note": "Set NMR_OFFLINE=1 to guarantee no outbound connections "
+                    "(required when the data owner forbids external processing).",
+        },
         "domain1_signal_processing": {
             "nmrglue": _ver("nmrglue"),
             "scipy": _ver("scipy"),

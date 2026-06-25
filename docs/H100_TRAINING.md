@@ -50,8 +50,22 @@ python -m nmr_api.train_on_h100 \
 
 ---
 
+## Data-governance note (important)
+Per the organizers, **data must not leave the cluster** and **GPU jobs run only
+through the LiCO web interface** (no SSH to GPU node, no `sbatch` CLI). This job
+complies:
+- **Upload the bundled corpus** `nmr_api/open_data/bmrb_1h_corpus.npz` with the
+  project. The job uses it directly — **it needs no internet for data**. Do
+  **not** pass `--rebuild-corpus` on the cluster.
+- Package install (`uv pip install`) pulls *software*, not data — that is fine
+  and matches the organizers' own Jupyter example.
+- The training uses only open BMRB reference spectra; the hackathon dataset is
+  never sent anywhere.
+- GPU allocation is a single **`1g.10gb` MIG** — the encoder fits easily; lower
+  `--batch-size` if memory is ever tight.
+
 ## What it does
-1. Ensures the open **BMRB** reference corpus exists (downloads if missing).
+1. Loads the **bundled** open BMRB reference corpus (no download needed).
 2. Retrains the masked-autoencoder encoder with H100-scale settings.
 3. Runs the augmented-retrieval benchmark on the new encoder.
 4. Writes:

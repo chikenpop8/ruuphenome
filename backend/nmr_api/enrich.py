@@ -19,10 +19,19 @@ falls back to name-based search links and the app keeps working.
 from __future__ import annotations
 
 import json
+import os
 import re
 import threading
 from pathlib import Path
 from typing import Dict, List, Optional
+
+
+def offline_mode() -> bool:
+    """True when NMR_OFFLINE is set — blocks ALL outbound network calls so no
+    data can leave the host (required when the data owner forbids external
+    processing). Cached enrichment still works; uncached compounds use
+    name-based fallback links."""
+    return os.environ.get("NMR_OFFLINE", "").strip().lower() in ("1", "true", "yes")
 
 try:
     import requests
@@ -58,8 +67,8 @@ def _save_cache() -> None:
 
 
 def _get(url: str) -> Optional[dict]:
-    if not _HAVE_REQUESTS:
-        return None
+    if offline_mode() or not _HAVE_REQUESTS:
+        return None                      # offline → no outbound connection at all
     try:
         r = requests.get(url, timeout=12)
         if r.status_code == 200:

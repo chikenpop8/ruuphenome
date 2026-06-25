@@ -56,6 +56,12 @@ def sha256(path: Path) -> str:
 
 
 def download_corpus(force: bool = False, timeout: int = 90) -> Dict:
+    import os
+    if os.environ.get("NMR_OFFLINE", "").strip().lower() in ("1", "true", "yes"):
+        raise RuntimeError(
+            "NMR_OFFLINE is set — corpus download is blocked. Use the bundled "
+            "open_data/bmrb_1h_corpus.npz instead (no internet required)."
+        )
     manifest = load_manifest()
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     records: List[Dict] = []
