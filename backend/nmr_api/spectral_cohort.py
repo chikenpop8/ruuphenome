@@ -166,7 +166,7 @@ def _merge_bmrb_library() -> None:
     except Exception:
         return
     for name, shifts in bmrb.items():
-        key = _normalize_name(name)
+        key = str(name).strip().lower()          # inline (defined before _normalize_name)
         if key and key not in REFERENCE_SHIFTS and isinstance(shifts, list) and shifts:
             REFERENCE_SHIFTS[key] = [float(s) for s in shifts]
 
@@ -384,8 +384,19 @@ def deconvolve(
     Returns, in addition to per-metabolite quantities, a `fit_overlay` (observed
     vs fitted spectrum for one sample) for the Chenomx-style reference-fit view.
     """
-    refs = reference_shifts or REFERENCE_SHIFTS
-    ppm_max = float(np.max(bin_ppm))
+    full_refs = reference_shifts or REFERENCE_SHIFTS
+    bins_arr = np.asarray(bin_ppm, dtype=float)
+    ppm_max = float(np.max(bins_arr))
+
+    # ASICS-style pre-screen: only fit references with ≥1 peak in an occupied bin.
+    # Keeps a large library (breadth) without paying NNLS cost for absent compounds.
+    occ = X.median(axis=0).values
+    occ_thr = np.quantile(occ, 0.70)
+    occupied = bins_arr[occ >= occ_thr]
+    def _present(shifts):
+        return any(np.min(np.abs(occupied - s)) <= 0.03 for s in shifts) if occupied.size else True
+    refs = {n: sh for n, sh in full_refs.items() if _present(sh)} or full_refs
+
     decoys = {f"decoy::{n}": [((s + decoy_shift_ppm) % ppm_max) for s in sh]
               for n, sh in refs.items()}
     R, names = _reference_matrix(bin_ppm, {**refs, **decoys}, sigma_ppm)
