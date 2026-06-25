@@ -273,6 +273,7 @@
     <div class="tbtn" title="Export spectrum (PNG)" onclick="ACTIONS.exportSpectrum()">🖼️</div>
     <div class="tbtn" title="Upload dataset" onclick="ACTIONS.openDataset()">⬆️</div>
     <input type="file" id="file-input" accept=".tsv,.txt,.csv" style="display:none">
+    <input type="file" id="binned-input" accept=".csv,.tsv,.txt" style="display:none">
   </div>
 
   <div class="main">
@@ -739,6 +740,52 @@ function fitOverlaySvg(ov) {
     <text x="${W-pad}" y="18" font-size="11" fill="#222" text-anchor="end">— observed</text>
     <text x="${W-pad}" y="32" font-size="11" fill="#2c6fb0" text-anchor="end">— NNLS fit</text></svg>`;
 }
+// Shared renderer for the Track-1→2 pipeline modal (demo + uploaded file).
+function renderSpectralPipeline(d, title, csvUrl) {
+  const a = d.annotation, q = d.quantification || {}, bm = d.biomarkers || {}, bi = bm.biological_interpretation || {};
+  const topMets = (a.metabolites || []).slice(0, 10).map(m =>
+    `<tr><td><b>${m.metabolite}</b></td><td>${(m.coverage*100).toFixed(0)}%</td>
+     <td>${m.matched_count}/${m.expected_shifts}</td>
+     <td style="font-size:11px;color:#666">${m.matched_shifts.join(", ")} ppm</td></tr>`).join("");
+  const inUM = q.units === "µM";
+  const quantRows = (q.metabolites || []).slice(0, 10).map(m =>
+    `<tr><td><b>${m.metabolite}</b>${m.passes_fdr?' <span style="color:#2e8b57">★</span>':''}</td>
+     <td>${inUM ? (m.concentration_uM + " µM") : m.mean_concentration}</td><td>${m.snr_vs_decoy}×</td>
+     <td>${(m.detection_rate*100).toFixed(0)}%</td></tr>`).join("");
+  const fitSvg = q.fit_overlay ? fitOverlaySvg(q.fit_overlay) : "";
+  const enrich = (bi.pathway_enrichment || []).slice(0,3).map(e =>
+    `<tr><td><b>${e.pathway}</b>${e.significant?' <span style="color:#2e8b57">★</span>':''}</td>
+     <td>${e.p_value<0.001?e.p_value.toExponential(1):e.p_value}</td>
+     <td>${e.fold_enrichment}×</td><td style="font-size:11px;color:#666">${e.metabolites.join(", ")}</td></tr>`).join("");
+  const labelRow = d.label_info
+    ? `<tr><td>Label found</td><td><b>${d.label_info.label_column}</b>: ${d.label_info.classes.join(" vs ")} (${Object.values(d.label_info.class_balance).join(" / ")})</td></tr>`
+    : `<tr><td>Label</td><td style="color:#9a6a1c">no Class/Group column found — annotation + quantification only (no biomarkers)</td></tr>`;
+  const dl = csvUrl ? `<a href="${csvUrl}" download style="margin-left:8px;color:#2c6fb0;font-weight:600">⬇ Download concentration table (CSV)</a>` : "";
+  openModal(title, `
+    <div class="bio-headline">
+      🔬 <b>One automated pipeline:</b> binned spectra → annotation → quantification → biomarkers → biology.
+      ${d.note ? `<div style="color:#9a6a1c;font-size:12px;margin-top:5px">${d.note}</div>`:''}
+    </div>
+    <table>
+      <tr><td>Task</td><td><b>${d.task || "—"}</b></td></tr>
+      ${labelRow}
+      <tr><td>Cohort</td><td>${a.n_samples} samples × ${a.n_bins} ppm-bins (${a.ppm_range[0]}–${a.ppm_range[1]} ppm)</td></tr>
+      <tr><td>Annotated</td><td>${a.n_metabolites_annotated} metabolites (of ${a.reference_library_size} reference fingerprints)</td></tr>
+      <tr><td>Biomarker AUC</td><td><b>${bm.honest_roc_auc ?? "—"}</b>${bm.permutation_p_value!=null?` · perm p ${bm.permutation_p_value}`:""}</td></tr>
+      <tr><td>Stable panel</td><td>${(bm.stable_panel||[]).join(", ") || "—"}</td></tr>
+    </table>
+    <div class="bio-section-title">Step 3 — Annotation (bins → metabolites) <span class="sub">targeted reference-shift matching</span></div>
+    <table><tr><td style="font-weight:600">Metabolite</td><td style="font-weight:600">Coverage</td>
+      <td style="font-weight:600">Shifts</td><td style="font-weight:600">Matched ppm</td></tr>${topMets}</table>
+    <div class="bio-section-title">Step 4 — Quantification <span class="sub">NNLS deconvolution (ASICS-style) · fit R² ${q.mean_fit_r2 ?? "—"} · ${q.n_passing_fdr ?? 0}/${q.n_quantified ?? 0} pass FDR ${q.fdr_level ?? ""}${inUM ? ` · calibrated to ${q.internal_standard?.toUpperCase()} @ ${q.standard_um} µM` : " · relative"}</span></div>
+    <table><tr><td style="font-weight:600">Metabolite</td><td style="font-weight:600">${inUM ? "Concentration" : "Conc. (relative)"}</td>
+      <td style="font-weight:600">SNR vs decoy</td><td style="font-weight:600">Detection</td></tr>${quantRows || '<tr><td colspan="4" style="color:#888">—</td></tr>'}</table>
+    <p style="font-size:12px;color:#888;margin-top:6px">★ = passes target–decoy FDR.${inUM ? " Absolute µM via internal-standard calibration (Chenomx-style)." : ""}${dl}</p>
+    ${fitSvg ? `<div class="bio-section-title">Reference-fit overlay <span class="sub">sample ${q.fit_overlay.sample} — observed vs NNLS reconstruction</span></div>${fitSvg}` : ""}
+    ${enrich ? `<div class="bio-section-title">Step 5 — Pathway enrichment <span class="sub">on the discovered panel</span></div>
+    <table><tr><td style="font-weight:600">Pathway</td><td style="font-weight:600">p-value</td>
+      <td style="font-weight:600">Fold</td><td style="font-weight:600">Metabolites</td></tr>${enrich}</table>` : ""}`);
+}
 // Render the animated biological-interpretation panel (shared by real + example).
 function renderBiology(title, bi, task, panel, validation) {
   const fmtP = p => (p < 0.001 ? p.toExponential(1) : p);
@@ -1077,54 +1124,21 @@ const ACTIONS = {
         <p style="margin-top:10px;color:#666;font-size:12px">Active: <b id="active-ds">${DATASET}</b></p>`);
     } catch (e) { setMsg("Could not list datasets: " + e); }
   },
-  // Track 1 — full automated pipeline: binned spectra → annotate → biomarkers → biology
+  // Track 1 — demo automated pipeline (synthetic binned cohort)
   spectralPipeline: async () => {
     progress.start("Running Track 1 → Track 2 automated pipeline…");
     try {
       const r = await fetch("/spectral/demo-pipeline");
       if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
       const d = await r.json();
-      const a = d.annotation, q = d.quantification || {}, bm = d.biomarkers || {}, bi = bm.biological_interpretation || {};
-      const topMets = (a.metabolites || []).slice(0, 10).map(m =>
-        `<tr><td><b>${m.metabolite}</b></td><td>${(m.coverage*100).toFixed(0)}%</td>
-         <td>${m.matched_count}/${m.expected_shifts}</td>
-         <td style="font-size:11px;color:#666">${m.matched_shifts.join(", ")} ppm</td></tr>`).join("");
-      const inUM = q.units === "µM";
-      const quantRows = (q.metabolites || []).slice(0, 10).map(m =>
-        `<tr><td><b>${m.metabolite}</b>${m.passes_fdr?' <span style="color:#2e8b57">★</span>':''}</td>
-         <td>${inUM ? (m.concentration_uM + " µM") : m.mean_concentration}</td><td>${m.snr_vs_decoy}×</td>
-         <td>${(m.detection_rate*100).toFixed(0)}%</td></tr>`).join("");
-      const fitSvg = q.fit_overlay ? fitOverlaySvg(q.fit_overlay) : "";
-      const enrich = (bi.pathway_enrichment || []).slice(0,3).map(e =>
-        `<tr><td><b>${e.pathway}</b>${e.significant?' <span style="color:#2e8b57">★</span>':''}</td>
-         <td>${e.p_value<0.001?e.p_value.toExponential(1):e.p_value}</td>
-         <td>${e.fold_enrichment}×</td><td style="font-size:11px;color:#666">${e.metabolites.join(", ")}</td></tr>`).join("");
-      openModal("Track 1 → Track 2 — automated pipeline", `
-        <div class="bio-headline">
-          🔬 <b>One automated pipeline:</b> binned spectra → annotation → biomarkers → biology.
-          ${d.note ? `<div style="color:#9a6a1c;font-size:12px;margin-top:5px">${d.note}</div>`:''}
-        </div>
-        <table>
-          <tr><td>Pipeline</td><td><b>load → PQN normalize → annotate bins → discover → interpret</b></td></tr>
-          <tr><td>Cohort</td><td>${a.n_samples} samples × ${a.n_bins} ppm-bins (${a.ppm_range[0]}–${a.ppm_range[1]} ppm)</td></tr>
-          <tr><td>Annotated</td><td>${a.n_metabolites_annotated} metabolites (of ${a.reference_library_size} reference fingerprints)</td></tr>
-          <tr><td>Biomarker AUC</td><td><b>${bm.honest_roc_auc ?? "—"}</b> (leakage-safe, patient-grouped CV)</td></tr>
-          <tr><td>Stable panel</td><td>${(bm.stable_panel||[]).join(", ") || "—"}</td></tr>
-        </table>
-        <div class="bio-section-title">Step 3 — Annotation (bins → metabolites) <span class="sub">targeted reference-shift matching</span></div>
-        <table><tr><td style="font-weight:600">Metabolite</td><td style="font-weight:600">Coverage</td>
-          <td style="font-weight:600">Shifts</td><td style="font-weight:600">Matched ppm</td></tr>${topMets}</table>
-        <div class="bio-section-title">Step 4 — Quantification <span class="sub">NNLS deconvolution (ASICS-style) · fit R² ${q.mean_fit_r2 ?? "—"} · ${q.n_passing_fdr ?? 0}/${q.n_quantified ?? 0} pass FDR ${q.fdr_level ?? ""}${inUM ? ` · calibrated to ${q.internal_standard?.toUpperCase()} @ ${q.standard_um} µM` : " · relative"}</span></div>
-        <table><tr><td style="font-weight:600">Metabolite</td><td style="font-weight:600">${inUM ? "Concentration" : "Conc. (relative)"}</td>
-          <td style="font-weight:600">SNR vs decoy</td><td style="font-weight:600">Detection</td></tr>${quantRows || '<tr><td colspan="4" style="color:#888">—</td></tr>'}</table>
-        <p style="font-size:12px;color:#888;margin-top:6px">★ = passes target–decoy FDR. Overlapping peaks resolved by linear-combination fitting${inUM ? "; absolute µM via internal-standard calibration (Chenomx-style)" : ""}.
-          <a href="/spectral/demo-concentrations.csv" download style="margin-left:8px;color:#2c6fb0;font-weight:600">⬇ Download concentration table (CSV)</a></p>
-        ${fitSvg ? `<div class="bio-section-title">Reference-fit overlay <span class="sub">sample ${q.fit_overlay.sample} — observed vs NNLS reconstruction</span></div>${fitSvg}` : ""}
-        <div class="bio-section-title">Step 5 — Pathway enrichment <span class="sub">on the discovered panel</span></div>
-        <table><tr><td style="font-weight:600">Pathway</td><td style="font-weight:600">p-value</td>
-          <td style="font-weight:600">Fold</td><td style="font-weight:600">Metabolites</td></tr>${enrich || '<tr><td colspan="4" style="color:#888">—</td></tr>'}</table>`);
-      progress.done(`Pipeline complete — ${a.n_metabolites_annotated} metabolites, AUC ${bm.honest_roc_auc ?? "—"}, top pathway: ${bi.top_pathway || "—"}`);
+      renderSpectralPipeline(d, "Track 1 → Track 2 — automated pipeline (demo)", "/spectral/demo-concentrations.csv");
+      progress.done(`Pipeline complete — ${d.annotation.n_metabolites_annotated} metabolites, AUC ${d.biomarkers?.honest_roc_auc ?? "—"}`);
     } catch (e) { progress.done("Pipeline failed: " + e); }
+  },
+  // Track 1 — open YOUR OWN binned-spectra file (one CSV: sample × ppm-bin, optional Class column)
+  openBinnedFile: () => {
+    const inp = document.getElementById("binned-input");
+    inp.value = ""; inp.click();
   },
   // Demo helper: interpret a hand-picked diabetes-like panel (strong example)
   biologyExample: async () => {
@@ -1311,7 +1325,8 @@ function stepCompound(dir) {
 // ── Build the dropdown menu bar ──
 const MENUS = [
   ["File", [
-    ["Open dataset…", "openDataset", "Ctrl+O"],
+    ["Open Track 1 binned spectra (your CSV)…", "openBinnedFile"],
+    ["Open Domain 2 results table (Track 2)…", "openDataset", "Ctrl+O"],
     ["Save results (CSV)", "saveResults", "Ctrl+S"],
     ["Export spectrum (PNG)", "exportSpectrum"],
     ["sep"],
@@ -1446,6 +1461,19 @@ document.getElementById("file-input").addEventListener("change", async e => {
   const f = e.target.files[0]; if (!f) return;
   const fd = new FormData(); fd.append("nmr_results_tsv", f);
   await load("/compounds-upload", { method: "POST", body: fd });
+});
+// Track 1 — upload your own binned-spectra CSV (one file, optional Class column)
+document.getElementById("binned-input").addEventListener("change", async e => {
+  const f = e.target.files[0]; if (!f) return;
+  progress.start(`Analysing ${f.name} — annotate → quantify → biomarkers…`);
+  try {
+    const fd = new FormData(); fd.append("binned_matrix", f);
+    const r = await fetch("/spectral/pipeline-file", { method: "POST", body: fd });
+    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+    const d = await r.json();
+    renderSpectralPipeline(d, `Track 1 → Track 2 — ${f.name}`, null);
+    progress.done(`Done — ${d.annotation.n_metabolites_annotated} metabolites${d.biomarkers ? `, AUC ${d.biomarkers.honest_roc_auc}` : ""}.`);
+  } catch (err) { progress.done("Could not analyse file: " + err); }
 });
 // redraw on resize
 window.addEventListener("resize", () => { if (LIBRARY) { drawSpectrum(); drawOverview(); } });

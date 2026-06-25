@@ -235,6 +235,44 @@ def load_binned_matrix(raw: bytes) -> Tuple[pd.DataFrame, np.ndarray]:
 
 
 # ── normalization (safety net; organizers may already normalize) ─────────────
+def extract_embedded_labels(raw: bytes, sample_ids: Sequence[str]) -> Tuple[Optional[Dict[str, int]], Optional[Dict]]:
+    """
+    Some binned files include the label inline (a 'Class'/'Group'/'Condition'
+    column alongside the ppm bins). Detect it and build a binary label map so a
+    single uploaded file runs the whole Track-1 → Track-2 pipeline.
+    """
+    text = raw.decode("utf-8", errors="replace")
+    sep = "\t" if text[:2048].count("\t") >= text[:2048].count(",") else ","
+    df = pd.read_csv(io.StringIO(text), sep=sep, index_col=0, low_memory=False)
+    ids = {str(s) for s in sample_ids}
+    label_names = ("class", "group", "condition", "label", "diagnosis",
+                   "phenotype", "status", "type", "category")
+    for col in df.columns:
+        if pd.api.types.is_numeric_dtype(df[col]):
+            continue                                   # ppm bins are numeric
+        name_hit = str(col).strip().lower() in label_names
+        vals = df[col].dropna().astype(str)
+        if not (name_hit or 2 <= vals.nunique() <= 6):
+            continue
+        counts = vals.value_counts()
+        if len(counts) < 2:
+            continue
+        classes = list(counts.index[:2])
+        positive = classes[1] if counts[classes[1]] <= counts[classes[0]] else classes[0]
+        label_map = {}
+        for sid in sample_ids:
+            v = str(df[col].get(sid, "")).strip()
+            if v in classes:
+                label_map[str(sid)] = 1 if v == positive else 0
+        if len(set(label_map.values())) >= 2:
+            return label_map, {
+                "label_column": str(col), "classes": classes,
+                "positive_class": positive,
+                "class_balance": {k: int(counts[k]) for k in classes},
+            }
+    return None, None
+
+
 def total_area_normalize(X: pd.DataFrame) -> pd.DataFrame:
     """Scale each sample so its total integrated area is constant."""
     areas = X.abs().sum(axis=1).replace(0, np.nan)

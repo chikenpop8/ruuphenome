@@ -781,6 +781,35 @@ async def spectral_export_concentrations(
         raise HTTPException(status_code=422, detail=f"Export failed: {exc}")
 
 
+@app.post("/spectral/pipeline-file")
+async def spectral_pipeline_file(
+    binned_matrix: UploadFile = File(...),
+    normalize: str = Form(default="pqn"),
+):
+    """
+    One-file Track 1 → Track 2 pipeline. Accepts a binned matrix (sample × ppm-bin)
+    that may include an inline label column (Class/Group/Condition). Runs
+    annotate → quantify → (if a label is found) biomarker discovery + biology.
+    This is the simplest entry point: upload one CSV, get the full analysis.
+    """
+    raw = await binned_matrix.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    try:
+        X, bin_ppm = spectral_cohort.load_binned_matrix(raw)
+        label_map, info = spectral_cohort.extract_embedded_labels(
+            raw, [str(s) for s in X.index])
+        result = _run_cohort_pipeline(
+            X, bin_ppm, label_map=label_map, normalize=normalize,
+            include_biomarkers=label_map is not None)
+        result["label_info"] = info
+        result["task"] = (f"{info['classes'][0]} vs {info['classes'][1]}"
+                          if info else "no label column found — annotation only")
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Pipeline failed: {exc}")
+
+
 @app.post("/track2/metadata-columns")
 async def track2_metadata_columns(metadata: UploadFile = File(...)):
     """
