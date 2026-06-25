@@ -1,0 +1,2287 @@
+{
+  "(R)-3-Hydroxybutyric acid": {
+    "pubchem_cid": 92135,
+    "iupac_name": "(3R)-3-hydroxybutanoic acid",
+    "inchikey": "WHBMMWSBFZVSSR-GSVOUGTGSA-N",
+    "synonyms": [
+      "(R)-3-Hydroxybutyric acid",
+      "Butanoic acid, 3-hydroxy-, (3R)-",
+      "3-Hydroxybutanoic acid, (R)-",
+      "3-D-hydroxybutyric acid",
+      "b-Hydroxybutyrate",
+      "(-)-beta-Hydroxybutyrate, D-"
+    ],
+    "cas": "625-72-9"
+  },
+  "acetate": {
+    "pubchem_cid": 175,
+    "iupac_name": "acetate",
+    "inchikey": "QTBSBXVTEAMEQO-UHFFFAOYSA-M",
+    "synonyms": [
+      "acetate",
+      "Acetate Ion",
+      "Acetic acid, ion(1-)",
+      "Acetate ions",
+      "Acetate anion",
+      "Acetoxy ion"
+    ],
+    "cas": "71-50-1"
+  },
+  "acetoacetate": {
+    "pubchem_cid": 6971017,
+    "iupac_name": "3-oxobutanoate",
+    "inchikey": "WDJHALXBUFZDSR-UHFFFAOYSA-M",
+    "synonyms": [
+      "acetoacetate",
+      "3-oxobutanoate",
+      "oxobutyrate",
+      "RefChem:914968",
+      "Acetoacetate ion(1-)",
+      "Butanoic acid, 3-oxo-, ion(1-)"
+    ],
+    "cas": "141-81-1"
+  },
+  "L-alanine": {
+    "pubchem_cid": 5950,
+    "iupac_name": "(2S)-2-aminopropanoic acid",
+    "inchikey": "QNAYBMKLOCPYGJ-REOHCLBHSA-N",
+    "synonyms": [
+      "L-alanine",
+      "alanine",
+      "(S)-Alanine",
+      "(2S)-2-Aminopropanoic acid",
+      "L-alpha-alanine",
+      "(S)-2-Aminopropanoic acid"
+    ],
+    "cas": "56-41-7"
+  },
+  "L-valine": {
+    "pubchem_cid": 6287,
+    "iupac_name": "(2S)-2-amino-3-methylbutanoic acid",
+    "inchikey": "KZSNJWFQEVHDMF-BYPYZUCNSA-N",
+    "synonyms": [
+      "L-valine",
+      "valine",
+      "(S)-Valine",
+      "(2S)-2-amino-3-methylbutanoic acid",
+      "(S)-2-Amino-3-methylbutanoic acid",
+      "2-Amino-3-methylbutyric acid"
+    ],
+    "cas": "72-18-4"
+  },
+  "hypoxanthine": {
+    "pubchem_cid": 135398638,
+    "iupac_name": "1,7-dihydropurin-6-one",
+    "inchikey": "FDGQSTZJBFJUBT-UHFFFAOYSA-N",
+    "synonyms": [
+      "hypoxanthine",
+      "6-Hydroxypurine",
+      "9H-Purin-6-ol",
+      "7H-Purin-6-ol",
+      "Sarkin",
+      "Sarcine"
+    ],
+    "cas": "68-94-0"
+  },
+  "citrate": {
+    "pubchem_cid": 31348,
+    "iupac_name": "2-hydroxypropane-1,2,3-tricarboxylate",
+    "inchikey": "KRKNYBCHXYNGOX-UHFFFAOYSA-K",
+    "synonyms": [
+      "citrate",
+      "Citrate Ion",
+      "citrate salt",
+      "RefChem:577453",
+      "2-hydroxypropane-1,2,3-tricarboxylate",
+      "CITRATE ANION"
+    ],
+    "cas": "126-44-3"
+  },
+  "creatinine": {
+    "pubchem_cid": 588,
+    "iupac_name": "2-amino-3-methyl-4H-imidazol-5-one",
+    "inchikey": "DDRJAANPRJIHGJ-UHFFFAOYSA-N",
+    "synonyms": [
+      "2-Imino-1-methylimidazolidin-4-one",
+      "1-Methylglycocyamidine",
+      "1-Methylhydantoin-2-imide",
+      "Creatinine,heated",
+      "Kreatininum",
+      "2-amino-3-methyl-4H-imidazol-5-one"
+    ],
+    "cas": "60-27-5"
+  },
+  "L-glutamine": {
+    "pubchem_cid": 5961,
+    "iupac_name": "(2S)-2,5-diamino-5-oxopentanoic acid",
+    "inchikey": "ZDXPYRJPNDTMRX-VKHMYHEASA-N",
+    "synonyms": [
+      "L-glutamine",
+      "glutamine",
+      "Levoglutamide",
+      "L-(+)-Glutamine",
+      "Cebrogen",
+      "Stimulina"
+    ],
+    "cas": "56-85-9"
+  },
+  "glycine": {
+    "pubchem_cid": 750,
+    "iupac_name": "2-aminoacetic acid",
+    "inchikey": "DHMQDGOQFOQNFH-UHFFFAOYSA-N",
+    "synonyms": [
+      "glycine",
+      "2-Aminoacetic acid",
+      "aminoacetic acid",
+      "Aminoethanoic acid",
+      "Glycocoll",
+      "Glycolixir"
+    ],
+    "cas": "56-40-6"
+  },
+  "histidine": {
+    "pubchem_cid": 6274,
+    "iupac_name": "(2S)-2-amino-3-(1H-imidazol-5-yl)propanoic acid",
+    "inchikey": "HNDVDQJCIGZPNO-YFKPBYRVSA-N",
+    "synonyms": [
+      "L-histidine",
+      "histidine",
+      "glyoxaline-5-alanine",
+      "L-(-)-Histidine",
+      "histidina",
+      "Istidina"
+    ],
+    "cas": "71-00-1"
+  },
+  "L-allo-Isoleucine": {
+    "pubchem_cid": 99288,
+    "iupac_name": "(2S,3R)-2-amino-3-methylpentanoic acid",
+    "inchikey": "AGPKZVBTJJNPAG-UHNVWZDZSA-N",
+    "synonyms": [
+      "DL-Allo-isoleucine",
+      "Alloisoleucine, DL-",
+      "DL-Alloisoleucine",
+      "EINECS 221-464-2",
+      "RefChem:554752",
+      "L-Alloisoleucine"
+    ],
+    "cas": "1509-34-8"
+  },
+  "isopropanol": {
+    "pubchem_cid": 3776,
+    "iupac_name": "propan-2-ol",
+    "inchikey": "KFZMGEQAYNKOFK-UHFFFAOYSA-N",
+    "synonyms": [
+      "Isopropyl alcohol",
+      "isopropanol",
+      "2-Propanol",
+      "Propan-2-ol",
+      "2-Hydroxypropane",
+      "Dimethylcarbinol"
+    ],
+    "cas": "67-63-0"
+  },
+  "L-Lactic acid": {
+    "pubchem_cid": 107689,
+    "iupac_name": "(2S)-2-hydroxypropanoic acid",
+    "inchikey": "JVTAAEKCZFNVCJ-REOHCLBHSA-N",
+    "synonyms": [
+      "L-Lactic acid",
+      "L-(+)-Lactic acid",
+      "(S)-Lactic acid",
+      "(S)-2-Hydroxypropanoic acid",
+      "(2S)-2-hydroxypropanoic acid",
+      "Sarcolactic acid"
+    ],
+    "cas": "79-33-4"
+  },
+  "L-leucine": {
+    "pubchem_cid": 6106,
+    "iupac_name": "(2S)-2-amino-4-methylpentanoic acid",
+    "inchikey": "ROHFNLRQFUQHCH-YFKPBYRVSA-N",
+    "synonyms": [
+      "L-leucine",
+      "leucine",
+      "(S)-Leucine",
+      "(S)-2-Amino-4-methylpentanoic acid",
+      "(2S)-2-amino-4-methylpentanoic acid",
+      "Leucin"
+    ],
+    "cas": "61-90-5"
+  },
+  "lipoproteins": {
+    "pubchem_cid": null,
+    "iupac_name": null,
+    "inchikey": null,
+    "synonyms": [],
+    "cas": null
+  },
+  "methanol": {
+    "pubchem_cid": 887,
+    "iupac_name": "methanol",
+    "inchikey": "OKKJLVBELUTLKV-UHFFFAOYSA-N",
+    "synonyms": [
+      "methanol",
+      "methyl alcohol",
+      "wood alcohol",
+      "Methylol",
+      "Wood naphtha",
+      "Methyl hydroxide"
+    ],
+    "cas": "67-56-1"
+  },
+  "Dimethyl sulfone": {
+    "pubchem_cid": 6213,
+    "iupac_name": "methylsulfonylmethane",
+    "inchikey": "HHVIBTZHLRERCL-UHFFFAOYSA-N",
+    "synonyms": [
+      "Dimethyl sulfone",
+      "Methyl sulfone",
+      "Methylsulfonylmethane",
+      "Dimethyl sulphone",
+      "Sulfonylbismethane",
+      "Methane, sulfonylbis-"
+    ],
+    "cas": "67-71-0"
+  },
+  "D-phenylalanine": {
+    "pubchem_cid": 71567,
+    "iupac_name": "(2R)-2-amino-3-phenylpropanoic acid",
+    "inchikey": "COLNVLDHVKWLRT-MRVPVSSYSA-N",
+    "synonyms": [
+      "D-phenylalanine",
+      "(2R)-2-amino-3-phenylpropanoic acid",
+      "Sabiden",
+      "D-Phe",
+      "Alanine, phenyl-, D-",
+      "D-(+)-Phenylalanine"
+    ],
+    "cas": "673-06-3"
+  },
+  "Pyruvic acid": {
+    "pubchem_cid": 1060,
+    "iupac_name": "2-oxopropanoic acid",
+    "inchikey": "LCTONWCANYUPML-UHFFFAOYSA-N",
+    "synonyms": [
+      "Pyruvic acid",
+      "2-Oxopropanoic acid",
+      "acetylformic acid",
+      "Pyroracemic acid",
+      "2-Oxopropionic acid",
+      "Propanoic acid, 2-oxo-"
+    ],
+    "cas": "127-17-3"
+  },
+  "L-tyrosine": {
+    "pubchem_cid": 6057,
+    "iupac_name": "(2S)-2-amino-3-(4-hydroxyphenyl)propanoic acid",
+    "inchikey": "OUYCCCASQSFEME-QMMMGPOBSA-N",
+    "synonyms": [
+      "L-tyrosine",
+      "tyrosine",
+      "(S)-Tyrosine",
+      "p-Tyrosine",
+      "(2S)-2-amino-3-(4-hydroxyphenyl)propanoic acid",
+      "L-p-Tyrosine"
+    ],
+    "cas": "60-18-4"
+  },
+  "some-uncached-compound-xyz-123": {
+    "pubchem_cid": null,
+    "iupac_name": null,
+    "inchikey": null,
+    "synonyms": [],
+    "cas": null
+  },
+  "definitely-not-cached-compound-zzz": {
+    "pubchem_cid": null,
+    "iupac_name": null,
+    "inchikey": null,
+    "synonyms": [],
+    "cas": null
+  },
+  "(R)-3-hydroxybutyrate": {
+    "pubchem_cid": 6971058,
+    "iupac_name": "(3R)-3-hydroxybutanoate",
+    "inchikey": "WHBMMWSBFZVSSR-GSVOUGTGSA-M",
+    "synonyms": [
+      "(R)-3-hydroxybutyrate",
+      "RefChem:1051064",
+      "(3R)-3-hydroxybutanoate",
+      "D-3-hydroxybutyrate",
+      "D-beta-hydroxybutyrate",
+      "3-D-hydroxybutyrate"
+    ],
+    "cas": null
+  },
+  "(S)-lactic acid": {
+    "pubchem_cid": 107689,
+    "iupac_name": "(2S)-2-hydroxypropanoic acid",
+    "inchikey": "JVTAAEKCZFNVCJ-REOHCLBHSA-N",
+    "synonyms": [
+      "L-Lactic acid",
+      "L-(+)-Lactic acid",
+      "(S)-Lactic acid",
+      "(S)-2-Hydroxypropanoic acid",
+      "(2S)-2-hydroxypropanoic acid",
+      "Sarcolactic acid"
+    ],
+    "cas": "79-33-4"
+  },
+  "1,5-anhydroglucitol": {
+    "pubchem_cid": 64960,
+    "iupac_name": "(2R,3S,4R,5S)-2-(hydroxymethyl)oxane-3,4,5-triol",
+    "inchikey": "MPCAJMNYNOGXPB-SLPGGIOYSA-N",
+    "synonyms": [
+      "1,5-Anhydro-D-glucitol",
+      "1,5-Anhydroglucitol",
+      "1,5-ANHYDROSORBITOL",
+      "1,5-Anhydro-D-sorbitol",
+      "1-Deoxy-D-glucopyranose",
+      "Aceritol"
+    ],
+    "cas": "154-58-5"
+  },
+  "1-methylhistidine": {
+    "pubchem_cid": 92105,
+    "iupac_name": "(2S)-2-amino-3-(1-methylimidazol-4-yl)propanoic acid",
+    "inchikey": "BRMWTNUJHUMWMS-LURJTMIESA-N",
+    "synonyms": [
+      "1-Methyl-L-histidine",
+      "1-Methylhistidine",
+      "pi-methylhistidine",
+      "L-Histidine, 1-methyl-",
+      "Histidine, 1-methyl-, L-",
+      "(2S)-2-amino-3-(1-methyl-1H-imidazol-4-yl)propanoic acid"
+    ],
+    "cas": "332-80-9"
+  },
+  "1-methylnicotinamide": {
+    "pubchem_cid": 457,
+    "iupac_name": "1-methylpyridin-1-ium-3-carboxamide",
+    "inchikey": "LDHMAVIPBRSVRG-UHFFFAOYSA-O",
+    "synonyms": [
+      "1-methylnicotinamide",
+      "Trigonellinamide",
+      "N(1)-Methylnicotinamide",
+      "Trigonellamide",
+      "1-methylpyridin-1-ium-3-carboxamide",
+      "3-(Aminocarbonyl)-1-methylpyridinium"
+    ],
+    "cas": "3106-60-3"
+  },
+  "2-hydroxybutyrate": {
+    "pubchem_cid": 440864,
+    "iupac_name": "(2S)-2-hydroxybutanoic acid",
+    "inchikey": "AFENDNXGAFYKQO-VKHMYHEASA-N",
+    "synonyms": [
+      "(S)-2-Hydroxybutyric acid",
+      "(S)-2-hydroxybutanoic acid",
+      "(2S)-2-hydroxybutanoic acid",
+      "L-2-hydroxybutanoic acid",
+      "L-alpha-hydroxybutyric acid",
+      "L-alpha-hydroxybutanoic acid"
+    ],
+    "cas": "3347-90-8"
+  },
+  "2-hydroxyisobutyrate": {
+    "pubchem_cid": 4277439,
+    "iupac_name": "2-hydroxy-2-methylpropanoate",
+    "inchikey": "BWLBGMIXKSTLSX-UHFFFAOYSA-M",
+    "synonyms": [
+      "2-Hydroxyisobutyrate",
+      "2-hydroxy-2-methylpropanoate",
+      "RefChem:87360",
+      "2-Methyllactate",
+      "alpha-Hydroxyisobutyrate",
+      "alpha-hydroxyisobutanoate"
+    ],
+    "cas": null
+  },
+  "2-oxo-3-methylvalerate": {
+    "pubchem_cid": 47,
+    "iupac_name": "3-methyl-2-oxopentanoic acid",
+    "inchikey": "JVQYSWDUAOAHFM-UHFFFAOYSA-N",
+    "synonyms": [
+      "3-Methyl-2-oxovaleric acid",
+      "alpha-Keto-beta-methylvaleric acid",
+      "2-OXO-3-METHYLVALERIC ACID",
+      "3-Ethyl-3-methylpyruvic acid",
+      "2-Oxo-3-methylpentanoic acid",
+      "3-methyl-2-oxo-pentanoic acid"
+    ],
+    "cas": "1460-34-0"
+  },
+  "2-oxoglutarate": {
+    "pubchem_cid": 51,
+    "iupac_name": "2-oxopentanedioic acid",
+    "inchikey": "KPGXRSRHYNQIFN-UHFFFAOYSA-N",
+    "synonyms": [
+      "2-Oxopentanedioic acid",
+      "2-oxoglutaric acid",
+      "alpha-ketoglutaric acid",
+      "2-oxoglutarate",
+      "Oxoglutaric acid",
+      "a-ketoglutaric acid"
+    ],
+    "cas": "328-50-7"
+  },
+  "2-oxoisocaproate": {
+    "pubchem_cid": 70,
+    "iupac_name": "4-methyl-2-oxopentanoic acid",
+    "inchikey": "BKAJNAXTPSGJCU-UHFFFAOYSA-N",
+    "synonyms": [
+      "4-methyl-2-oxopentanoic acid",
+      "4-Methyl-2-oxovaleric acid",
+      "alpha-Ketoisocaproic acid",
+      "2-OXO-4-METHYLPENTANOIC ACID",
+      "2-Oxoisocaproate",
+      "2-Oxoisocaproic acid"
+    ],
+    "cas": "816-66-0"
+  },
+  "2-oxoisovalerate": {
+    "pubchem_cid": 49,
+    "iupac_name": "3-methyl-2-oxobutanoic acid",
+    "inchikey": "QHKABHOOEWYVLI-UHFFFAOYSA-N",
+    "synonyms": [
+      "3-Methyl-2-oxobutanoic acid",
+      "3-Methyl-2-oxobutyric acid",
+      "alpha-Ketoisovalerate",
+      "alpha-ketovaline",
+      "2-Oxo-3-methylbutanoic acid",
+      "Dimethylpyruvic acid"
+    ],
+    "cas": "759-05-7"
+  },
+  "3,4-dihydroxymandelate": {
+    "pubchem_cid": 85782,
+    "iupac_name": "2-(3,4-dihydroxyphenyl)-2-hydroxyacetic acid",
+    "inchikey": "RGHMISIYKIHAJW-UHFFFAOYSA-N",
+    "synonyms": [
+      "3,4-Dihydroxymandelic acid",
+      "2-(3,4-dihydroxyphenyl)-2-hydroxyacetic acid",
+      "DOMA",
+      "Mandelic acid, 3,4-dihydroxy-",
+      "DHMA",
+      "RefChem:905495"
+    ],
+    "cas": "775-01-9"
+  },
+  "3-hydroxybutyrate": {
+    "pubchem_cid": 3541112,
+    "iupac_name": "3-hydroxybutanoate",
+    "inchikey": "WHBMMWSBFZVSSR-UHFFFAOYSA-M",
+    "synonyms": [
+      "3-hydroxybutyrate",
+      "beta-hydroxybutanoate",
+      "3-OH butyrate",
+      "3-OH-butyrate",
+      "beta-hydroxy-n-butyrate",
+      "3 Hydroxybutyrate"
+    ],
+    "cas": "151-03-1"
+  },
+  "3-hydroxyisovalerate": {
+    "pubchem_cid": 6950804,
+    "iupac_name": "3-hydroxy-3-methylbutanoate",
+    "inchikey": "AXFYFNCPONWUHW-UHFFFAOYSA-M",
+    "synonyms": [
+      "3-hydroxy-3-methylbutanoate",
+      "3-Hydroxy-3-methylbutyrate",
+      "3-Hydroxyisovalerate",
+      "beta-hydroxyisovalerate",
+      "beta-Hydroxy-beta-methylbutyrate",
+      "BETA-HYDROXY-BETA-METHYLBUTYRATE [WHO-DD]"
+    ],
+    "cas": null
+  },
+  "3-methylhistidine": {
+    "pubchem_cid": 64969,
+    "iupac_name": "(2S)-2-amino-3-(3-methylimidazol-4-yl)propanoic acid",
+    "inchikey": "JDHILDINMRGULE-LURJTMIESA-N",
+    "synonyms": [
+      "3-Methyl-L-histidine",
+      "3-Methylhistidine",
+      "L-Histidine, 3-methyl-",
+      "(2S)-2-amino-3-(3-methylimidazol-4-yl)propanoic acid",
+      "(2S)-2-azaniumyl-3-(3-methylimidazol-4-yl)propanoate",
+      "ntau-methylhistidine"
+    ],
+    "cas": "368-16-1"
+  },
+  "4-aminobutyrate": {
+    "pubchem_cid": 119,
+    "iupac_name": "4-aminobutanoic acid",
+    "inchikey": "BTCSSZJGUNDROE-UHFFFAOYSA-N",
+    "synonyms": [
+      "gamma-aminobutyric acid",
+      "GABA",
+      "Piperidic acid",
+      "Piperidinic acid",
+      "Aminalon",
+      "Gaballon"
+    ],
+    "cas": "56-12-2"
+  },
+  "4-aminohippurate": {
+    "pubchem_cid": 2148,
+    "iupac_name": "2-[(4-aminobenzoyl)amino]acetic acid",
+    "inchikey": "HSMNQINEKMPTIC-UHFFFAOYSA-N",
+    "synonyms": [
+      "4-Aminohippuric acid",
+      "aminohippuric acid",
+      "P-AMINOHIPPURIC ACID",
+      "N-(4-Aminobenzoyl)glycine",
+      "Glycine, N-(4-aminobenzoyl)-",
+      "Paha"
+    ],
+    "cas": "61-78-9"
+  },
+  "4-cresol sulfate": {
+    "pubchem_cid": 4615423,
+    "iupac_name": "(4-methylphenyl) hydrogen sulfate",
+    "inchikey": "WGNAKZGUSRVWRH-UHFFFAOYSA-N",
+    "synonyms": [
+      "p-Cresol sulfate",
+      "p-cresyl sulfate",
+      "p-tolyl hydrogen sulfate",
+      "(4-Methylphenyl)oxidanesulfonic acid",
+      "4-cresol sulfate",
+      "4-Cresol sulphate"
+    ],
+    "cas": "3233-58-7"
+  },
+  "4-hydroxyphenylacetate": {
+    "pubchem_cid": 96009,
+    "iupac_name": "(4-hydroxyphenyl) acetate",
+    "inchikey": "HBMCQTHGYMTCOF-UHFFFAOYSA-N",
+    "synonyms": [
+      "4-Acetoxyphenol",
+      "4-Hydroxyphenyl acetate",
+      "(4-hydroxyphenyl) acetate",
+      "1,4-Benzenediol, monoacetate",
+      "RefChem:912602",
+      "4-Hydroxyphenylacetate"
+    ],
+    "cas": "3233-32-7"
+  },
+  "D-glucose": {
+    "pubchem_cid": 5793,
+    "iupac_name": "(3R,4S,5S,6R)-6-(hydroxymethyl)oxane-2,3,4,5-tetrol",
+    "inchikey": "WQZGKKKJIJFFOK-GASJEMHNSA-N",
+    "synonyms": [
+      "D-Glucopyranose",
+      "glucose",
+      "Glucopyranose",
+      "dextrose",
+      "Blood sugar",
+      "(3R,4S,5S,6R)-6-(hydroxymethyl)oxane-2,3,4,5-tetrol"
+    ],
+    "cas": "50-99-7"
+  },
+  "D-mannose": {
+    "pubchem_cid": 18950,
+    "iupac_name": "(3S,4S,5S,6R)-6-(hydroxymethyl)oxane-2,3,4,5-tetrol",
+    "inchikey": "WQZGKKKJIJFFOK-QTVWNMPRSA-N",
+    "synonyms": [
+      "D-Mannopyranose",
+      "mannopyranose",
+      "mannopyranoside",
+      "d-mannopyranoside",
+      "D-Man",
+      "D-Mannose"
+    ],
+    "cas": "530-26-7"
+  },
+  "L-glutamic acid": {
+    "pubchem_cid": 33032,
+    "iupac_name": "(2S)-2-aminopentanedioic acid",
+    "inchikey": "WHUUTDBJXJRKMK-VKHMYHEASA-N",
+    "synonyms": [
+      "L-glutamic acid",
+      "GLUTAMIC ACID",
+      "(2S)-2-Aminopentanedioic acid",
+      "L-glutamate",
+      "(S)-2-Aminopentanedioic acid",
+      "Glutamidex"
+    ],
+    "cas": "56-86-0"
+  },
+  "L-histidine": {
+    "pubchem_cid": 6274,
+    "iupac_name": "(2S)-2-amino-3-(1H-imidazol-5-yl)propanoic acid",
+    "inchikey": "HNDVDQJCIGZPNO-YFKPBYRVSA-N",
+    "synonyms": [
+      "L-histidine",
+      "histidine",
+      "glyoxaline-5-alanine",
+      "L-(-)-Histidine",
+      "histidina",
+      "Istidina"
+    ],
+    "cas": "71-00-1"
+  },
+  "L-isoleucine": {
+    "pubchem_cid": 6306,
+    "iupac_name": "(2S,3S)-2-amino-3-methylpentanoic acid",
+    "inchikey": "AGPKZVBTJJNPAG-WHFBIAKZSA-N",
+    "synonyms": [
+      "l-isoleucine",
+      "Isoleucine",
+      "(2S,3S)-2-Amino-3-methylpentanoic acid",
+      "2S,3S-Isoleucine",
+      "(S)-Isoleucine",
+      "(S,S)-Isoleucine"
+    ],
+    "cas": "73-32-5"
+  },
+  "L-methionine": {
+    "pubchem_cid": 6137,
+    "iupac_name": "(2S)-2-amino-4-methylsulfanylbutanoic acid",
+    "inchikey": "FFEARJCKVFRZRR-BYPYZUCNSA-N",
+    "synonyms": [
+      "L-methionine",
+      "methionine",
+      "h-Met-oh",
+      "(S)-2-Amino-4-(methylthio)butanoic acid",
+      "Cymethion",
+      "L-(-)-Methionine"
+    ],
+    "cas": "63-68-3"
+  },
+  "L-phenylalanine": {
+    "pubchem_cid": 6140,
+    "iupac_name": "(2S)-2-amino-3-phenylpropanoic acid",
+    "inchikey": "COLNVLDHVKWLRT-QMMMGPOBSA-N",
+    "synonyms": [
+      "L-phenylalanine",
+      "phenylalanine",
+      "(S)-2-Amino-3-phenylpropanoic acid",
+      "(2S)-2-amino-3-phenylpropanoic acid",
+      "3-Phenyl-L-alanine",
+      "(S)-Phenylalanine"
+    ],
+    "cas": "63-91-2"
+  },
+  "L-proline": {
+    "pubchem_cid": 145742,
+    "iupac_name": "(2S)-pyrrolidine-2-carboxylic acid",
+    "inchikey": "ONIBWKKTOPOVIA-BYPYZUCNSA-N",
+    "synonyms": [
+      "L-proline",
+      "proline",
+      "L-(-)-Proline",
+      "(2S)-pyrrolidine-2-carboxylic acid",
+      "(S)-Pyrrolidine-2-carboxylic acid",
+      "(-)-Proline"
+    ],
+    "cas": "147-85-3"
+  },
+  "N-acetyl groups (glycoproteins)": {
+    "pubchem_cid": null,
+    "iupac_name": null,
+    "inchikey": null,
+    "synonyms": [],
+    "cas": null
+  },
+  "N-acetylaspartate": {
+    "pubchem_cid": 65065,
+    "iupac_name": "(2S)-2-acetamidobutanedioic acid",
+    "inchikey": "OTCCIMWXFLJLIA-BYPYZUCNSA-N",
+    "synonyms": [
+      "N-Acetyl-L-aspartic acid",
+      "Acetyl-L-aspartic acid",
+      "N-Acetylaspartate",
+      "Acetylaspartic acid",
+      "(2S)-2-acetamidobutanedioic acid",
+      "L-Aspartic acid, N-acetyl-"
+    ],
+    "cas": "997-55-7"
+  },
+  "N-acetylglutamate": {
+    "pubchem_cid": 70914,
+    "iupac_name": "(2S)-2-acetamidopentanedioic acid",
+    "inchikey": "RFMMMVDNIPUKGG-YFKPBYRVSA-N",
+    "synonyms": [
+      "N-Acetyl-L-glutamic acid",
+      "acetylglutamic acid",
+      "N-acetyl-L-glutamate",
+      "Acetyl-L-glutamic acid",
+      "N-Acetylglutamate",
+      "Acetyl glutamic acid"
+    ],
+    "cas": "1188-37-0"
+  },
+  "Unknown_d_5.11": {
+    "pubchem_cid": null,
+    "iupac_name": null,
+    "inchikey": null,
+    "synonyms": [],
+    "cas": null
+  },
+  "Unknown_q_5.03": {
+    "pubchem_cid": null,
+    "iupac_name": null,
+    "inchikey": null,
+    "synonyms": [],
+    "cas": null
+  },
+  "Uridine": {
+    "pubchem_cid": 6029,
+    "iupac_name": "1-[(2R,3R,4S,5R)-3,4-dihydroxy-5-(hydroxymethyl)oxolan-2-yl]pyrimidine-2,4-dione",
+    "inchikey": "DRTQHJPVMGBUCF-XVFCMESISA-N",
+    "synonyms": [
+      "uridine",
+      "Uridin",
+      "Uracil riboside",
+      "1-beta-D-Ribofuranosyluracil",
+      "1-[(2R,3R,4S,5R)-3,4-dihydroxy-5-(hydroxymethyl)oxolan-2-yl]pyrimidine-2,4-dione",
+      "1-[(2R,3R,4S,5R)-3,4-dihydroxy-5-(hydroxymethyl)oxolan-2-yl]-1,2,3,4-tetrahydropyrimidine-2,4-dione"
+    ],
+    "cas": "58-96-8"
+  },
+  "a-Hydroxy-n-butyrate": {
+    "pubchem_cid": 440864,
+    "iupac_name": "(2S)-2-hydroxybutanoic acid",
+    "inchikey": "AFENDNXGAFYKQO-VKHMYHEASA-N",
+    "synonyms": [
+      "(S)-2-Hydroxybutyric acid",
+      "(S)-2-hydroxybutanoic acid",
+      "(2S)-2-hydroxybutanoic acid",
+      "L-2-hydroxybutanoic acid",
+      "L-alpha-hydroxybutyric acid",
+      "L-alpha-hydroxybutanoic acid"
+    ],
+    "cas": "3347-90-8"
+  },
+  "a-Hydroxy-n-valerate": {
+    "pubchem_cid": null,
+    "iupac_name": null,
+    "inchikey": null,
+    "synonyms": [],
+    "cas": null
+  },
+  "a-Hydroxyisovalerate": {
+    "pubchem_cid": 99823,
+    "iupac_name": "2-hydroxy-3-methylbutanoic acid",
+    "inchikey": "NGEWQZIDQIYUNV-UHFFFAOYSA-N",
+    "synonyms": [
+      "2-Hydroxy-3-methylbutanoic acid",
+      "2-Hydroxy-3-methylbutyric acid",
+      "2-Hydroxyisovaleric acid",
+      "Butanoic acid, 2-hydroxy-3-methyl-",
+      "3-Methyl-2-hydroxybutyric acid",
+      "RefChem:473463"
+    ],
+    "cas": "4026-18-0"
+  },
+  "a-hydroxyisobutyrate": {
+    "pubchem_cid": 11671,
+    "iupac_name": "2-hydroxy-2-methylpropanoic acid",
+    "inchikey": "BWLBGMIXKSTLSX-UHFFFAOYSA-N",
+    "synonyms": [
+      "2-HYDROXYISOBUTYRIC ACID",
+      "2-Methyllactic acid",
+      "2-Hydroxy-2-methylpropanoic acid",
+      "Acetonic acid",
+      "alpha-Hydroxyisobutyric acid",
+      "Hydroxydimethylacetic acid"
+    ],
+    "cas": "594-61-6"
+  },
+  "a-keto-b-methyl-N valerate": {
+    "pubchem_cid": null,
+    "iupac_name": null,
+    "inchikey": null,
+    "synonyms": [],
+    "cas": null
+  },
+  "acetone": {
+    "pubchem_cid": 180,
+    "iupac_name": "propan-2-one",
+    "inchikey": "CSCPPACGZOOCGX-UHFFFAOYSA-N",
+    "synonyms": [
+      "acetone",
+      "2-propanone",
+      "propanone",
+      "propan-2-one",
+      "Dimethyl ketone",
+      "Pyroacetic ether"
+    ],
+    "cas": "67-64-1"
+  },
+  "acetylcarnitine": {
+    "pubchem_cid": 7045767,
+    "iupac_name": "(3R)-3-acetyloxy-4-(trimethylazaniumyl)butanoate",
+    "inchikey": "RDHQFKQIGNGIED-MRVPVSSYSA-N",
+    "synonyms": [
+      "Acetyl-L-carnitine",
+      "acetylcarnitine",
+      "ALCAR",
+      "(R)-Acetylcarnitine",
+      "(-)-Acetylcarnitine",
+      "L-O-Acetylcarnitine"
+    ],
+    "cas": "3040-38-8"
+  },
+  "adenosine": {
+    "pubchem_cid": 60961,
+    "iupac_name": "(2R,3R,4S,5R)-2-(6-aminopurin-9-yl)-5-(hydroxymethyl)oxolane-3,4-diol",
+    "inchikey": "OIRDTQYFTABQOQ-KQYNXXCUSA-N",
+    "synonyms": [
+      "adenosine",
+      "Adenocard",
+      "Adenoscan",
+      "Adenine riboside",
+      "Nucleocardyl",
+      "beta-D-Adenosine"
+    ],
+    "cas": "58-61-7"
+  },
+  "alanine": {
+    "pubchem_cid": 5950,
+    "iupac_name": "(2S)-2-aminopropanoic acid",
+    "inchikey": "QNAYBMKLOCPYGJ-REOHCLBHSA-N",
+    "synonyms": [
+      "L-alanine",
+      "alanine",
+      "(S)-Alanine",
+      "(2S)-2-Aminopropanoic acid",
+      "L-alpha-alanine",
+      "(S)-2-Aminopropanoic acid"
+    ],
+    "cas": "56-41-7"
+  },
+  "allantoin": {
+    "pubchem_cid": 204,
+    "iupac_name": "(2,5-dioxoimidazolidin-4-yl)urea",
+    "inchikey": "POJWUDADGALRAB-UHFFFAOYSA-N",
+    "synonyms": [
+      "allantoin",
+      "5-Ureidohydantoin",
+      "Glyoxyldiureide",
+      "Cordianine",
+      "Glyoxyldiureid",
+      "Allantol"
+    ],
+    "cas": "97-59-6"
+  },
+  "alpha-ketoglutarate": {
+    "pubchem_cid": 164533,
+    "iupac_name": "2-oxopentanedioate",
+    "inchikey": "KPGXRSRHYNQIFN-UHFFFAOYSA-L",
+    "synonyms": [
+      "alpha-ketoglutarate",
+      "2-oxopentanedioate",
+      "2 Ketoglutarate",
+      "2 Oxoglutarate",
+      "alpha oxoglutarate",
+      "RefChem:915532"
+    ],
+    "cas": "64-15-3"
+  },
+  "arginine": {
+    "pubchem_cid": 6322,
+    "iupac_name": "(2S)-2-amino-5-(diaminomethylideneamino)pentanoic acid",
+    "inchikey": "ODKSFYDXXFIFQN-BYPYZUCNSA-N",
+    "synonyms": [
+      "L-arginine",
+      "arginine",
+      "L-(+)-Arginine",
+      "(S)-2-Amino-5-guanidinopentanoic acid",
+      "L-Arg",
+      "Arginina"
+    ],
+    "cas": "74-79-3"
+  },
+  "asparagine": {
+    "pubchem_cid": 6267,
+    "iupac_name": "(2S)-2,4-diamino-4-oxobutanoic acid",
+    "inchikey": "DCXYFEDJOCDNAF-REOHCLBHSA-N",
+    "synonyms": [
+      "L-asparagine",
+      "asparagine",
+      "(S)-asparagine",
+      "Aspartamic acid",
+      "agedoite",
+      "altheine"
+    ],
+    "cas": "70-47-3"
+  },
+  "aspartate": {
+    "pubchem_cid": 5960,
+    "iupac_name": "(2S)-2-aminobutanedioic acid",
+    "inchikey": "CKLJMWTZIZZHCS-REOHCLBHSA-N",
+    "synonyms": [
+      "L-aspartic acid",
+      "aspartic acid",
+      "(2S)-2-aminobutanedioic acid",
+      "Asparagic acid",
+      "L-Aminosuccinic acid",
+      "Asparaginic acid"
+    ],
+    "cas": "56-84-8"
+  },
+  "b-aminoisobutyrate": {
+    "pubchem_cid": null,
+    "iupac_name": null,
+    "inchikey": null,
+    "synonyms": [],
+    "cas": null
+  },
+  "b-hydroxy-n-butyrate": {
+    "pubchem_cid": null,
+    "iupac_name": null,
+    "inchikey": null,
+    "synonyms": [],
+    "cas": null
+  },
+  "b-hydroxybutyrate": {
+    "pubchem_cid": 92135,
+    "iupac_name": "(3R)-3-hydroxybutanoic acid",
+    "inchikey": "WHBMMWSBFZVSSR-GSVOUGTGSA-N",
+    "synonyms": [
+      "(R)-3-Hydroxybutyric acid",
+      "Butanoic acid, 3-hydroxy-, (3R)-",
+      "3-Hydroxybutanoic acid, (R)-",
+      "3-D-hydroxybutyric acid",
+      "b-Hydroxybutyrate",
+      "(-)-beta-Hydroxybutyrate, D-"
+    ],
+    "cas": "625-72-9"
+  },
+  "benzoate": {
+    "pubchem_cid": 242,
+    "iupac_name": "benzoate",
+    "inchikey": "WPYMKLBDIGXBTP-UHFFFAOYSA-M",
+    "synonyms": [
+      "benzoate",
+      "Phenylformate",
+      "Benzeneformate",
+      "Benzenemethanoate",
+      "Phenylcarboxylate",
+      "Benzenecarboxylate"
+    ],
+    "cas": "766-76-7"
+  },
+  "beta-alanine": {
+    "pubchem_cid": 239,
+    "iupac_name": "3-aminopropanoic acid",
+    "inchikey": "UCMIRNVEIXFBKS-UHFFFAOYSA-N",
+    "synonyms": [
+      "beta-alanine",
+      "3-Aminopropanoic acid",
+      "3-Aminopropionic acid",
+      "Abufene",
+      "Beta Alanine",
+      "beta-Aminopropionic acid"
+    ],
+    "cas": "107-95-9"
+  },
+  "betaine": {
+    "pubchem_cid": 247,
+    "iupac_name": "2-(trimethylazaniumyl)acetate",
+    "inchikey": "KWIUHFFTVRNATP-UHFFFAOYSA-N",
+    "synonyms": [
+      "betaine",
+      "glycine betaine",
+      "oxyneurine",
+      "Trimethylglycine",
+      "lycine",
+      "Abromine"
+    ],
+    "cas": "107-43-7"
+  },
+  "butyrate": {
+    "pubchem_cid": 104775,
+    "iupac_name": "butanoate",
+    "inchikey": "FERIUCNNQQJTOY-UHFFFAOYSA-M",
+    "synonyms": [
+      "butyrate",
+      "butanoate",
+      "Butyrates",
+      "n-butanoate",
+      "Butanoic acid, ion(1-)",
+      "butanate"
+    ],
+    "cas": "461-55-2"
+  },
+  "caproylgly": {
+    "pubchem_cid": null,
+    "iupac_name": null,
+    "inchikey": null,
+    "synonyms": [],
+    "cas": null
+  },
+  "carnitine": {
+    "pubchem_cid": 288,
+    "iupac_name": "3-hydroxy-4-(trimethylazaniumyl)butanoate",
+    "inchikey": "PHIQHXFUZVPYII-UHFFFAOYSA-N",
+    "synonyms": [
+      "DL-Carnitine",
+      "Carnitine",
+      "Carnitina",
+      "3-hydroxy-4-(trimethylazaniumyl)butanoate",
+      "D,L-carnitine",
+      "(3-Carboxy-2-hydroxypropyl)trimethylammonium hydroxide inner salt"
+    ],
+    "cas": "406-76-8"
+  },
+  "carnosine": {
+    "pubchem_cid": 439224,
+    "iupac_name": "(2S)-2-(3-aminopropanoylamino)-3-(1H-imidazol-5-yl)propanoic acid",
+    "inchikey": "CQOVPNPJLQNMDC-ZETCQYMHSA-N",
+    "synonyms": [
+      "L-Carnosine",
+      "Carnosine",
+      "beta-Alanyl-L-histidine",
+      "Ignotine",
+      "Karnozin",
+      "Karnozzn"
+    ],
+    "cas": "305-84-0"
+  },
+  "choline": {
+    "pubchem_cid": 305,
+    "iupac_name": "2-hydroxyethyl(trimethyl)azanium",
+    "inchikey": "OEYIOHPDSNJKLS-UHFFFAOYSA-N",
+    "synonyms": [
+      "choline",
+      "Choline ion",
+      "Bilineurine",
+      "Choline cation",
+      "2-Hydroxy-N,N,N-trimethylethanaminium",
+      "Cholinum"
+    ],
+    "cas": "62-49-7"
+  },
+  "citric acid": {
+    "pubchem_cid": 311,
+    "iupac_name": "2-hydroxypropane-1,2,3-tricarboxylic acid",
+    "inchikey": "KRKNYBCHXYNGOX-UHFFFAOYSA-N",
+    "synonyms": [
+      "citric acid",
+      "2-hydroxypropane-1,2,3-tricarboxylic acid",
+      "Citric acid, anhydrous",
+      "Aciletten",
+      "Anhydrous citric acid",
+      "Citro"
+    ],
+    "cas": "77-92-9"
+  },
+  "citrullinate": {
+    "pubchem_cid": 20849076,
+    "iupac_name": "2-amino-5-(carbamoylamino)pentanoate",
+    "inchikey": "RHGKLRLOHDJJDR-UHFFFAOYSA-M",
+    "synonyms": [
+      "citrullinate",
+      "2-amino-5-(carbamoylamino)pentanoate"
+    ],
+    "cas": null
+  },
+  "citrulline": {
+    "pubchem_cid": 9750,
+    "iupac_name": "(2S)-2-amino-5-(carbamoylamino)pentanoic acid",
+    "inchikey": "RHGKLRLOHDJJDR-BYPYZUCNSA-N",
+    "synonyms": [
+      "L-citrulline",
+      "citrulline",
+      "delta-Ureidonorvaline",
+      "Sitrulline",
+      "N5-Carbamoyl-L-ornithine",
+      "N5-(Aminocarbonyl)-L-ornithine"
+    ],
+    "cas": "372-75-8"
+  },
+  "creatine": {
+    "pubchem_cid": 586,
+    "iupac_name": "2-[carbamimidoyl(methyl)amino]acetic acid",
+    "inchikey": "CVSVTCORWBXHQV-UHFFFAOYSA-N",
+    "synonyms": [
+      "creatine",
+      "Creatin",
+      "N-amidinosarcosine",
+      "Kreatin",
+      "Krebiozon",
+      "N-methyl-N-guanylglycine"
+    ],
+    "cas": "57-00-1"
+  },
+  "creatine phosphate": {
+    "pubchem_cid": 9548602,
+    "iupac_name": "2-[methyl-[(E)-N'-phosphonocarbamimidoyl]amino]acetic acid",
+    "inchikey": "DRBBFCLWYRJSJZ-UHFFFAOYSA-N",
+    "synonyms": [
+      "Creatine phosphate",
+      "phosphocreatine",
+      "phosphorylcreatine",
+      "N-phosphocreatine",
+      "fosfocreatine",
+      "creatine-P"
+    ],
+    "cas": "67-07-2"
+  },
+  "cysteine": {
+    "pubchem_cid": 5862,
+    "iupac_name": "(2R)-2-amino-3-sulfanylpropanoic acid",
+    "inchikey": "XUJNEKJLAYXESH-REOHCLBHSA-N",
+    "synonyms": [
+      "L-cysteine",
+      "cysteine",
+      "Cystein",
+      "Thioserine",
+      "Half-cystine",
+      "(R)-2-Amino-3-mercaptopropanoic acid"
+    ],
+    "cas": "52-90-4"
+  },
+  "desaminotyrosine": {
+    "pubchem_cid": 10394,
+    "iupac_name": "3-(4-hydroxyphenyl)propanoic acid",
+    "inchikey": "NMHMNPHRMNGLLB-UHFFFAOYSA-N",
+    "synonyms": [
+      "3-(4-Hydroxyphenyl)propionic acid",
+      "Phloretic acid",
+      "3-(4-Hydroxyphenyl)propanoic acid",
+      "Hydro-p-coumaric acid",
+      "Dihydro-p-coumaric acid",
+      "Benzenepropanoic acid, 4-hydroxy-"
+    ],
+    "cas": "501-97-3"
+  },
+  "dihydroxymandelate": {
+    "pubchem_cid": 85782,
+    "iupac_name": "2-(3,4-dihydroxyphenyl)-2-hydroxyacetic acid",
+    "inchikey": "RGHMISIYKIHAJW-UHFFFAOYSA-N",
+    "synonyms": [
+      "3,4-Dihydroxymandelic acid",
+      "2-(3,4-dihydroxyphenyl)-2-hydroxyacetic acid",
+      "DOMA",
+      "Mandelic acid, 3,4-dihydroxy-",
+      "DHMA",
+      "RefChem:905495"
+    ],
+    "cas": "775-01-9"
+  },
+  "dimethyl sulfone": {
+    "pubchem_cid": 6213,
+    "iupac_name": "methylsulfonylmethane",
+    "inchikey": "HHVIBTZHLRERCL-UHFFFAOYSA-N",
+    "synonyms": [
+      "Dimethyl sulfone",
+      "Methyl sulfone",
+      "Methylsulfonylmethane",
+      "Dimethyl sulphone",
+      "Sulfonylbismethane",
+      "Methane, sulfonylbis-"
+    ],
+    "cas": "67-71-0"
+  },
+  "dimethylamine": {
+    "pubchem_cid": 674,
+    "iupac_name": "N-methylmethanamine",
+    "inchikey": "ROSDSFDQCJNGOL-UHFFFAOYSA-N",
+    "synonyms": [
+      "dimethylamine",
+      "N-Methylmethanamine",
+      "N,N-Dimethylamine",
+      "Methanamine, N-methyl-",
+      "Dimethylamine (anhydrous)",
+      "RCRA waste number U092"
+    ],
+    "cas": "124-40-3"
+  },
+  "dimethylglycine": {
+    "pubchem_cid": 673,
+    "iupac_name": "2-(dimethylamino)acetic acid",
+    "inchikey": "FFDGPVCHZBVARC-UHFFFAOYSA-N",
+    "synonyms": [
+      "N,N-dimethylglycine",
+      "dimethylglycine",
+      "2-(dimethylamino)acetic acid",
+      "(Dimethylamino)acetic acid",
+      "N-Methylsarcosine",
+      "glycine, N,N-dimethyl-"
+    ],
+    "cas": "1118-68-9"
+  },
+  "ethanol": {
+    "pubchem_cid": 702,
+    "iupac_name": "ethanol",
+    "inchikey": "LFQSCWFLJHTTHZ-UHFFFAOYSA-N",
+    "synonyms": [
+      "ethanol",
+      "ethyl alcohol",
+      "alcohol",
+      "grain alcohol",
+      "Methylcarbinol",
+      "Ethyl hydroxide"
+    ],
+    "cas": "64-17-5"
+  },
+  "ethanolamine": {
+    "pubchem_cid": 700,
+    "iupac_name": "2-aminoethanol",
+    "inchikey": "HZAXFHJVJLSVMW-UHFFFAOYSA-N",
+    "synonyms": [
+      "Ethanolamine",
+      "2-aminoethanol",
+      "monoethanolamine",
+      "Olamine",
+      "2-Aminoethan-1-ol",
+      "2-Hydroxyethylamine"
+    ],
+    "cas": "141-43-5"
+  },
+  "formate": {
+    "pubchem_cid": 283,
+    "iupac_name": "formate",
+    "inchikey": "BDAGIHXWWSANSR-UHFFFAOYSA-M",
+    "synonyms": [
+      "formate",
+      "RefChem:921764",
+      "Formic acid, ion(1-)",
+      "HCO2 anion",
+      "aminate",
+      "formylate"
+    ],
+    "cas": "71-47-6"
+  },
+  "fructose": {
+    "pubchem_cid": 2723872,
+    "iupac_name": "(3S,4R,5R)-2-(hydroxymethyl)oxane-2,3,4,5-tetrol",
+    "inchikey": "LKDRXBCSQODPBY-VRPWFDPXSA-N",
+    "synonyms": [
+      "D-fructopyranose",
+      "fructopyranose",
+      "d-fructopyranoside",
+      "fructopyranoside",
+      "D-Fru",
+      "levugen"
+    ],
+    "cas": "57-48-7"
+  },
+  "fumarate": {
+    "pubchem_cid": 5460307,
+    "iupac_name": "(E)-but-2-enedioate",
+    "inchikey": "VZCYOOQTPOCHFL-OWOJBTEDSA-L",
+    "synonyms": [
+      "fumarate",
+      "RefChem:1085575",
+      "(2E)-but-2-enedioate",
+      "Fumarate(2-)",
+      "(E)-but-2-enedioate",
+      "Fumarates"
+    ],
+    "cas": "142-42-7"
+  },
+  "gaba": {
+    "pubchem_cid": 119,
+    "iupac_name": "4-aminobutanoic acid",
+    "inchikey": "BTCSSZJGUNDROE-UHFFFAOYSA-N",
+    "synonyms": [
+      "gamma-aminobutyric acid",
+      "GABA",
+      "Piperidic acid",
+      "Piperidinic acid",
+      "Aminalon",
+      "Gaballon"
+    ],
+    "cas": "56-12-2"
+  },
+  "galactose": {
+    "pubchem_cid": 6036,
+    "iupac_name": "(3R,4S,5R,6R)-6-(hydroxymethyl)oxane-2,3,4,5-tetrol",
+    "inchikey": "WQZGKKKJIJFFOK-SVZMEOIVSA-N",
+    "synonyms": [
+      "D-Galactopyranose",
+      "galactopyranose",
+      "galactopyranoside",
+      "(3R,4S,5R,6R)-6-(hydroxymethyl)oxane-2,3,4,5-tetrol",
+      "Galactose, pure",
+      "D-Gal"
+    ],
+    "cas": "59-23-4"
+  },
+  "glucose": {
+    "pubchem_cid": 5793,
+    "iupac_name": "(3R,4S,5S,6R)-6-(hydroxymethyl)oxane-2,3,4,5-tetrol",
+    "inchikey": "WQZGKKKJIJFFOK-GASJEMHNSA-N",
+    "synonyms": [
+      "D-Glucopyranose",
+      "glucose",
+      "Glucopyranose",
+      "dextrose",
+      "Blood sugar",
+      "(3R,4S,5S,6R)-6-(hydroxymethyl)oxane-2,3,4,5-tetrol"
+    ],
+    "cas": "50-99-7"
+  },
+  "glutamate": {
+    "pubchem_cid": 33032,
+    "iupac_name": "(2S)-2-aminopentanedioic acid",
+    "inchikey": "WHUUTDBJXJRKMK-VKHMYHEASA-N",
+    "synonyms": [
+      "L-glutamic acid",
+      "GLUTAMIC ACID",
+      "(2S)-2-Aminopentanedioic acid",
+      "L-glutamate",
+      "(S)-2-Aminopentanedioic acid",
+      "Glutamidex"
+    ],
+    "cas": "56-86-0"
+  },
+  "glutamine": {
+    "pubchem_cid": 5961,
+    "iupac_name": "(2S)-2,5-diamino-5-oxopentanoic acid",
+    "inchikey": "ZDXPYRJPNDTMRX-VKHMYHEASA-N",
+    "synonyms": [
+      "L-glutamine",
+      "glutamine",
+      "Levoglutamide",
+      "L-(+)-Glutamine",
+      "Cebrogen",
+      "Stimulina"
+    ],
+    "cas": "56-85-9"
+  },
+  "glycerol": {
+    "pubchem_cid": 753,
+    "iupac_name": "propane-1,2,3-triol",
+    "inchikey": "PEDCQBHIVMGVHV-UHFFFAOYSA-N",
+    "synonyms": [
+      "glycerol",
+      "glycerin",
+      "Glycerine",
+      "1,2,3-Propanetriol",
+      "Glycyl alcohol",
+      "Trihydroxypropane"
+    ],
+    "cas": "56-81-5"
+  },
+  "glycerophosphocholine": {
+    "pubchem_cid": 11234,
+    "iupac_name": "2,3-dihydroxypropyl 2-(trimethylazaniumyl)ethyl phosphate",
+    "inchikey": "SUHOQUVVVLNYQR-UHFFFAOYSA-N",
+    "synonyms": [
+      "RefChem:1085926",
+      "Glycerophosphocholine",
+      "2,3-dihydroxypropyl 2-(trimethylazaniumyl)ethyl phosphate",
+      "2,3-dihydroxypropyl 2-(trimethylammonio)ethyl phosphate",
+      "Choline alfoscerate;L-alpha-GPC;L-alpha-Lecithin",
+      "L-A-GLYCERYLPHOSPHORYLCHOLINE(GPC)"
+    ],
+    "cas": "563-24-6"
+  },
+  "glycolate": {
+    "pubchem_cid": 757,
+    "iupac_name": "2-hydroxyacetic acid",
+    "inchikey": "AEMRFAOFKBGASW-UHFFFAOYSA-N",
+    "synonyms": [
+      "glycolic acid",
+      "2-Hydroxyacetic acid",
+      "hydroxyacetic acid",
+      "Hydroxyethanoic acid",
+      "Glycollic acid",
+      "glycolate"
+    ],
+    "cas": "79-14-1"
+  },
+  "guanidoacetate": {
+    "pubchem_cid": 763,
+    "iupac_name": "2-(diaminomethylideneamino)acetic acid",
+    "inchikey": "BPMFZUMJYQTVII-UHFFFAOYSA-N",
+    "synonyms": [
+      "glycocyamine",
+      "guanidinoacetic acid",
+      "Guanidineacetic acid",
+      "Guanidoacetic acid",
+      "N-amidinoglycine",
+      "Betacyamine"
+    ],
+    "cas": "352-97-6"
+  },
+  "hippurate": {
+    "pubchem_cid": 464,
+    "iupac_name": "2-benzamidoacetic acid",
+    "inchikey": "QIAFMBKCNZACKA-UHFFFAOYSA-N",
+    "synonyms": [
+      "Hippuric acid",
+      "2-Benzamidoacetic acid",
+      "N-Benzoylglycine",
+      "Benzoylglycine",
+      "Glycine, N-benzoyl-",
+      "Benzamidoacetic acid"
+    ],
+    "cas": "495-69-2"
+  },
+  "hydroxyproline": {
+    "pubchem_cid": 5810,
+    "iupac_name": "(2S,4R)-4-hydroxypyrrolidine-2-carboxylic acid",
+    "inchikey": "PMMYEEVYMWASQN-DMTCNVIQSA-N",
+    "synonyms": [
+      "L-Hydroxyproline",
+      "trans-4-Hydroxy-L-proline",
+      "hydroxyproline",
+      "Hypro",
+      "hydroxy-L-proline",
+      "(4R)-4-hydroxy-L-proline"
+    ],
+    "cas": "51-35-4"
+  },
+  "indoxyl sulfate": {
+    "pubchem_cid": 10258,
+    "iupac_name": "1H-indol-3-yl hydrogen sulfate",
+    "inchikey": "BXFFHSIDQOFMLE-UHFFFAOYSA-N",
+    "synonyms": [
+      "Indoxyl sulfate",
+      "1H-indol-3-yl hydrogen sulfate",
+      "3-Indoxyl sulfate",
+      "Indol-3-yl sulfate",
+      "indoxyl sulphate",
+      "3-indolyl sulfate"
+    ],
+    "cas": "487-94-5"
+  },
+  "indoxyl sulphate": {
+    "pubchem_cid": 10258,
+    "iupac_name": "1H-indol-3-yl hydrogen sulfate",
+    "inchikey": "BXFFHSIDQOFMLE-UHFFFAOYSA-N",
+    "synonyms": [
+      "Indoxyl sulfate",
+      "1H-indol-3-yl hydrogen sulfate",
+      "3-Indoxyl sulfate",
+      "Indol-3-yl sulfate",
+      "indoxyl sulphate",
+      "3-indolyl sulfate"
+    ],
+    "cas": "487-94-5"
+  },
+  "inosine": {
+    "pubchem_cid": 135398641,
+    "iupac_name": "9-[(2R,3R,4S,5R)-3,4-dihydroxy-5-(hydroxymethyl)oxolan-2-yl]-1H-purin-6-one",
+    "inchikey": "UGQMRVRMYYASKQ-KQYNXXCUSA-N",
+    "synonyms": [
+      "inosine",
+      "Hypoxanthosine",
+      "Ribonosine",
+      "Atorel",
+      "Oxiamin",
+      "Hypoxanthine riboside"
+    ],
+    "cas": "58-63-9"
+  },
+  "isobutyrate": {
+    "pubchem_cid": 165337,
+    "iupac_name": "2-methylpropanoate",
+    "inchikey": "KQNPFQTWMSNSAP-UHFFFAOYSA-M",
+    "synonyms": [
+      "Isobutyrate",
+      "RefChem:1087517",
+      "2-Methylpropanoate",
+      "Propanoic acid, 2-methyl-, ion(1-)",
+      "2-Methylpropionate",
+      "i-butyrate"
+    ],
+    "cas": "5711-69-3"
+  },
+  "isocaproate": {
+    "pubchem_cid": 4275592,
+    "iupac_name": "4-methylpentanoate",
+    "inchikey": "FGKJLKRYENPLQH-UHFFFAOYSA-M",
+    "synonyms": [
+      "4-methylpentanoate",
+      "Isocaproate",
+      "RefChem:1071181",
+      "Isohexanoate",
+      "Isohexoate",
+      "4-Methylvalerate"
+    ],
+    "cas": null
+  },
+  "isoleucine": {
+    "pubchem_cid": 6306,
+    "iupac_name": "(2S,3S)-2-amino-3-methylpentanoic acid",
+    "inchikey": "AGPKZVBTJJNPAG-WHFBIAKZSA-N",
+    "synonyms": [
+      "l-isoleucine",
+      "Isoleucine",
+      "(2S,3S)-2-Amino-3-methylpentanoic acid",
+      "2S,3S-Isoleucine",
+      "(S)-Isoleucine",
+      "(S,S)-Isoleucine"
+    ],
+    "cas": "73-32-5"
+  },
+  "isopropyl alcohol": {
+    "pubchem_cid": 3776,
+    "iupac_name": "propan-2-ol",
+    "inchikey": "KFZMGEQAYNKOFK-UHFFFAOYSA-N",
+    "synonyms": [
+      "Isopropyl alcohol",
+      "isopropanol",
+      "2-Propanol",
+      "Propan-2-ol",
+      "2-Hydroxypropane",
+      "Dimethylcarbinol"
+    ],
+    "cas": "67-63-0"
+  },
+  "ketoglutarate": {
+    "pubchem_cid": 164533,
+    "iupac_name": "2-oxopentanedioate",
+    "inchikey": "KPGXRSRHYNQIFN-UHFFFAOYSA-L",
+    "synonyms": [
+      "alpha-ketoglutarate",
+      "2-oxopentanedioate",
+      "2 Ketoglutarate",
+      "2 Oxoglutarate",
+      "alpha oxoglutarate",
+      "RefChem:915532"
+    ],
+    "cas": "64-15-3"
+  },
+  "lactate": {
+    "pubchem_cid": 91435,
+    "iupac_name": "2-hydroxypropanoate",
+    "inchikey": "JVTAAEKCZFNVCJ-UHFFFAOYSA-M",
+    "synonyms": [
+      "lactate",
+      "2-hydroxypropanoate",
+      "b-lactate",
+      "beta-Lactate",
+      "RefChem:924460",
+      "2-Hydroxypropionate"
+    ],
+    "cas": "113-21-3"
+  },
+  "lactose": {
+    "pubchem_cid": 440995,
+    "iupac_name": "(2R,3R,4S,5R,6S)-2-(hydroxymethyl)-6-[(2R,3S,4R,5R)-4,5,6-trihydroxy-2-(hydroxymethyl)oxan-3-yl]oxyoxane-3,4,5-triol",
+    "inchikey": "GUBGYTABKSRVRQ-QKKXKWKRSA-N",
+    "synonyms": [
+      "lactose",
+      "Milk sugar",
+      "beta-D-Gal-(1->4)-D-Glc",
+      "beta-D-Galp-(1->4)-D-Glcp",
+      "(+)-Lactose",
+      "1-beta-D-Galactopyranosyl-4-D-glucopyranose"
+    ],
+    "cas": "63-42-3"
+  },
+  "leucine": {
+    "pubchem_cid": 6106,
+    "iupac_name": "(2S)-2-amino-4-methylpentanoic acid",
+    "inchikey": "ROHFNLRQFUQHCH-YFKPBYRVSA-N",
+    "synonyms": [
+      "L-leucine",
+      "leucine",
+      "(S)-Leucine",
+      "(S)-2-Amino-4-methylpentanoic acid",
+      "(2S)-2-amino-4-methylpentanoic acid",
+      "Leucin"
+    ],
+    "cas": "61-90-5"
+  },
+  "lysine": {
+    "pubchem_cid": 5962,
+    "iupac_name": "(2S)-2,6-diaminohexanoic acid",
+    "inchikey": "KDXKERNSBIXSRK-YFKPBYRVSA-N",
+    "synonyms": [
+      "L-lysine",
+      "lysine",
+      "lysine acid",
+      "h-Lys-oh",
+      "(S)-Lysine",
+      "Aminutrin"
+    ],
+    "cas": "56-87-1"
+  },
+  "malate": {
+    "pubchem_cid": 525,
+    "iupac_name": "2-hydroxybutanedioic acid",
+    "inchikey": "BJEPYKJPYRNKOW-UHFFFAOYSA-N",
+    "synonyms": [
+      "malic acid",
+      "2-Hydroxybutanedioic acid",
+      "hydroxysuccinic acid",
+      "Butanedioic acid, hydroxy-",
+      "Malic acid, DL-",
+      "Kyselina jablecna"
+    ],
+    "cas": "6915-15-7"
+  },
+  "malonate": {
+    "pubchem_cid": 867,
+    "iupac_name": "propanedioic acid",
+    "inchikey": "OFOBLEOULBTSOW-UHFFFAOYSA-N",
+    "synonyms": [
+      "malonic acid",
+      "propanedioic acid",
+      "Dicarboxymethane",
+      "Carboxyacetic acid",
+      "Methanedicarboxylic acid",
+      "malonate"
+    ],
+    "cas": "141-82-2"
+  },
+  "mannitol": {
+    "pubchem_cid": 6251,
+    "iupac_name": "(2R,3R,4R,5R)-hexane-1,2,3,4,5,6-hexol",
+    "inchikey": "FBPFZTCFMRRESA-KVTDHHQDSA-N",
+    "synonyms": [
+      "D-mannitol",
+      "mannitol",
+      "Mannite",
+      "Osmitrol",
+      "Manna sugar",
+      "Cordycepic acid"
+    ],
+    "cas": "69-65-8"
+  },
+  "mannose": {
+    "pubchem_cid": 18950,
+    "iupac_name": "(3S,4S,5S,6R)-6-(hydroxymethyl)oxane-2,3,4,5-tetrol",
+    "inchikey": "WQZGKKKJIJFFOK-QTVWNMPRSA-N",
+    "synonyms": [
+      "D-Mannopyranose",
+      "mannopyranose",
+      "mannopyranoside",
+      "d-mannopyranoside",
+      "D-Man",
+      "D-Mannose"
+    ],
+    "cas": "530-26-7"
+  },
+  "methionine": {
+    "pubchem_cid": 6137,
+    "iupac_name": "(2S)-2-amino-4-methylsulfanylbutanoic acid",
+    "inchikey": "FFEARJCKVFRZRR-BYPYZUCNSA-N",
+    "synonyms": [
+      "L-methionine",
+      "methionine",
+      "h-Met-oh",
+      "(S)-2-Amino-4-(methylthio)butanoic acid",
+      "Cymethion",
+      "L-(-)-Methionine"
+    ],
+    "cas": "63-68-3"
+  },
+  "methyl N-acetylvalinate": {
+    "pubchem_cid": 301593,
+    "iupac_name": "methyl 2-acetamido-3-methylbutanoate",
+    "inchikey": "KCHNPFJMSOGXIT-UHFFFAOYSA-N",
+    "synonyms": [
+      "methyl N-acetylvalinate",
+      "methyl 2-acetamido-3-methylbutanoate",
+      "Methyl 2-(acetylamino)-3-methylbutanoate",
+      "N-Acetyl-DL-valine methyl ester",
+      "valine, N-acetyl-, methyl ester",
+      "rac-(S*)-2-(Acetylamino)-3-methylbutanoic acid methyl ester"
+    ],
+    "cas": "52152-47-3"
+  },
+  "methyl guanidine": {
+    "pubchem_cid": null,
+    "iupac_name": null,
+    "inchikey": null,
+    "synonyms": [],
+    "cas": null
+  },
+  "methylamine": {
+    "pubchem_cid": 6329,
+    "iupac_name": "methanamine",
+    "inchikey": "BAVYZALUXZFZLV-UHFFFAOYSA-N",
+    "synonyms": [
+      "Methanamine",
+      "Aminomethane",
+      "Monomethylamine",
+      "Carbinamine",
+      "Mercurialin",
+      "N-Methylamine"
+    ],
+    "cas": "74-89-5"
+  },
+  "methylguanidine": {
+    "pubchem_cid": 10111,
+    "iupac_name": "2-methylguanidine",
+    "inchikey": "CHJJGSNFBQVOTG-UHFFFAOYSA-N",
+    "synonyms": [
+      "1-methylguanidine",
+      "N-Methylguanidine",
+      "Methylguanidin",
+      "Guanidine, methyl-",
+      "Monomethylguanidine",
+      "2-methylguanidine"
+    ],
+    "cas": "471-29-4"
+  },
+  "methylmalonate": {
+    "pubchem_cid": 487,
+    "iupac_name": "2-methylpropanedioic acid",
+    "inchikey": "ZIYVHBGGAOATLY-UHFFFAOYSA-N",
+    "synonyms": [
+      "Methylmalonic acid",
+      "2-Methylmalonic acid",
+      "2-Methylpropanedioic acid",
+      "Isosuccinic acid",
+      "methylmalonate",
+      "Propanedioic acid, methyl-"
+    ],
+    "cas": "516-05-2"
+  },
+  "mhppa sulphate": {
+    "pubchem_cid": null,
+    "iupac_name": null,
+    "inchikey": null,
+    "synonyms": [],
+    "cas": null
+  },
+  "mhppa sulphate?": {
+    "pubchem_cid": null,
+    "iupac_name": null,
+    "inchikey": null,
+    "synonyms": [],
+    "cas": null
+  },
+  "myo-inositol": {
+    "pubchem_cid": 892,
+    "iupac_name": "cyclohexane-1,2,3,4,5,6-hexol",
+    "inchikey": "CDAISMWEOUEBRE-UHFFFAOYSA-N",
+    "synonyms": [
+      "an inositol",
+      "RefChem:1076961",
+      "inositol",
+      "Scyllo-inositol",
+      "myo-inositol",
+      "Muco-Inositol"
+    ],
+    "cas": "87-89-8"
+  },
+  "n-butyrate": {
+    "pubchem_cid": 104775,
+    "iupac_name": "butanoate",
+    "inchikey": "FERIUCNNQQJTOY-UHFFFAOYSA-M",
+    "synonyms": [
+      "butyrate",
+      "butanoate",
+      "Butyrates",
+      "n-butanoate",
+      "Butanoic acid, ion(1-)",
+      "butanate"
+    ],
+    "cas": "461-55-2"
+  },
+  "n-caproylglycine": {
+    "pubchem_cid": 99463,
+    "iupac_name": "2-(hexanoylamino)acetic acid",
+    "inchikey": "UPCKIPHSXMXJOX-UHFFFAOYSA-N",
+    "synonyms": [
+      "Hexanoylglycine",
+      "2-hexanamidoacetic acid",
+      "N-Caproylglycine",
+      "Caproylglycine",
+      "N-(1-oxohexyl)glycine",
+      "Glycine, N-(1-oxohexyl)-"
+    ],
+    "cas": "24003-67-6"
+  },
+  "n-methyl-2-pyridone-5-carboxamide": {
+    "pubchem_cid": 69698,
+    "iupac_name": "1-methyl-6-oxopyridine-3-carboxamide",
+    "inchikey": "JLQSXXWTCJPCBC-UHFFFAOYSA-N",
+    "synonyms": [
+      "Nudifloramide",
+      "1-methyl-6-oxo-1,6-dihydropyridine-3-carboxamide",
+      "N1-Methyl-2-pyridone-5-carboxamide",
+      "N'-Methyl-2-pyridone-5-carboxamide",
+      "1-Methyl-5-carboxylamide-2-pyridone",
+      "3-Pyridinecarboxamide, 1,6-dihydro-1-methyl-6-oxo-"
+    ],
+    "cas": "701-44-0"
+  },
+  "n-methyl-4-pyridone-5-carboxamide": {
+    "pubchem_cid": 440810,
+    "iupac_name": "1-methyl-4-oxopyridine-3-carboxamide",
+    "inchikey": "KTLRWTOPTKGYQY-UHFFFAOYSA-N",
+    "synonyms": [
+      "1,4-Dihydro-1-methyl-4-oxo-3-pyridinecarboxamide",
+      "1-methyl-4-oxo-1,4-dihydropyridine-3-carboxamide",
+      "1-Methyl-4-pyridone-3-carboximide",
+      "N1-Methyl-4-pyridone-3-carboxamide",
+      "N1-Methyl-4-pyridone-5-carboxamide",
+      "1-Methyl-4-pyridone-5-carboxamide"
+    ],
+    "cas": "769-49-3"
+  },
+  "n-methylnicotinamide": {
+    "pubchem_cid": 64950,
+    "iupac_name": "N-methylpyridine-3-carboxamide",
+    "inchikey": "ZYVXHFWBYUDDBM-UHFFFAOYSA-N",
+    "synonyms": [
+      "N-Methylnicotinamide",
+      "N-methylpyridine-3-carboxamide",
+      "Nicotinic acid methylamide",
+      "Nicotinyl Methylamide",
+      "3-(Methylcarbamoyl)pyridine",
+      "N-Methyl-3-pyridinecarboxamide"
+    ],
+    "cas": "114-33-0"
+  },
+  "n-methylnicotinate": {
+    "pubchem_cid": 5570,
+    "iupac_name": "1-methylpyridin-1-ium-3-carboxylate",
+    "inchikey": "WWNNZCOKKKDOPX-UHFFFAOYSA-N",
+    "synonyms": [
+      "Trigonelline",
+      "Gynesine",
+      "Caffearine",
+      "N-Methylnicotinate",
+      "Coffearine",
+      "Trigonellin"
+    ],
+    "cas": "535-83-1"
+  },
+  "nicotinamide": {
+    "pubchem_cid": 936,
+    "iupac_name": "pyridine-3-carboxamide",
+    "inchikey": "DFPAKSUCGFBDDF-UHFFFAOYSA-N",
+    "synonyms": [
+      "nicotinamide",
+      "niacinamide",
+      "3-Pyridinecarboxamide",
+      "pyridine-3-carboxamide",
+      "Nicotinic acid amide",
+      "Aminicotin"
+    ],
+    "cas": "98-92-0"
+  },
+  "nicotinate": {
+    "pubchem_cid": 937,
+    "iupac_name": "pyridine-3-carboxylate",
+    "inchikey": "PVNIIMVLHYAWGP-UHFFFAOYSA-M",
+    "synonyms": [
+      "nicotinate",
+      "3-pyridinecarboxylate",
+      "RefChem:927733",
+      "pyridine-3-carboxylate",
+      "nico-400-",
+      "AC-907/25004509"
+    ],
+    "cas": null
+  },
+  "o-acetylcarnitine": {
+    "pubchem_cid": 7045767,
+    "iupac_name": "(3R)-3-acetyloxy-4-(trimethylazaniumyl)butanoate",
+    "inchikey": "RDHQFKQIGNGIED-MRVPVSSYSA-N",
+    "synonyms": [
+      "Acetyl-L-carnitine",
+      "acetylcarnitine",
+      "ALCAR",
+      "(R)-Acetylcarnitine",
+      "(-)-Acetylcarnitine",
+      "L-O-Acetylcarnitine"
+    ],
+    "cas": "3040-38-8"
+  },
+  "ornithine": {
+    "pubchem_cid": 6262,
+    "iupac_name": "(2S)-2,5-diaminopentanoic acid",
+    "inchikey": "AHLPHDHHMVZTML-BYPYZUCNSA-N",
+    "synonyms": [
+      "L-ornithine",
+      "ornithine",
+      "(S)-2,5-Diaminopentanoic acid",
+      "(S)-2,5-diaminovaleric acid",
+      "(S)-Ornithine",
+      "(2S)-2,5-diaminopentanoic acid"
+    ],
+    "cas": "70-26-8"
+  },
+  "oxalacetate": {
+    "pubchem_cid": 164550,
+    "iupac_name": "2-oxobutanedioate",
+    "inchikey": "KHPXUQMNIQBQEV-UHFFFAOYSA-L",
+    "synonyms": [
+      "oxalacetate",
+      "RefChem:1093933",
+      "2-oxobutanedioate",
+      "Oxobutanedioate",
+      "oxaloacetate(2-)",
+      "oxosuccinate"
+    ],
+    "cas": "149-63-3"
+  },
+  "p-cresol": {
+    "pubchem_cid": 2879,
+    "iupac_name": "4-methylphenol",
+    "inchikey": "IWDCLRJOBJJRNH-UHFFFAOYSA-N",
+    "synonyms": [
+      "4-Methylphenol",
+      "4-Cresol",
+      "4-Hydroxytoluene",
+      "p-Methylphenol",
+      "p-Hydroxytoluene",
+      "p-Tolyl alcohol"
+    ],
+    "cas": "106-44-5"
+  },
+  "phenylacetate": {
+    "pubchem_cid": 4409936,
+    "iupac_name": "2-phenylacetate",
+    "inchikey": "WLJVXDMOQOGPHL-UHFFFAOYSA-M",
+    "synonyms": [
+      "phenylacetate",
+      "2-phenylethanoate",
+      "RefChem:929043",
+      "2-phenylacetate",
+      "Benzeneacetate",
+      "phenylacetate anion"
+    ],
+    "cas": null
+  },
+  "phenylacetylglutamine": {
+    "pubchem_cid": 92258,
+    "iupac_name": "(2S)-5-amino-5-oxo-2-[(2-phenylacetyl)amino]pentanoic acid",
+    "inchikey": "JFLIEFSWGNOPJJ-JTQLQIEISA-N",
+    "synonyms": [
+      "Phenylacetylglutamine",
+      "Phenylacetyl-L-glutamine",
+      "L-Glutamine, N2-(phenylacetyl)-",
+      "(2S)-5-amino-5-oxo-2-[(2-phenylacetyl)amino]pentanoic acid",
+      "ASTUGENAL COMPONENT PHENYLACETYLGLUTAMINE",
+      "ANTINEOPLASTON AS2-1 COMPONENT PHENYLACETYLGLUTAMINE"
+    ],
+    "cas": "28047-15-6"
+  },
+  "phenylalanine": {
+    "pubchem_cid": 6140,
+    "iupac_name": "(2S)-2-amino-3-phenylpropanoic acid",
+    "inchikey": "COLNVLDHVKWLRT-QMMMGPOBSA-N",
+    "synonyms": [
+      "L-phenylalanine",
+      "phenylalanine",
+      "(S)-2-Amino-3-phenylpropanoic acid",
+      "(2S)-2-amino-3-phenylpropanoic acid",
+      "3-Phenyl-L-alanine",
+      "(S)-Phenylalanine"
+    ],
+    "cas": "63-91-2"
+  },
+  "phosphocholine": {
+    "pubchem_cid": 1014,
+    "iupac_name": "trimethyl(2-phosphonooxyethyl)azanium",
+    "inchikey": "YHHSONZFOIEMCP-UHFFFAOYSA-O",
+    "synonyms": [
+      "Phosphocholine cation",
+      "N,N,N-trimethyl-2-(phosphonooxy)ethanaminium",
+      "Ethanaminium, N,N,N-trimethyl-2-(phosphonooxy)-",
+      "Choline, dihydrogen phosphate (ester) (8CI)",
+      "(2-(trimethylazaniumyl)ethoxy)phosphonic acid",
+      "[2-(trimethylazaniumyl)ethoxy]phosphonic acid"
+    ],
+    "cas": "3616-04-4"
+  },
+  "proline": {
+    "pubchem_cid": 145742,
+    "iupac_name": "(2S)-pyrrolidine-2-carboxylic acid",
+    "inchikey": "ONIBWKKTOPOVIA-BYPYZUCNSA-N",
+    "synonyms": [
+      "L-proline",
+      "proline",
+      "L-(-)-Proline",
+      "(2S)-pyrrolidine-2-carboxylic acid",
+      "(S)-Pyrrolidine-2-carboxylic acid",
+      "(-)-Proline"
+    ],
+    "cas": "147-85-3"
+  },
+  "propionate": {
+    "pubchem_cid": 104745,
+    "iupac_name": "propanoate",
+    "inchikey": "XBDQKXXYIPTUBI-UHFFFAOYSA-M",
+    "synonyms": [
+      "propionate",
+      "Propanoic acid anion",
+      "Propionate ion",
+      "EtCO2 anion",
+      "metacetonate",
+      "propanate"
+    ],
+    "cas": "72-03-7"
+  },
+  "propylene glycol": {
+    "pubchem_cid": 1030,
+    "iupac_name": "propane-1,2-diol",
+    "inchikey": "DNIAPMSPPWPWGF-UHFFFAOYSA-N",
+    "synonyms": [
+      "propylene glycol",
+      "1,2-propanediol",
+      "propane-1,2-diol",
+      "1,2-Propylene glycol",
+      "1,2-dihydroxypropane",
+      "2-Hydroxypropanol"
+    ],
+    "cas": "57-55-6"
+  },
+  "putrescine": {
+    "pubchem_cid": 1045,
+    "iupac_name": "butane-1,4-diamine",
+    "inchikey": "KIDHWZJUCRJVML-UHFFFAOYSA-N",
+    "synonyms": [
+      "1,4-diaminobutane",
+      "putrescine",
+      "1,4-butanediamine",
+      "butane-1,4-diamine",
+      "tetramethylenediamine",
+      "Butylenediamine"
+    ],
+    "cas": "110-60-1"
+  },
+  "pyruvate": {
+    "pubchem_cid": 107735,
+    "iupac_name": "2-oxopropanoate",
+    "inchikey": "LCTONWCANYUPML-UHFFFAOYSA-M",
+    "synonyms": [
+      "pyruvate",
+      "2-Oxopropanoate",
+      "Propanoic acid, 2-oxo-, ion(1-)",
+      "RefChem:871148",
+      "Methylglyoxylate",
+      "Pyruvate ion"
+    ],
+    "cas": "57-60-3"
+  },
+  "sarcosine": {
+    "pubchem_cid": 1088,
+    "iupac_name": "2-(methylamino)acetic acid",
+    "inchikey": "FSYKKLYZXJSNPZ-UHFFFAOYSA-N",
+    "synonyms": [
+      "sarcosine",
+      "N-methylglycine",
+      "2-(methylamino)acetic acid",
+      "Sarcosinic acid",
+      "Methylglycine",
+      "Methylaminoacetic acid"
+    ],
+    "cas": "107-97-1"
+  },
+  "scyllo-inositol": {
+    "pubchem_cid": 892,
+    "iupac_name": "cyclohexane-1,2,3,4,5,6-hexol",
+    "inchikey": "CDAISMWEOUEBRE-UHFFFAOYSA-N",
+    "synonyms": [
+      "an inositol",
+      "RefChem:1076961",
+      "inositol",
+      "Scyllo-inositol",
+      "myo-inositol",
+      "Muco-Inositol"
+    ],
+    "cas": "87-89-8"
+  },
+  "serine": {
+    "pubchem_cid": 5951,
+    "iupac_name": "(2S)-2-amino-3-hydroxypropanoic acid",
+    "inchikey": "MTCFGRXMJLQNBG-REOHCLBHSA-N",
+    "synonyms": [
+      "L-serine",
+      "serine",
+      "(S)-2-Amino-3-hydroxypropanoic acid",
+      "(S)-Serine",
+      "beta-Hydroxyalanine",
+      "L-(-)-Serine"
+    ],
+    "cas": "56-45-1"
+  },
+  "succinate": {
+    "pubchem_cid": 160419,
+    "iupac_name": "butanedioate",
+    "inchikey": "KDYFGRWQOYBRFD-UHFFFAOYSA-L",
+    "synonyms": [
+      "succinate",
+      "Butanedioate",
+      "Succinate dianion",
+      "RefChem:932339",
+      "Butanedioic acid, ion(2-)",
+      "Succinate ion"
+    ],
+    "cas": "56-14-4"
+  },
+  "taurine": {
+    "pubchem_cid": 1123,
+    "iupac_name": "2-aminoethanesulfonic acid",
+    "inchikey": "XOAAWQZATWQOTB-UHFFFAOYSA-N",
+    "synonyms": [
+      "taurine",
+      "2-aminoethanesulfonic acid",
+      "L-Taurine",
+      "Ethanesulfonic acid, 2-amino-",
+      "tauphon",
+      "2-Aminoethylsulfonic acid"
+    ],
+    "cas": "107-35-7"
+  },
+  "threonine": {
+    "pubchem_cid": 6288,
+    "iupac_name": "(2S,3R)-2-amino-3-hydroxybutanoic acid",
+    "inchikey": "AYFVYJQAPQTCCC-GBXIJSLDSA-N",
+    "synonyms": [
+      "L-threonine",
+      "threonine",
+      "(2S,3R)-2-amino-3-hydroxybutanoic acid",
+      "Threonin",
+      "L-(-)-Threonine",
+      "(S)-Threonine"
+    ],
+    "cas": "72-19-5"
+  },
+  "trigonelline": {
+    "pubchem_cid": 5570,
+    "iupac_name": "1-methylpyridin-1-ium-3-carboxylate",
+    "inchikey": "WWNNZCOKKKDOPX-UHFFFAOYSA-N",
+    "synonyms": [
+      "Trigonelline",
+      "Gynesine",
+      "Caffearine",
+      "N-Methylnicotinate",
+      "Coffearine",
+      "Trigonellin"
+    ],
+    "cas": "535-83-1"
+  },
+  "trimethylamine": {
+    "pubchem_cid": 1146,
+    "iupac_name": "N,N-dimethylmethanamine",
+    "inchikey": "GETQZCLCWQTVFV-UHFFFAOYSA-N",
+    "synonyms": [
+      "trimethylamine",
+      "N,N-dimethylmethanamine",
+      "Methanamine, N,N-dimethyl-",
+      "N-Trimethylamine",
+      "Dimethylmethaneamine",
+      "(CH3)3N"
+    ],
+    "cas": "75-50-3"
+  },
+  "trimethylamine n-oxide": {
+    "pubchem_cid": 1145,
+    "iupac_name": "N,N-dimethylmethanamine oxide",
+    "inchikey": "UYPYRKYUKCHHIB-UHFFFAOYSA-N",
+    "synonyms": [
+      "TRIMETHYLAMINE N-OXIDE",
+      "Trimethylamine oxide",
+      "N,N-dimethylmethanamine oxide",
+      "Trimethyloxamine",
+      "Triox",
+      "TMAO"
+    ],
+    "cas": "1184-78-7"
+  },
+  "tryptophan": {
+    "pubchem_cid": 6305,
+    "iupac_name": "(2S)-2-amino-3-(1H-indol-3-yl)propanoic acid",
+    "inchikey": "QIVBCDIJIAJPQS-VIFPVBQESA-N",
+    "synonyms": [
+      "L-tryptophan",
+      "tryptophan",
+      "L-Tryptophane",
+      "Tryptophane",
+      "(S)-Tryptophan",
+      "trofan"
+    ],
+    "cas": "73-22-3"
+  },
+  "tyrosine": {
+    "pubchem_cid": 6057,
+    "iupac_name": "(2S)-2-amino-3-(4-hydroxyphenyl)propanoic acid",
+    "inchikey": "OUYCCCASQSFEME-QMMMGPOBSA-N",
+    "synonyms": [
+      "L-tyrosine",
+      "tyrosine",
+      "(S)-Tyrosine",
+      "p-Tyrosine",
+      "(2S)-2-amino-3-(4-hydroxyphenyl)propanoic acid",
+      "L-p-Tyrosine"
+    ],
+    "cas": "60-18-4"
+  },
+  "unassigned pyrimidine": {
+    "pubchem_cid": null,
+    "iupac_name": null,
+    "inchikey": null,
+    "synonyms": [],
+    "cas": null
+  },
+  "uracil": {
+    "pubchem_cid": 1174,
+    "iupac_name": "1H-pyrimidine-2,4-dione",
+    "inchikey": "ISAKRJDGNUQOIC-UHFFFAOYSA-N",
+    "synonyms": [
+      "uracil",
+      "pyrimidine-2,4(1H,3H)-dione",
+      "2,4(1H,3H)-Pyrimidinedione",
+      "Pyrod",
+      "Hybar X",
+      "2,4-Dioxopyrimidine"
+    ],
+    "cas": "66-22-8"
+  },
+  "ureidopropionate": {
+    "pubchem_cid": 111,
+    "iupac_name": "3-(carbamoylamino)propanoic acid",
+    "inchikey": "JSJWCHRYRHKBBW-UHFFFAOYSA-N",
+    "synonyms": [
+      "3-Ureidopropionic acid",
+      "N-Carbamoyl-beta-alanine",
+      "3-ureidopropionate",
+      "beta-Ureidopropionic acid",
+      "N-(aminocarbonyl)-beta-alanine",
+      "beta-Alanine, N-(aminocarbonyl)-"
+    ],
+    "cas": "462-88-4"
+  },
+  "uridine": {
+    "pubchem_cid": 6029,
+    "iupac_name": "1-[(2R,3R,4S,5R)-3,4-dihydroxy-5-(hydroxymethyl)oxolan-2-yl]pyrimidine-2,4-dione",
+    "inchikey": "DRTQHJPVMGBUCF-XVFCMESISA-N",
+    "synonyms": [
+      "uridine",
+      "Uridin",
+      "Uracil riboside",
+      "1-beta-D-Ribofuranosyluracil",
+      "1-[(2R,3R,4S,5R)-3,4-dihydroxy-5-(hydroxymethyl)oxolan-2-yl]pyrimidine-2,4-dione",
+      "1-[(2R,3R,4S,5R)-3,4-dihydroxy-5-(hydroxymethyl)oxolan-2-yl]-1,2,3,4-tetrahydropyrimidine-2,4-dione"
+    ],
+    "cas": "58-96-8"
+  },
+  "valine": {
+    "pubchem_cid": 6287,
+    "iupac_name": "(2S)-2-amino-3-methylbutanoic acid",
+    "inchikey": "KZSNJWFQEVHDMF-BYPYZUCNSA-N",
+    "synonyms": [
+      "L-valine",
+      "valine",
+      "(S)-Valine",
+      "(2S)-2-amino-3-methylbutanoic acid",
+      "(S)-2-Amino-3-methylbutanoic acid",
+      "2-Amino-3-methylbutyric acid"
+    ],
+    "cas": "72-18-4"
+  },
+  "xanthine": {
+    "pubchem_cid": 1188,
+    "iupac_name": "3,7-dihydropurine-2,6-dione",
+    "inchikey": "LRFVTYWOQMYALW-UHFFFAOYSA-N",
+    "synonyms": [
+      "xanthine",
+      "2,6-Dihydroxypurine",
+      "2,6-dioxopurine",
+      "Xanthin",
+      "Isoxanthine",
+      "Xanthic oxide"
+    ],
+    "cas": "69-89-6"
+  }
+}
