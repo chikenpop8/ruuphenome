@@ -720,6 +720,25 @@ window.__pickDataset = (id) => {
   });
   setMsg(`Active dataset: ${id} — run Biomarker discovery / Biological interpretation to analyse it.`);
 };
+// Chenomx-style reference-fit overlay: observed spectrum (black) vs NNLS fit (blue).
+function fitOverlaySvg(ov) {
+  const ppm = ov.ppm || [], obs = ov.observed || [], fit = ov.fitted || [];
+  if (!ppm.length) return "";
+  const W = 820, H = 200, pad = 30;
+  const ymax = Math.max(...obs, ...fit, 1e-6);
+  const n = ppm.length;
+  const xs = i => pad + (i / (n - 1)) * (W - 2 * pad);
+  const ys = v => H - pad - (v / ymax) * (H - 2 * pad);
+  const path = arr => arr.map((v, i) => `${i ? "L" : "M"}${xs(i).toFixed(1)},${ys(v).toFixed(1)}`).join("");
+  const ticks = [0, Math.floor(n/4), Math.floor(n/2), Math.floor(3*n/4), n-1]
+    .map(i => `<text x="${xs(i)}" y="${H-8}" font-size="10" fill="#888" text-anchor="middle">${ppm[i]}</text>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;background:#fff;border:1px solid #eee;border-radius:6px;margin-top:6px">
+    <path d="${path(obs)}" fill="none" stroke="#222" stroke-width="1"/>
+    <path d="${path(fit)}" fill="none" stroke="#2c6fb0" stroke-width="1.4" opacity="0.85"/>
+    ${ticks}
+    <text x="${W-pad}" y="18" font-size="11" fill="#222" text-anchor="end">— observed</text>
+    <text x="${W-pad}" y="32" font-size="11" fill="#2c6fb0" text-anchor="end">— NNLS fit</text></svg>`;
+}
 // Render the animated biological-interpretation panel (shared by real + example).
 function renderBiology(title, bi, task, panel, validation) {
   const fmtP = p => (p < 0.001 ? p.toExponential(1) : p);
@@ -1070,10 +1089,12 @@ const ACTIONS = {
         `<tr><td><b>${m.metabolite}</b></td><td>${(m.coverage*100).toFixed(0)}%</td>
          <td>${m.matched_count}/${m.expected_shifts}</td>
          <td style="font-size:11px;color:#666">${m.matched_shifts.join(", ")} ppm</td></tr>`).join("");
+      const inUM = q.units === "µM";
       const quantRows = (q.metabolites || []).slice(0, 10).map(m =>
         `<tr><td><b>${m.metabolite}</b>${m.passes_fdr?' <span style="color:#2e8b57">★</span>':''}</td>
-         <td>${m.mean_concentration}</td><td>${m.snr_vs_decoy}×</td>
+         <td>${inUM ? (m.concentration_uM + " µM") : m.mean_concentration}</td><td>${m.snr_vs_decoy}×</td>
          <td>${(m.detection_rate*100).toFixed(0)}%</td></tr>`).join("");
+      const fitSvg = q.fit_overlay ? fitOverlaySvg(q.fit_overlay) : "";
       const enrich = (bi.pathway_enrichment || []).slice(0,3).map(e =>
         `<tr><td><b>${e.pathway}</b>${e.significant?' <span style="color:#2e8b57">★</span>':''}</td>
          <td>${e.p_value<0.001?e.p_value.toExponential(1):e.p_value}</td>
@@ -1093,10 +1114,11 @@ const ACTIONS = {
         <div class="bio-section-title">Step 3 — Annotation (bins → metabolites) <span class="sub">targeted reference-shift matching</span></div>
         <table><tr><td style="font-weight:600">Metabolite</td><td style="font-weight:600">Coverage</td>
           <td style="font-weight:600">Shifts</td><td style="font-weight:600">Matched ppm</td></tr>${topMets}</table>
-        <div class="bio-section-title">Step 4 — Quantification <span class="sub">NNLS deconvolution (ASICS-style) · fit R² ${q.mean_fit_r2 ?? "—"} · ${q.n_passing_fdr ?? 0}/${q.n_quantified ?? 0} pass FDR ${q.fdr_level ?? ""}</span></div>
-        <table><tr><td style="font-weight:600">Metabolite</td><td style="font-weight:600">Conc.</td>
+        <div class="bio-section-title">Step 4 — Quantification <span class="sub">NNLS deconvolution (ASICS-style) · fit R² ${q.mean_fit_r2 ?? "—"} · ${q.n_passing_fdr ?? 0}/${q.n_quantified ?? 0} pass FDR ${q.fdr_level ?? ""}${inUM ? ` · calibrated to ${q.internal_standard?.toUpperCase()} @ ${q.standard_um} µM` : " · relative"}</span></div>
+        <table><tr><td style="font-weight:600">Metabolite</td><td style="font-weight:600">${inUM ? "Concentration" : "Conc. (relative)"}</td>
           <td style="font-weight:600">SNR vs decoy</td><td style="font-weight:600">Detection</td></tr>${quantRows || '<tr><td colspan="4" style="color:#888">—</td></tr>'}</table>
-        <p style="font-size:12px;color:#888;margin-top:6px">★ = passes target–decoy FDR. Overlapping peaks resolved by linear-combination fitting.</p>
+        <p style="font-size:12px;color:#888;margin-top:6px">★ = passes target–decoy FDR. Overlapping peaks resolved by linear-combination fitting${inUM ? "; absolute µM via internal-standard calibration (Chenomx-style)" : ""}.</p>
+        ${fitSvg ? `<div class="bio-section-title">Reference-fit overlay <span class="sub">sample ${q.fit_overlay.sample} — observed vs NNLS reconstruction</span></div>${fitSvg}` : ""}
         <div class="bio-section-title">Step 5 — Pathway enrichment <span class="sub">on the discovered panel</span></div>
         <table><tr><td style="font-weight:600">Pathway</td><td style="font-weight:600">p-value</td>
           <td style="font-weight:600">Fold</td><td style="font-weight:600">Metabolites</td></tr>${enrich || '<tr><td colspan="4" style="color:#888">—</td></tr>'}</table>`);

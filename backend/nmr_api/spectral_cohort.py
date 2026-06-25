@@ -145,7 +145,14 @@ REFERENCE_SHIFTS: Dict[str, List[float]] = {
     "trimethylamine": [2.88],
     "2-oxoisocaproate": [0.94, 2.10, 2.62],
     "2-oxo-3-methylvalerate": [0.90, 1.10, 1.70, 2.95],
+    # internal chemical-shift standards (spiked at known concentration) — used to
+    # calibrate relative deconvolution coefficients into absolute µM, Chenomx-style
+    "dss": [0.00],
+    "tsp": [0.00],
 }
+
+# Internal standards are spike-ins, not biomarkers — excluded from biomarker output.
+INTERNAL_STANDARDS = {"dss", "tsp"}
 
 
 def _normalize_name(name: str) -> str:
@@ -336,6 +343,8 @@ def deconvolve(
     sigma_ppm: float = 0.012,
     decoy_shift_ppm: float = 0.37,
     fdr: float = 0.05,
+    internal_standard: str = "dss",
+    standard_um: Optional[float] = 500.0,
 ) -> Dict:
     """
     Quantify metabolites by modelling each binned spectrum as a non-negative
@@ -343,10 +352,16 @@ def deconvolve(
     method, via NNLS). This *resolves overlapping peaks* — a bin shared by two
     metabolites is apportioned by the fit, which simple peak-matching cannot do.
 
+    Absolute units (Chenomx-style): if an `internal_standard` (DSS/TSP, spiked at
+    `standard_um`) is detected, relative coefficients are scaled to **µM**.
+
     Annotation confidence uses a **target–decoy** null (proteomics-style):
     duplicate every reference shifted by `decoy_shift_ppm` into typically-empty
     space; a real metabolite's fitted concentration is significant only if it
     exceeds the decoy null. FDR = (#decoys ≥ t) / (#targets ≥ t).
+
+    Returns, in addition to per-metabolite quantities, a `fit_overlay` (observed
+    vs fitted spectrum for one sample) for the Chenomx-style reference-fit view.
     """
     refs = reference_shifts or REFERENCE_SHIFTS
     ppm_max = float(np.max(bin_ppm))
@@ -392,29 +407,60 @@ def deconvolve(
     conc_df = pd.DataFrame(target_conc, index=X.index, columns=target_names)
     detection_rate = (target_conc > null_level).mean(axis=0)
 
+    # ── absolute µM calibration via internal standard (Chenomx-style) ──
+    units = "relative"
+    cal_factor = None
+    std_key = _normalize_name(internal_standard) if internal_standard else None
+    if std_key and std_key in [n.lower() for n in target_names] and standard_um:
+        si = [i for i, n in enumerate(target_names) if n.lower() == std_key][0]
+        if target_mean[si] > 0:
+            cal_factor = float(standard_um) / float(target_mean[si])
+            units = "µM"
+    conc_df = conc_df * cal_factor if cal_factor else conc_df
+
     metabolites = []
     for i, nm in enumerate(target_names):
-        if target_mean[i] <= 0:
-            continue
+        if target_mean[i] <= 0 or nm.lower() in INTERNAL_STANDARDS:
+            continue                                  # standards are spike-ins
         snr = float(target_mean[i] / (null_level + 1e-9))
-        metabolites.append({
+        entry = {
             "metabolite": nm,
             "mean_concentration": round(float(target_mean[i]), 5),
             "detection_rate": round(float(detection_rate[i]), 3),
             "snr_vs_decoy": round(snr, 2),
             "passes_fdr": bool(i in chosen),
-        })
+        }
+        if cal_factor:
+            entry["concentration_uM"] = round(float(target_mean[i] * cal_factor), 2)
+        metabolites.append(entry)
     metabolites.sort(key=lambda m: -m["mean_concentration"])
+
+    # ── reference-fit overlay (Chenomx signature view) for one sample ──
+    bins = np.asarray(bin_ppm, dtype=float)
+    R_target = R[:n_target]
+    s0 = np.clip(X.iloc[0].values.astype(float), 0, None)
+    fit0 = R_target.T @ target_conc[0]
+    idx = np.linspace(0, len(bins) - 1, min(len(bins), 500)).astype(int)
+    fit_overlay = {
+        "sample": str(X.index[0]),
+        "ppm": [round(float(bins[i]), 4) for i in idx],
+        "observed": [round(float(s0[i]), 5) for i in idx],
+        "fitted": [round(float(fit0[i]), 5) for i in idx],
+    }
 
     return {
         "method": "NNLS linear-combination deconvolution (ASICS-style)",
         "concentrations": conc_df,                 # samples × metabolite (overlap-resolved)
+        "units": units,
+        "internal_standard": std_key if cal_factor else None,
+        "standard_um": standard_um if cal_factor else None,
         "mean_fit_r2": round(float(np.mean(fit_r2)), 4),
         "fdr_level": fdr,
         "n_passing_fdr": len(chosen),
         "n_quantified": len(metabolites),
         "decoy_null_level": round(null_level, 6),
         "metabolites": metabolites,
+        "fit_overlay": fit_overlay,
     }
 
 
@@ -561,14 +607,15 @@ def make_demo_binned(
     spectrum density stays realistic regardless of library size.
     """
     rng = np.random.default_rng(seed)
-    bins = np.round(np.arange(0.5, 9.0, bin_width), 5)
+    bins = np.round(np.arange(0.0, 9.0, bin_width), 5)   # include 0 ppm for DSS standard
     names = [f"ctrl_{i:03d}" for i in range(n_per_group)] + \
             [f"case_{i:03d}" for i in range(n_per_group)]
     rows = []
     labels = {}
     elevated = {"valine", "leucine", "isoleucine", "2-oxoisovalerate"}
-    # fixed realistic serum panel (~25 metabolites) — keeps demo density stable
-    core = ["alanine", "valine", "leucine", "isoleucine", "lactate", "glucose",
+    # fixed realistic serum panel (~25 metabolites) + DSS internal standard at a
+    # constant level — keeps demo density stable and enables µM calibration
+    core = ["dss", "alanine", "valine", "leucine", "isoleucine", "lactate", "glucose",
             "citrate", "creatinine", "glutamine", "glycine", "histidine",
             "tyrosine", "phenylalanine", "pyruvate", "acetate", "3-hydroxybutyrate",
             "2-oxoisovalerate", "threonine", "methionine", "choline", "taurine",
@@ -579,7 +626,7 @@ def make_demo_binned(
         labels[s] = 1 if is_case else 0
         spec = rng.normal(0.0, 0.002, len(bins)).clip(min=0)
         for met, shifts in core_refs.items():
-            base = rng.uniform(0.2, 1.0)
+            base = 2.0 if met == "dss" else rng.uniform(0.2, 1.0)  # DSS = fixed spike-in
             if met in elevated and is_case:
                 base *= rng.uniform(1.6, 2.4)        # plant the diabetes-like signal
             for sh in shifts:
