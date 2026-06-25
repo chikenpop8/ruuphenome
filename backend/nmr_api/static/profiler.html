@@ -366,6 +366,7 @@ let SELECTED = null;
 let SHOW_IDENTIFIED_ONLY = false;
 let MEASURED = null;                     // Domain 1 processed spectrum + QC/assignments
 let DATASET = "mtbls242";                // active Domain 2 dataset for biomarker/biology/PCA
+let LAST_PIPELINE = null;                // last imported Track-1 pipeline result (for re-view)
 let VIEW = { min: 0.5, max: 9.0 };       // ppm window for the main plot
 const FULL = { min: 0.5, max: 9.0 };
 const PPM_HALFWIDTH = 0.006;             // Lorentzian half-width (ppm)
@@ -1140,6 +1141,11 @@ const ACTIONS = {
     const inp = document.getElementById("binned-input");
     inp.value = ""; inp.click();
   },
+  // Re-open the full biomarker + biology results from the last imported file
+  viewLastPipeline: () => {
+    if (!LAST_PIPELINE) { setMsg("No imported analysis yet — open a Track 1 binned file first."); return; }
+    renderSpectralPipeline(LAST_PIPELINE, "Last import — biomarkers & biology", null);
+  },
   // Demo helper: interpret a hand-picked diabetes-like panel (strong example)
   biologyExample: async () => {
     progress.start("Interpreting example diabetes-signature panel…");
@@ -1355,6 +1361,7 @@ const MENUS = [
     ["Evaluate current spectrum for lab release…", "evaluateCurrentQc"],
     ["sep"],
     ["Track 1 → 2 automated pipeline (binned spectra)…", "spectralPipeline"],
+    ["View last import — biomarkers & biology…", "viewLastPipeline"],
     ["sep"],
     ["Select Domain 2 dataset…", "selectDataset"],
     ["Biomarker discovery (Domain 2)…", "biomarkerDiscovery"],
@@ -1454,6 +1461,44 @@ async function load(url, opts) {
   updateUndoRedo();
 }
 
+// Populate the MAIN PAGE (spectrum + compound table + reference cards) from an
+// imported Track-1 pipeline result — so it behaves like a real profiler, not a popup.
+function loadTrack1Result(d) {
+  LAST_PIPELINE = d;
+  const ann = d.annotation || {}, q = d.quantification || {};
+  const inUM = q.units === "µM";
+  // shift lookup from the annotation step
+  const shiftMap = {};
+  (ann.metabolites || []).forEach(m => { shiftMap[m.metabolite] = m.matched_shifts || []; });
+  // build compound objects in the shape the table/card/spectrum already expect
+  const compounds = (q.metabolites || []).map(m => ({
+    name: m.metabolite,
+    concentration_uM: inUM ? m.concentration_uM
+                           : (m.mean_concentration != null ? +(+m.mean_concentration).toFixed(3) : null),
+    identified: !!m.passes_fdr,
+    predicted_shifts: shiftMap[m.metabolite] || [],
+    snr_vs_decoy: m.snr_vs_decoy, detection_rate: m.detection_rate,
+    formula: "", smiles: "", molecular_weight: null, external_refs: {},
+  }));
+  compounds.sort((a, b) => (b.identified - a.identified) || ((b.concentration_uM || 0) - (a.concentration_uM || 0)));
+  LIBRARY = { spectrometer: {
+    compound_count: compounds.length, sample_count: ann.n_samples,
+    prediction_backend: "NNLS deconvolution · " + (q.units || "relative"),
+  }, compounds };
+  // show the actual binned spectrum (one representative sample) as the black trace
+  if (q.fit_overlay) setMeasured({ ppm: q.fit_overlay.ppm, intensity: q.fit_overlay.observed,
+                                   peaks: [], assignments: [], source: "binned spectrum" });
+  document.getElementById("st-count").textContent = compounds.length;
+  document.getElementById("st-freq").textContent = ann.n_samples ? ann.n_samples + " samples" : "—";
+  document.getElementById("st-ph").textContent = "—";
+  document.getElementById("st-backend").textContent = "engine: NNLS · " + (q.units || "relative");
+  HISTORY = []; HPOS = -1;
+  renderTable(); resetView(); drawOverview();
+  const first = compounds.find(c => c.identified) || compounds[0];
+  if (first) selectCompound(first);
+  updateUndoRedo();
+}
+
 // search
 document.getElementById("search").addEventListener("input", e => renderTable(e.target.value));
 // upload
@@ -1476,8 +1521,9 @@ document.getElementById("binned-input").addEventListener("change", async e => {
     const r = await fetch(apiUrl("/spectral/pipeline-file"), { method: "POST", body: fd });
     if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
     const d = await r.json();
-    renderSpectralPipeline(d, `Track 1 → Track 2 — ${f.name}`, null);
-    progress.done(`Done — ${d.annotation.n_metabolites_annotated} metabolites${d.biomarkers ? `, AUC ${d.biomarkers.honest_roc_auc}` : ""}.`);
+    loadTrack1Result(d);                                    // ← front page becomes the spectrum + metabolites
+    renderSpectralPipeline(d, `Track 1 → Track 2 — ${f.name}`, null);   // + full results popup
+    progress.done(`Loaded ${f.name} — ${d.annotation.n_metabolites_annotated} metabolites${d.biomarkers ? `, AUC ${d.biomarkers.honest_roc_auc}` : ""}. Close to explore the spectrum.`);
   } catch (err) { progress.done("Could not analyse file: " + err); }
 });
 // redraw on resize
