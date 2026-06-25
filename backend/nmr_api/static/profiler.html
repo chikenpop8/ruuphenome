@@ -1462,13 +1462,18 @@ document.getElementById("file-input").addEventListener("change", async e => {
   const fd = new FormData(); fd.append("nmr_results_tsv", f);
   await load("/compounds-upload", { method: "POST", body: fd });
 });
+// Resolve an API path to an absolute URL (robust across preview/iframe contexts).
+function apiUrl(path) {
+  try { return new URL(path, location.href).href; }
+  catch (e) { return (location.origin && location.origin !== "null" ? location.origin : "http://127.0.0.1:8100") + path; }
+}
 // Track 1 — upload your own binned-spectra CSV (one file, optional Class column)
 document.getElementById("binned-input").addEventListener("change", async e => {
   const f = e.target.files[0]; if (!f) return;
   progress.start(`Analysing ${f.name} — annotate → quantify → biomarkers…`);
   try {
     const fd = new FormData(); fd.append("binned_matrix", f);
-    const r = await fetch("/spectral/pipeline-file", { method: "POST", body: fd });
+    const r = await fetch(apiUrl("/spectral/pipeline-file"), { method: "POST", body: fd });
     if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
     const d = await r.json();
     renderSpectralPipeline(d, `Track 1 → Track 2 — ${f.name}`, null);
