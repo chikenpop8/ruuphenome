@@ -15,7 +15,7 @@ os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 try:
     from . import (
@@ -737,6 +737,48 @@ async def spectral_pipeline(
         return result
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Pipeline failed: {exc}")
+
+
+def _concentration_csv(X, bin_ppm) -> str:
+    """Deconvolve a binned cohort and return the sample × metabolite µM table
+    as CSV — Chenomx's signature deliverable."""
+    Xn = spectral_cohort.pqn_normalize(X)
+    dec = spectral_cohort.deconvolve(Xn, bin_ppm)
+    conc = dec["concentrations"]
+    keep = [m["metabolite"] for m in dec["metabolites"] if m["passes_fdr"]] \
+        or list(conc.columns)
+    conc = conc[[c for c in keep if c in conc.columns]].round(3)
+    header = f"# RuuPhenome concentration table — units: {dec['units']}"
+    if dec.get("internal_standard"):
+        header += f" (calibrated to {dec['internal_standard'].upper()} @ {dec['standard_um']} µM)"
+    return header + "\n" + conc.to_csv()
+
+
+@app.get("/spectral/demo-concentrations.csv")
+def spectral_demo_concentrations():
+    """Download the demo cohort's per-sample metabolite concentration table (CSV)."""
+    X, bin_ppm, _ = spectral_cohort.make_demo_binned()
+    csv = _concentration_csv(X, bin_ppm)
+    return Response(content=csv, media_type="text/csv", headers={
+        "Content-Disposition": "attachment; filename=ruuphenome_concentrations.csv"})
+
+
+@app.post("/spectral/export-concentrations")
+async def spectral_export_concentrations(
+    binned_matrix: UploadFile = File(...),
+    identified_peaks: UploadFile | None = File(default=None),
+):
+    """Upload a binned matrix → download the per-sample µM concentration table (CSV)."""
+    raw = await binned_matrix.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    try:
+        X, bin_ppm = spectral_cohort.load_binned_matrix(raw)
+        csv = _concentration_csv(X, bin_ppm)
+        return Response(content=csv, media_type="text/csv", headers={
+            "Content-Disposition": "attachment; filename=ruuphenome_concentrations.csv"})
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Export failed: {exc}")
 
 
 @app.post("/track2/metadata-columns")

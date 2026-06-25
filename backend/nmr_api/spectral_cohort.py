@@ -155,6 +155,27 @@ REFERENCE_SHIFTS: Dict[str, List[float]] = {
 INTERNAL_STANDARDS = {"dss", "tsp"}
 
 
+def _merge_bmrb_library() -> None:
+    """Merge the bundled BMRB-derived ¹H shift library (real assigned shifts)
+    into REFERENCE_SHIFTS. Curated entries take priority; BMRB adds breadth."""
+    path = Path(__file__).resolve().parent / "open_data" / "bmrb_reference_shifts.json"
+    if not path.exists():
+        return
+    try:
+        bmrb = json.loads(path.read_text())
+    except Exception:
+        return
+    for name, shifts in bmrb.items():
+        key = _normalize_name(name)
+        if key and key not in REFERENCE_SHIFTS and isinstance(shifts, list) and shifts:
+            REFERENCE_SHIFTS[key] = [float(s) for s in shifts]
+
+
+import json  # noqa: E402  (used by the merge above)
+from pathlib import Path  # noqa: E402
+_merge_bmrb_library()
+
+
 def _normalize_name(name: str) -> str:
     return name.strip().lower()
 

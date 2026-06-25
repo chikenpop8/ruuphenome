@@ -1117,7 +1117,8 @@ const ACTIONS = {
         <div class="bio-section-title">Step 4 — Quantification <span class="sub">NNLS deconvolution (ASICS-style) · fit R² ${q.mean_fit_r2 ?? "—"} · ${q.n_passing_fdr ?? 0}/${q.n_quantified ?? 0} pass FDR ${q.fdr_level ?? ""}${inUM ? ` · calibrated to ${q.internal_standard?.toUpperCase()} @ ${q.standard_um} µM` : " · relative"}</span></div>
         <table><tr><td style="font-weight:600">Metabolite</td><td style="font-weight:600">${inUM ? "Concentration" : "Conc. (relative)"}</td>
           <td style="font-weight:600">SNR vs decoy</td><td style="font-weight:600">Detection</td></tr>${quantRows || '<tr><td colspan="4" style="color:#888">—</td></tr>'}</table>
-        <p style="font-size:12px;color:#888;margin-top:6px">★ = passes target–decoy FDR. Overlapping peaks resolved by linear-combination fitting${inUM ? "; absolute µM via internal-standard calibration (Chenomx-style)" : ""}.</p>
+        <p style="font-size:12px;color:#888;margin-top:6px">★ = passes target–decoy FDR. Overlapping peaks resolved by linear-combination fitting${inUM ? "; absolute µM via internal-standard calibration (Chenomx-style)" : ""}.
+          <a href="/spectral/demo-concentrations.csv" download style="margin-left:8px;color:#2c6fb0;font-weight:600">⬇ Download concentration table (CSV)</a></p>
         ${fitSvg ? `<div class="bio-section-title">Reference-fit overlay <span class="sub">sample ${q.fit_overlay.sample} — observed vs NNLS reconstruction</span></div>${fitSvg}` : ""}
         <div class="bio-section-title">Step 5 — Pathway enrichment <span class="sub">on the discovered panel</span></div>
         <table><tr><td style="font-weight:600">Pathway</td><td style="font-weight:600">p-value</td>
