@@ -81,10 +81,11 @@ def _get(url: str) -> Optional[dict]:
 def _fetch_pubchem(name: str) -> Dict:
     """Best-effort PubChem lookup by compound name."""
     out: Dict = {"pubchem_cid": None, "iupac_name": None, "inchikey": None,
-                 "synonyms": [], "cas": None}
+                 "synonyms": [], "cas": None, "formula": None, "smiles": None,
+                 "inchi": None}
     props = _get(
         f"{PUG}/compound/name/{requests.utils.quote(name)}"
-        f"/property/IUPACName,InChIKey/JSON"
+        f"/property/MolecularFormula,SMILES,InChI,IUPACName,InChIKey/JSON"
     ) if _HAVE_REQUESTS else None
     if not props:
         return out
@@ -93,6 +94,9 @@ def _fetch_pubchem(name: str) -> Dict:
         out["pubchem_cid"] = p.get("CID")
         out["iupac_name"] = p.get("IUPACName")
         out["inchikey"] = p.get("InChIKey")
+        out["formula"] = p.get("MolecularFormula")
+        out["smiles"] = p.get("SMILES") or p.get("ConnectivitySMILES")
+        out["inchi"] = p.get("InChI")
     except Exception:
         return out
 
@@ -134,6 +138,9 @@ def enrich(name: str, chebi_id: str = "", inchi: str = "") -> Dict:
         "cas_registry": data.get("cas"),
         "pubchem_cid": data.get("pubchem_cid"),
         "inchikey": data.get("inchikey"),
+        "formula": data.get("formula"),
+        "smiles": data.get("smiles") or "",
+        "inchi": data.get("inchi") or inchi,
         "external_refs": _links(name, chebi_id, data),
     }
 

@@ -875,6 +875,31 @@ async def track2_with_metadata(
         raise HTTPException(status_code=422, detail=f"Discovery failed: {exc}")
 
 
+@app.get("/enrich-names")
+def enrich_names(names: str):
+    """
+    Reference-card metadata for a comma-separated list of metabolite names:
+    formula, molecular weight, SMILES (for 2D structure), IUPAC, CAS, PubChem CID,
+    InChIKey, InChI, and resolving database links. Cached / offline-safe.
+    """
+    out = {}
+    for raw_name in [n.strip() for n in names.split(",") if n.strip()][:300]:
+        meta = enrich.enrich(raw_name, "", "")
+        out[raw_name] = {
+            "formula": meta.get("formula"),
+            "molecular_weight": library.molecular_weight(meta.get("formula") or ""),
+            "smiles": meta.get("smiles") or "",
+            "iupac_name": meta.get("iupac_name"),
+            "alternate_names": meta.get("alternate_names", []),
+            "cas_registry": meta.get("cas_registry"),
+            "pubchem_cid": meta.get("pubchem_cid"),
+            "inchikey": meta.get("inchikey"),
+            "inchi": meta.get("inchi"),
+            "external_refs": meta.get("external_refs"),
+        }
+    return out
+
+
 @app.get("/biology")
 def biology_interpret(metabolites: str):
     """
