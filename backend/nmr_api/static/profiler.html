@@ -212,6 +212,13 @@
   .pin-chip input[type=color] { width: 16px; height: 16px; border: none; padding: 0; background: none; cursor: pointer; }
   .pin-chip .pin-x { color: #b0413e; cursor: pointer; font-weight: 700; margin-left: 2px; }
   .pin-chip .pin-x:hover { color: #7a2a25; }
+  /* per-row pin + colour tools in the compound table */
+  .row-pin { cursor: pointer; opacity: 0.28; margin-right: 4px; font-size: 11px; user-select: none; }
+  .row-pin.on { opacity: 1; }
+  tr:hover .row-pin { opacity: 0.65; }
+  tr:hover .row-pin.on { opacity: 1; }
+  .row-color { width: 14px; height: 14px; border: none; padding: 0; background: none;
+    cursor: pointer; vertical-align: middle; margin-right: 6px; }
   .region-tabs .arrow { color: #999; cursor: pointer; padding: 0 4px; }
   .region-tab {
     padding: 2px 9px; border-radius: 3px; cursor: pointer; color: #555; font-weight: 600;
@@ -684,8 +691,25 @@ function renderTable(filter="") {
     const tr = document.createElement("tr");
     if (c.identified) tr.classList.add("identified");
     if (SELECTED && c.name === SELECTED.name) tr.classList.add("selected");
-    tr.innerHTML = `<td>${c.name}</td>` +
-      `<td class="conc">${c.concentration_uM != null ? c.concentration_uM.toFixed(2) : "--"}</td>`;
+    const pinned = PINNED.find(p => p.name === c.name);
+    // name cell with per-row pin tool + colour tool
+    const nameTd = document.createElement("td");
+    const pinBtn = document.createElement("span");
+    pinBtn.className = "row-pin" + (pinned ? " on" : "");
+    pinBtn.textContent = "📌";
+    pinBtn.title = pinned ? "Unpin from spectrum" : "Pin to spectrum";
+    pinBtn.onclick = e => { e.stopPropagation(); togglePin(c.name); };
+    const sw = document.createElement("input");
+    sw.type = "color"; sw.className = "row-color";
+    sw.value = pinned ? pinned.color : "#2c6fb0";
+    sw.title = "Overlay colour (sets + pins)";
+    sw.onclick = e => e.stopPropagation();
+    sw.oninput = e => { e.stopPropagation(); setPinColor(c.name, e.target.value); };
+    const label = document.createElement("span"); label.textContent = c.name;
+    nameTd.append(pinBtn, sw, label);
+    const concTd = document.createElement("td"); concTd.className = "conc";
+    concTd.textContent = c.concentration_uM != null ? c.concentration_uM.toFixed(2) : "--";
+    tr.append(nameTd, concTd);
     tr.onclick = () => selectCompound(c);
     tb.appendChild(tr);
   }
@@ -725,9 +749,13 @@ function togglePin(name) {
     PINNED.push({ name, color });
   }
   renderPinLegend(); updatePinBtn(); drawSpectrum();
+  const s = document.getElementById("search"); if (LIBRARY) renderTable(s ? s.value : "");
 }
 function setPinColor(name, color) {
-  const p = PINNED.find(x => x.name === name); if (p) { p.color = color; drawSpectrum(); }
+  let p = PINNED.find(x => x.name === name);
+  if (!p) { PINNED.push({ name, color }); }   // setting a colour also pins it
+  else p.color = color;
+  renderPinLegend(); updatePinBtn(); drawSpectrum();
 }
 function updatePinBtn() {
   const b = document.getElementById("pin-btn"); if (!b) return;
@@ -786,48 +814,57 @@ function setupOverviewInteraction() {
   cv.style.cursor = "pointer";
 }
 
-// ── Interactive zoom/pan on the spectrum (wheel + drag-select + dbl-click reset) ──
+// ── Spectrum navigation: PINCH to zoom, click-hold + DRAG to pan, dbl-click reset ──
 function setupSpectrumInteraction() {
   const cv = document.getElementById("spectrum");
   const padL = 10, padR = 55;
-  const ppmAt = clientX => {
+  const fracAt = clientX => {
     const rect = cv.getBoundingClientRect();
     const plotW = rect.width - padL - padR;
-    const frac = Math.max(0, Math.min(1, (clientX - rect.left - padL) / plotW));
-    return VIEW.max - frac * (VIEW.max - VIEW.min);
+    return Math.max(0, Math.min(1, (clientX - rect.left - padL) / plotW));
   };
-  // wheel: zoom in/out toward the cursor
+  const ppmAt = clientX => VIEW.max - fracAt(clientX) * (VIEW.max - VIEW.min);
+  const clampSpan = (lo, hi) => {                       // keep span, clamp to range
+    const span = hi - lo;
+    if (lo < FULL.min) { lo = FULL.min; hi = lo + span; }
+    if (hi > FULL.max) { hi = FULL.max; lo = hi - span; }
+    return { min: lo, max: hi };
+  };
+
+  // wheel: trackpad PINCH (ctrlKey) zooms toward cursor; two-finger scroll pans
   cv.addEventListener("wheel", e => {
     if (!LIBRARY) return;
     e.preventDefault();
-    const focus = ppmAt(e.clientX);
-    const f = e.deltaY < 0 ? 0.82 : 1.22;            // scroll up = zoom in
-    let lo = Math.max(FULL.min, focus - (focus - VIEW.min) * f);
-    let hi = Math.min(FULL.max, focus + (VIEW.max - focus) * f);
-    if (hi - lo >= 0.02) { VIEW = { min: lo, max: hi }; drawSpectrum(); drawOverview(); }
+    if (e.ctrlKey) {                                    // pinch / ctrl+wheel → zoom
+      const focus = ppmAt(e.clientX);
+      const f = Math.exp(e.deltaY * 0.01);              // spread (deltaY<0) → zoom in
+      let lo = Math.max(FULL.min, focus - (focus - VIEW.min) * f);
+      let hi = Math.min(FULL.max, focus + (VIEW.max - focus) * f);
+      if (hi - lo >= 0.02) { VIEW = { min: lo, max: hi }; drawSpectrum(); drawOverview(); }
+    } else {                                            // two-finger scroll → pan
+      const span = VIEW.max - VIEW.min;
+      const d = (e.deltaX || e.deltaY) * span * 0.0025;
+      VIEW = clampSpan(VIEW.min + d, VIEW.max + d);
+      drawSpectrum(); drawOverview();
+    }
   }, { passive: false });
-  // drag: select a ppm band to zoom into
-  let dragX = null;
-  cv.addEventListener("mousedown", e => { if (LIBRARY) dragX = e.clientX; });
-  cv.addEventListener("mousemove", e => {
-    if (dragX === null) return;
-    drawSpectrum();
-    const ctx = cv.getContext("2d"), rect = cv.getBoundingClientRect();
-    const x0 = dragX - rect.left, x1 = e.clientX - rect.left;
-    ctx.fillStyle = "rgba(63,111,176,0.15)";
-    ctx.fillRect(Math.min(x0, x1), 14, Math.abs(x1 - x0), rect.height - 42);
+
+  // click-hold + drag left/right → pan (the grabbed ppm stays under the cursor)
+  let pan = null;
+  cv.addEventListener("mousedown", e => {
+    if (LIBRARY) { pan = { grab: ppmAt(e.clientX), span: VIEW.max - VIEW.min }; cv.style.cursor = "grabbing"; }
   });
-  const end = e => {
-    if (dragX === null) return;
-    const a = ppmAt(dragX), b = ppmAt(e.clientX); dragX = null;
-    const lo = Math.min(a, b), hi = Math.max(a, b);
-    if (hi - lo >= 0.01) { VIEW = { min: lo, max: hi }; snapshot(); }
+  cv.addEventListener("mousemove", e => {
+    if (!pan) return;
+    const hi = pan.grab + fracAt(e.clientX) * pan.span;
+    VIEW = clampSpan(hi - pan.span, hi);
     drawSpectrum(); drawOverview();
-  };
-  cv.addEventListener("mouseup", end);
-  cv.addEventListener("mouseleave", () => { if (dragX !== null) { dragX = null; drawSpectrum(); } });
+  });
+  const endPan = () => { if (pan) { pan = null; cv.style.cursor = "grab"; snapshot(); } };
+  cv.addEventListener("mouseup", endPan);
+  cv.addEventListener("mouseleave", endPan);
   cv.addEventListener("dblclick", () => { resetView(); snapshot(); });
-  cv.style.cursor = "crosshair";
+  cv.style.cursor = "grab";
 }
 
 // ── Undo / redo history (selection + view window) ──
