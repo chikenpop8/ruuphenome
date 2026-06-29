@@ -637,12 +637,12 @@ function drawSpectrum() {
   if (SELECTED) {
     const selectedPin = PINNED.find(p => p.name === SELECTED.name);
     const selectedColor = selectedPin ? selectedPin.color : "#8a7fc4";
-    ctx.beginPath(); ctx.moveTo(xOf(VIEW.max), yOf(0));
+    ctx.beginPath(); ctx.moveTo(xOf(VIEW.min), yOf(0));
     for (let i = 0; i < N; i++) {
       const ppm = VIEW.min + (VIEW.max - VIEW.min) * i / (N - 1);
       ctx.lineTo(xOf(ppm), yOf(fit[i]));
     }
-    ctx.lineTo(xOf(VIEW.min), yOf(0)); ctx.closePath();
+    ctx.lineTo(xOf(VIEW.max), yOf(0)); ctx.closePath();
     ctx.fillStyle = hexToRgba(selectedColor, 0.18); ctx.fill();
 
     ctx.setLineDash([5, 3]); ctx.strokeStyle = selectedColor; ctx.lineWidth = 1.4;
