@@ -320,6 +320,33 @@
     <div class="tbtn" title="Upload dataset" onclick="ACTIONS.openDataset()">⬆️</div>
     <input type="file" id="file-input" accept=".tsv,.txt,.csv" style="display:none">
     <input type="file" id="binned-input" accept=".csv,.tsv,.txt" style="display:none">
+
+    <!-- FDR knob — appears after file chosen, user adjusts then clicks Run -->
+    <div id="fdr-panel" style="display:none;position:fixed;bottom:18px;right:18px;z-index:900;
+         background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+         padding:16px 20px;box-shadow:0 4px 24px #0006;min-width:260px">
+      <div style="font-weight:700;margin-bottom:4px;font-size:13px">
+        Before we run — set confidence level
+      </div>
+      <div style="font-size:11px;color:var(--fg2);margin-bottom:10px">
+        The <b>FDR threshold</b> controls how strict we are about which metabolites to report.
+        Lower = fewer results but more trustworthy. Higher = more results but some may be noise.
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <input type="range" id="fdr-slider" min="1" max="20" step="1" value="5"
+               style="flex:1;accent-color:var(--accent)" />
+        <span id="fdr-value" style="color:var(--accent);font-weight:700;font-size:14px;min-width:36px">5%</span>
+      </div>
+      <div style="font-size:11px;color:var(--fg2);margin-bottom:12px;line-height:1.6">
+        <b>1–3%</b> → very strict, ~10–20 high-confidence compounds<br>
+        <b>5%</b> → balanced (recommended default)<br>
+        <b>10–20%</b> → broad, more false positives likely
+      </div>
+      <button id="fdr-run-btn" style="width:100%;padding:8px;border-radius:6px;border:none;
+              background:var(--accent);color:#fff;font-weight:700;font-size:13px;cursor:pointer">
+        Run Analysis
+      </button>
+    </div>
   </div>
 
   <div class="main">
@@ -1929,16 +1956,35 @@ function apiUrl(path) {
   catch (e) { return (location.origin && location.origin !== "null" ? location.origin : "http://127.0.0.1:8100") + path; }
 }
 // Track 1 — upload your own binned-spectra CSV (one file, optional Class column)
-document.getElementById("binned-input").addEventListener("change", async e => {
+// FDR slider wiring
+const fdrSlider = document.getElementById("fdr-slider");
+const fdrValue  = document.getElementById("fdr-value");
+const fdrPanel  = document.getElementById("fdr-panel");
+const fdrRunBtn = document.getElementById("fdr-run-btn");
+fdrSlider.addEventListener("input", () => { fdrValue.textContent = fdrSlider.value + "%"; });
+
+let _pendingFile = null;
+document.getElementById("binned-input").addEventListener("change", e => {
   const f = e.target.files[0]; if (!f) return;
-  progress.start(`Analysing ${f.name} — annotate → quantify → biomarkers…`);
+  _pendingFile = f;
+  fdrPanel.style.display = "block";   // show knob — wait for user to click Run
+});
+
+fdrRunBtn.addEventListener("click", async () => {
+  const f = _pendingFile; if (!f) return;
+  fdrPanel.style.display = "none";
+  _pendingFile = null;
+  const fdr = parseFloat(fdrSlider.value) / 100;
+  progress.start(`Analysing ${f.name} — FDR ${fdrSlider.value}% — annotate → quantify → biomarkers…`);
   try {
-    const fd = new FormData(); fd.append("binned_matrix", f);
+    const fd = new FormData();
+    fd.append("binned_matrix", f);
+    fd.append("fdr", fdr);
     const r = await fetch(apiUrl("/spectral/pipeline-file"), { method: "POST", body: fd });
     if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
     const d = await r.json();
-    loadTrack1Result(d);                                    // ← front page becomes the spectrum + metabolites
-    renderSpectralPipeline(d, `Track 1 → Track 2 — ${f.name}`, null);   // + full results popup
+    loadTrack1Result(d);
+    renderSpectralPipeline(d, `Track 1 → Track 2 — ${f.name}`, null);
     progress.done(`Loaded ${f.name} — ${d.annotation.n_metabolites_annotated} metabolites${d.biomarkers ? `, AUC ${d.biomarkers.honest_roc_auc}` : ""}. Close to explore the spectrum.`);
   } catch (err) { progress.done("Could not analyse file: " + err); }
 });

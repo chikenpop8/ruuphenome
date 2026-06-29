@@ -626,7 +626,7 @@ def biomarkers_safe(group_a: int | None = None, group_b: int | None = None,
 
 # ── Track 1: binned-spectra cohort pipeline (annotate → visualize → bridge) ──
 def _run_cohort_pipeline(X, bin_ppm, label_map=None, normalize="pqn",
-                         include_biomarkers=True, identified_peaks=None):
+                         include_biomarkers=True, identified_peaks=None, fdr=0.05):
     """Shared engine: binned matrix → normalize → annotate → (optional) Track 2."""
     import numpy as np
     Xn = (spectral_cohort.pqn_normalize(X) if normalize == "pqn"
@@ -635,7 +635,7 @@ def _run_cohort_pipeline(X, bin_ppm, label_map=None, normalize="pqn",
     ann = spectral_cohort.annotate(Xn, bin_ppm, identified_peaks=identified_peaks)
     M = ann.pop("annotated_matrix")
     # ASICS-style NNLS deconvolution → overlap-resolved quantification + FDR
-    deconv = spectral_cohort.deconvolve(Xn, bin_ppm)
+    deconv = spectral_cohort.deconvolve(Xn, bin_ppm, fdr=fdr)
     deconv.pop("concentrations", None)        # drop the matrix (not JSON-serializable)
     out = {
         "annotation": ann,
@@ -785,6 +785,7 @@ async def spectral_export_concentrations(
 async def spectral_pipeline_file(
     binned_matrix: UploadFile = File(...),
     normalize: str = Form(default="pqn"),
+    fdr: float = Form(default=0.05),
 ):
     """
     One-file Track 1 → Track 2 pipeline. Accepts a binned matrix (sample × ppm-bin)
@@ -801,7 +802,7 @@ async def spectral_pipeline_file(
             raw, [str(s) for s in X.index])
         result = _run_cohort_pipeline(
             X, bin_ppm, label_map=label_map, normalize=normalize,
-            include_biomarkers=label_map is not None)
+            include_biomarkers=label_map is not None, fdr=fdr)
         result["label_info"] = info
         result["task"] = (f"{info['classes'][0]} vs {info['classes'][1]}"
                           if info else "no label column found — annotation only")
