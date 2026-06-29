@@ -27,26 +27,11 @@ reviewers. RuuPhenome is:
 
 ## Quick start
 
-### Option A — Docker (recommended, reproducible)
-
-```bash
-docker build -t ruuphenome .
-docker run -p 8100:8100 ruuphenome
-```
-
-Then open **http://localhost:8100** (or `http://<VM-IP>:8100` over the KKU VPN).
-
-The image is torch-free (~700 MB) and fits the competition VM's 8 GB RAM. It runs
-with `NMR_OFFLINE=1` by default, so it makes **zero outbound network calls** —
-fully reproducible, and compliant with the hackathon data-governance policy.
-
-### Option B — Local (development)
-
 ```bash
 bash backend/nmr_api/run.sh
 ```
 
-Opens on http://127.0.0.1:8100. Set `NMR_HOST=0.0.0.0` to expose it on a VM.
+Opens on **http://127.0.0.1:8100**. Set `NMR_HOST=0.0.0.0` to expose it on the competition VM.
 
 ### Key URLs
 
@@ -75,9 +60,8 @@ curated metabolite biology cards.
 
 ## Reproducibility
 
-- **Deterministic by construction:** offline mode + single-threaded native math +
-  fixed random seeds in the modelling code.
-- **One command to run** (Docker), identical on any machine.
+- **Deterministic by construction:** single-threaded native math + fixed random
+  seeds in all modelling code.
 - **38 automated tests:**
   ```bash
   backend/nmr_api/.venv/bin/python -m unittest discover -s backend/nmr_api/tests
@@ -87,10 +71,10 @@ curated metabolite biology cards.
 
 ## Data governance
 
-RuuPhenome is designed for closed-dataset environments. With `NMR_OFFLINE=1`
-(the Docker default) it cannot contact any external service, so no dataset row
-can leave the VM. Reference enrichment (PubChem metadata) is served from a
-**bundled offline cache**; it never fetches data at demo time.
+RuuPhenome is designed for closed-dataset environments. Set `NMR_OFFLINE=1` to
+block every outbound network call so no dataset row can leave the host. Reference
+enrichment (PubChem metadata) is served from a **bundled offline cache**; it
+never fetches data at demo time.
 
 ---
 
