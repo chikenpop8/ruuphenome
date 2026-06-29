@@ -1069,4 +1069,7 @@ def index():
     page = STATIC_DIR / "profiler.html"
     if not page.exists():
         raise HTTPException(status_code=404, detail="Frontend not built.")
-    return FileResponse(page)
+    # no-store: the browser must re-fetch the UI on every reload so code edits
+    # are never masked by a stale cached page (a single-page canvas app keeps
+    # running its first-loaded JS until the page itself is reloaded).
+    return FileResponse(page, headers={"Cache-Control": "no-store"})

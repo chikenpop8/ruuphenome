@@ -588,15 +588,24 @@ function drawSpectrum() {
 
   // measured = Domain 1 processed spectrum (nmrglue); fit = selected compound
   const measured = buildMeasured(N, VIEW.min, VIEW.max);
-  const fit = SELECTED ? sampleSpectrum(peaksFor([SELECTED]), N, VIEW.min, VIEW.max)
+  const _selPeaks = SELECTED ? peaksFor([SELECTED]) : [];
+  const fit = SELECTED ? sampleSpectrum(_selPeaks, N, VIEW.min, VIEW.max)
                        : new Float64Array(N);
-  // pinned compound overlays (each drawn in its own colour)
+  // fitFill: threshold-clipped version for the shaded fill area only.
+  // We clip against the compound's ABSOLUTE peak amplitude (not the current view's
+  // max) so that Lorentzian tails from off-screen peaks are removed at any zoom level.
+  // A Lorentzian tail 0.02 ppm from its center ≈ 8.3% of amp, so 12% safely clips
+  // all tails while preserving genuine peak area.
+  const _compoundAmp = _selPeaks.reduce((m, p) => Math.max(m, p.amp), 0);
+  const fitFill = fit.map(v => Math.max(0, v - _compoundAmp * 0.12));
+  // pinned compound overlays — same threshold clipping
   const pinnedFits = (LIBRARY ? PINNED : [])
     .filter(p => !(SELECTED && p.name === SELECTED.name))
     .map(p => {
-    const comp = LIBRARY.compounds.find(c => c.name === p.name);
-    return { color: p.color, ys: comp ? sampleSpectrum(peaksFor([comp]), N, VIEW.min, VIEW.max) : new Float64Array(N) };
-  });
+      const comp = LIBRARY.compounds.find(c => c.name === p.name);
+      if (!comp) return { color: p.color, ys: new Float64Array(N) };
+      return { color: p.color, ys: sampleSpectrum(peaksFor([comp]), N, VIEW.min, VIEW.max) };
+    });
 
   let ymax = 0;
   for (let i = 0; i < N; i++) {
@@ -640,7 +649,7 @@ function drawSpectrum() {
     ctx.beginPath(); ctx.moveTo(xOf(VIEW.min), yOf(0));
     for (let i = 0; i < N; i++) {
       const ppm = VIEW.min + (VIEW.max - VIEW.min) * i / (N - 1);
-      ctx.lineTo(xOf(ppm), yOf(fit[i]));
+      ctx.lineTo(xOf(ppm), yOf(fitFill[i]));
     }
     ctx.lineTo(xOf(VIEW.max), yOf(0)); ctx.closePath();
     ctx.fillStyle = hexToRgba(selectedColor, 0.18); ctx.fill();
