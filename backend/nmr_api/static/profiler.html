@@ -321,29 +321,42 @@
     <input type="file" id="file-input" accept=".tsv,.txt,.csv" style="display:none">
     <input type="file" id="binned-input" accept=".csv,.tsv,.txt" style="display:none">
 
-    <!-- FDR knob — appears after file chosen, user adjusts then clicks Run -->
-    <div id="fdr-panel" style="display:none;position:fixed;bottom:18px;right:18px;z-index:900;
-         background:var(--bg2);border:1px solid var(--border);border-radius:10px;
-         padding:16px 20px;box-shadow:0 4px 24px #0006;min-width:260px">
-      <div style="font-weight:700;margin-bottom:4px;font-size:13px">
-        Before we run — set confidence level
+    <!-- FDR modal backdrop -->
+    <div id="fdr-backdrop" style="display:none;position:fixed;inset:0;z-index:1000;
+         background:#0007;backdrop-filter:blur(2px)"></div>
+    <!-- FDR knob — centered modal, appears after file chosen -->
+    <div id="fdr-panel" style="display:none;position:fixed;top:50%;left:50%;
+         transform:translate(-50%,-50%);z-index:1001;width:340px;
+         background:var(--bg2);border:1px solid var(--border);border-radius:14px;
+         padding:24px 26px;box-shadow:0 8px 40px #0008">
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">Set confidence level</div>
+      <div style="font-size:12px;color:var(--fg2);margin-bottom:18px;line-height:1.6">
+        The <b>FDR threshold</b> controls how strict we are.<br>
+        Lower = fewer compounds, higher confidence.<br>
+        Higher = more compounds, more noise.
       </div>
-      <div style="font-size:11px;color:var(--fg2);margin-bottom:10px">
-        The <b>FDR threshold</b> controls how strict we are about which metabolites to report.
-        Lower = fewer results but more trustworthy. Higher = more results but some may be noise.
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <!-- slider row -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <span style="font-size:11px;color:var(--fg2);white-space:nowrap">Strict</span>
         <input type="range" id="fdr-slider" min="1" max="20" step="1" value="5"
-               style="flex:1;accent-color:var(--accent)" />
-        <span id="fdr-value" style="color:var(--accent);font-weight:700;font-size:14px;min-width:36px">5%</span>
+               style="flex:1;accent-color:var(--accent);height:6px" />
+        <span style="font-size:11px;color:var(--fg2);white-space:nowrap">Broad</span>
       </div>
-      <div style="font-size:11px;color:var(--fg2);margin-bottom:12px;line-height:1.6">
-        <b>1–3%</b> → very strict, ~10–20 high-confidence compounds<br>
-        <b>5%</b> → balanced (recommended default)<br>
-        <b>10–20%</b> → broad, more false positives likely
+      <!-- current value badge -->
+      <div style="text-align:center;margin-bottom:14px">
+        <span id="fdr-value" style="font-size:28px;font-weight:800;color:var(--accent)">5%</span>
+        <span style="font-size:12px;color:var(--fg2);margin-left:6px">FDR</span>
       </div>
-      <button id="fdr-run-btn" style="width:100%;padding:8px;border-radius:6px;border:none;
-              background:var(--accent);color:#fff;font-weight:700;font-size:13px;cursor:pointer">
+      <!-- guide -->
+      <div style="background:var(--bg1);border-radius:8px;padding:10px 12px;
+                  font-size:11px;color:var(--fg2);line-height:1.8;margin-bottom:18px">
+        <span style="color:var(--accent)">■</span> <b>1–3%</b> → ~10–20 high-confidence hits<br>
+        <span style="color:var(--accent)">■</span> <b>5%</b> → balanced — recommended<br>
+        <span style="color:var(--accent)">■</span> <b>10–20%</b> → broad, expect some noise
+      </div>
+      <button id="fdr-run-btn" style="width:100%;padding:10px;border-radius:8px;border:none;
+              background:var(--accent);color:#fff;font-weight:700;font-size:14px;
+              cursor:pointer;letter-spacing:0.3px">
         Run Analysis
       </button>
     </div>
@@ -1957,22 +1970,26 @@ function apiUrl(path) {
 }
 // Track 1 — upload your own binned-spectra CSV (one file, optional Class column)
 // FDR slider wiring
-const fdrSlider = document.getElementById("fdr-slider");
-const fdrValue  = document.getElementById("fdr-value");
-const fdrPanel  = document.getElementById("fdr-panel");
-const fdrRunBtn = document.getElementById("fdr-run-btn");
+const fdrSlider   = document.getElementById("fdr-slider");
+const fdrValue    = document.getElementById("fdr-value");
+const fdrPanel    = document.getElementById("fdr-panel");
+const fdrBackdrop = document.getElementById("fdr-backdrop");
+const fdrRunBtn   = document.getElementById("fdr-run-btn");
 fdrSlider.addEventListener("input", () => { fdrValue.textContent = fdrSlider.value + "%"; });
+
+function showFdrModal() { fdrPanel.style.display = "block"; fdrBackdrop.style.display = "block"; }
+function hideFdrModal() { fdrPanel.style.display = "none";  fdrBackdrop.style.display = "none"; }
 
 let _pendingFile = null;
 document.getElementById("binned-input").addEventListener("change", e => {
   const f = e.target.files[0]; if (!f) return;
   _pendingFile = f;
-  fdrPanel.style.display = "block";   // show knob — wait for user to click Run
+  showFdrModal();
 });
 
 fdrRunBtn.addEventListener("click", async () => {
   const f = _pendingFile; if (!f) return;
-  fdrPanel.style.display = "none";
+  hideFdrModal();
   _pendingFile = null;
   const fdr = parseFloat(fdrSlider.value) / 100;
   progress.start(`Analysing ${f.name} — FDR ${fdrSlider.value}% — annotate → quantify → biomarkers…`);
