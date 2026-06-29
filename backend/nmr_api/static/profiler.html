@@ -331,11 +331,28 @@
          padding:28px 30px;box-shadow:0 12px 48px rgba(0,0,0,0.7)">
 
       <!-- title -->
-      <div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:4px">
-        Set confidence level
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span style="font-size:17px;font-weight:800;color:#fff">Set confidence level</span>
+        <button id="fdr-info-btn" title="What is FDR?" style="width:20px;height:20px;border-radius:50%;
+                border:1.5px solid #4e9cf5;background:transparent;color:#4e9cf5;
+                font-size:11px;font-weight:800;cursor:pointer;line-height:1;flex-shrink:0">i</button>
       </div>
-      <div style="font-size:12px;color:#8892a4;margin-bottom:22px;line-height:1.6">
+      <div style="font-size:12px;color:#8892a4;margin-bottom:14px;line-height:1.6">
         Controls how strict the metabolite filter is before showing results.
+      </div>
+      <!-- info panel (hidden by default) -->
+      <div id="fdr-info-box" style="display:none;background:#12161f;border:1px solid #3a4060;
+           border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:11px;
+           color:#a0aabf;line-height:1.75">
+        <b style="color:#fff;font-size:12px">What is FDR?</b><br>
+        <b>False Discovery Rate</b> — the % of reported compounds we're okay with being wrong.<br><br>
+        <b style="color:#cdd5e0">How it works here:</b><br>
+        We test real compounds against fake "decoy" compounds that shouldn't appear in any real sample.
+        If a decoy sneaks through, it's a false positive. FDR controls how many of those we allow.<br><br>
+        <b style="color:#cdd5e0">Why it matters:</b><br>
+        Set it too high → noise gets reported as real metabolites → your results look impressive but aren't trustworthy.<br>
+        Set it too low → only the most obvious metabolites pass → safer, but you might miss real signals.<br><br>
+        <span style="color:#4caf50">5% is the standard used in proteomics and genomics worldwide.</span>
       </div>
 
       <!-- big value display -->
@@ -2015,6 +2032,14 @@ fdrSlider.addEventListener("input", () => {
 
 function showFdrModal() { fdrPanel.style.display = "block"; fdrBackdrop.style.display = "block"; }
 function hideFdrModal() { fdrPanel.style.display = "none";  fdrBackdrop.style.display = "none"; }
+document.getElementById("fdr-info-btn").addEventListener("click", () => {
+  const box = document.getElementById("fdr-info-box");
+  const btn = document.getElementById("fdr-info-btn");
+  const open = box.style.display === "block";
+  box.style.display = open ? "none" : "block";
+  btn.style.background = open ? "transparent" : "#4e9cf5";
+  btn.style.color = open ? "#4e9cf5" : "#fff";
+});
 
 let _pendingFile = null;
 document.getElementById("binned-input").addEventListener("change", e => {
