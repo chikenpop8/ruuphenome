@@ -1,0 +1,21 @@
+# Keep the build context (and image) small and reproducible.
+
+# Python virtualenv and caches — rebuilt fresh inside the image
+backend/nmr_api/.venv/
+**/__pycache__/
+**/*.pyc
+
+# Heavy optional deep-learning assets (torch-only; not used by the core demo)
+backend/nmr_api/models/*.pt
+backend/nmr_api/NMRformer/
+
+# Local scratch / VCS / editor noise
+.git/
+.gitignore
+*.log
+.DS_Store
+.claude/
+
+# Docs are not needed at runtime (kept in the repo, not the image)
+HANDOFF.md
+LABORATORY_PIPELINE.md

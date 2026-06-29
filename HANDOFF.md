@@ -1,35 +1,42 @@
 # RuuPhenome — Current Project Handoff
 
-Last verified: **June 22, 2026**
+Last verified: **June 26, 2026**  
+Active app root: `/Applications/Vibing coding/Noom copy cat/ruuphenome`
 
 RuuPhenome is an open-source NMR metabolomics profiler for the Thailand
-National Phenome Institute / BDI Hackathon 2026 Track 1. The aim is to provide
-an explainable alternative to closed tools such as Chenomx.
+National Phenome Institute / BDI Hackathon 2026 Track Phenome work. The product
+goal is an explainable alternative to closed NMR profiling tools such as
+Chenomx: import NMR evidence, annotate metabolites, quantify/visualize them,
+then connect the metabolite table to leakage-safe biomarker discovery and
+biological interpretation.
 
-The project has two related domains:
+The project has three connected layers:
 
-- **Domain 1:** raw or processed 1D ¹H NMR spectrum → preprocessing, QC, peak
-  detection and metabolite-identification evidence.
-- **Domain 2:** sample × metabolite/ppm matrix → exploratory visualization,
-  leakage-safe model comparison and a stable biomarker panel.
+- **Domain 1 single-spectrum profiling:** raw Bruker ZIP or processed 1D ¹H
+  spectrum → preprocessing/QC/peak picking/metabolite assignment evidence.
+- **Track 1 cohort pipeline:** preprocessed/binned NMR matrix → normalization →
+  metabolite annotation → overlap-aware quantification → visualization/export.
+- **Domain 2 biomarker discovery:** sample × metabolite/ppm matrix → PCA/UMAP,
+  leakage-safe model comparison, stable biomarker panel and pathway biology.
 
 ## Repository and runtime
 
-- Workspace: `/Applications/Vibing coding/Noom copy cat`
+- Parent workspace: `/Applications/Vibing coding/Noom copy cat`
+- Active app: `/Applications/Vibing coding/Noom copy cat/ruuphenome`
 - Main package: `backend/nmr_api`
 - Frontend: `backend/nmr_api/static/profiler.html`
-- Additional older prototype: `nmr_pipeline`
-- This workspace is **not a Git repository**.
-- Reuse the existing environment at `backend/nmr_api/.venv`; do not recreate it.
+- This active app **is a Git repository**. Check `git status --short` before
+  editing; the workspace may be dirty.
+- Reuse the existing virtual environment at `backend/nmr_api/.venv`.
 
-Start from the workspace root:
+From the active app root:
 
 ```bash
 backend/nmr_api/.venv/bin/python -m uvicorn \
   backend.nmr_api.main:app --host 127.0.0.1 --port 8100
 ```
 
-Alternatively:
+Or use the project launcher:
 
 ```bash
 bash backend/nmr_api/run.sh
@@ -41,11 +48,14 @@ Then open:
 - Swagger: http://127.0.0.1:8100/docs
 - Health: http://127.0.0.1:8100/healthz
 
-The server is not guaranteed to already be running when a new agent starts.
+Important runtime nuance: `run.sh` exports
+`NMRFORMER_ADAPTER_MODULE=nmr_api.nmrformer_adapter` and runs from `backend/`.
+Direct `uvicorn backend.nmr_api.main:app` does **not** automatically set that
+environment variable.
 
 ## Verified environment
 
-| Package | Version |
+| Package | Version / status |
 |---|---:|
 | Python environment | `backend/nmr_api/.venv` |
 | FastAPI | 0.138.0 |
@@ -56,184 +66,272 @@ The server is not guaranteed to already be running when a new agent starts.
 | scikit-learn | 1.9.0 |
 | nmrglue | 0.11 |
 | XGBoost | 3.3.0 |
+| CatBoost | not installed |
 | PyTorch | 2.12.1 |
 | umap-learn | 0.5.12 |
 
-`NMRTransformer` is **not installed**. Arbitrary-SMILES shift prediction
-therefore uses the small HMDB fallback table. The setup script is
-`backend/nmr_api/setup_nmrtransformer.sh`.
+`NMRTransformer` is **not installed**. Arbitrary-SMILES shift prediction uses
+the HMDB known-shift fallback table unless `backend/nmr_api/setup_nmrtransformer.sh`
+is run successfully.
 
-`NMRformer` is also **not active** unless a validated adapter is supplied via
-`NMRFORMER_ADAPTER_MODULE`. Hybrid assignment safely falls back to transparent
-pattern matching.
+`NMRformer` files and a local adapter are bundled in
+`backend/nmr_api/NMRformer` and `backend/nmr_api/nmrformer_adapter.py`. The
+adapter reports its model files as present, but production claims should still
+say: **NMRformer support is optional and must be validated on the target sample
+type before being used as a primary assignment claim.** Pattern matching remains
+the explainable default.
 
 ## Important modules
 
 | Module | Current responsibility |
 |---|---|
-| `main.py` | FastAPI application and endpoint wiring |
-| `signal_processing.py` | Safe Bruker import, digital-filter removal, DC/apodization/FFT, phase and baseline correction, referencing, peak picking, assignments and spectrum QC |
-| `pipeline.py` | Parse MetaboLights MAF results and match Domain 2 compounds against Domain 1 peaks |
-| `shifts_db.py` | NMRTransformer adapter and HMDB known-shift fallback |
-| `nmrformer_backend.py` | Optional validated NMRformer adapter contract and hybrid scoring |
-| `open_data.py` | Download, checksum and process the curated public BMRB corpus |
+| `main.py` | FastAPI app, endpoint wiring and demo dataset registry |
+| `spectral_cohort.py` | Track 1 binned-spectra pipeline: load/orient matrix, normalize, annotate, deconvolve, export and derive labels |
+| `signal_processing.py` | Safe Bruker import, digital-filter removal, FFT, phase/baseline correction, referencing, peak picking and spectrum QC |
+| `pipeline.py` | Parse MetaboLights MAF/results tables and bridge Domain 2 compounds to Domain 1 peaks |
+| `shifts_db.py` | NMRTransformer adapter and HMDB fallback shifts |
+| `nmrformer_backend.py` | Optional NMRformer adapter contract and hybrid scoring |
+| `nmrformer_adapter.py` | Local wrapper for bundled `zza1211/NMRformer` files |
+| `open_data.py` | Public BMRB corpus/provenance handling |
+| `build_bmrb_library.py` | Builder for expanded BMRB reference-shift library |
 | `self_supervised.py` | Masked 1D convolutional autoencoder and BMRB reference embeddings |
-| `biomarker_engine.py` | Leakage-safe p≫n feature screening, grouped CV and stability |
+| `biomarker_engine.py` | Leakage-safe p≫n feature screening, grouped CV, stability, Q², VIP and permutation checks |
 | `model_suite.py` | Patient-grouped raw/PCA logistic, SVM, HistGradientBoosting and XGBoost comparison |
 | `dimensionality.py` | PCA scores/loadings and exploratory UMAP coordinates |
-| `biomarkers.py` | Older/simple n>p biomarker workflow and sample/patient parsing |
+| `biomarkers.py` | Older/simple MetaboLights biomarker workflow and sample/patient parsing |
+| `biology.py` | Curated metabolite biology cards and pathway enrichment |
 | `laboratory_workflow.py` | Thirteen-stage real-laboratory workflow and conservative QC release evaluator |
 | `library.py`, `enrich.py` | Compound cards, cached PubChem enrichment and UI data |
-| `models.py` | Pydantic request/response models |
 | `validate.py` | Validation CLI against reference peak/ID/quantification files |
 | `static/profiler.html` | Single-file Chenomx-style UI |
 
 ## Current data and trained assets
 
-### Default Domain 2 table
+### Bundled demo datasets
 
-`main.py` defaults to:
-
-```text
-/Users/bigray/Downloads/Domain_2_NMR_results_MTBLS242 (2).tsv
-```
-
-Override it with `NMR_DEFAULT_TSV`.
-
-The file currently resolves and contains:
-
-- 465 sample columns
-- 21 identified metabolites
-- longitudinal group counts: 0=106, 1=98, 2=98, 3=92, 4=71
-- default binary task: time point 0 versus time point 4
-- selected binary task size: 177 samples
-
-The matching sample table is:
+`main.py` defaults to the bundled MTBLS242 table:
 
 ```text
-/Users/bigray/Downloads/Domain_2_sample_table_MTBLS242 (2).tsv
+backend/nmr_api/open_data/demo_mtbls242.tsv
 ```
 
-The supplied Domain 1 reference is a PDF image/plot, not a numeric cohort:
+Override with `NMR_DEFAULT_TSV` if needed.
 
-```text
-/Users/bigray/Downloads/Domain_1_processed_NMR_spectrum (2).pdf
-```
+The app registry currently exposes:
 
-### Public BMRB corpus
+- `mtbls242` — gastric-bypass longitudinal time-point task, serum NMR.
+- `mtbls1` — type-2 diabetes vs control, urine NMR.
+- `mtbls424` — breast-cancer relapse vs no-relapse, serum NMR.
 
-- 12 raw Bruker 1D ¹H pure-compound experiments
-- fixed 4096-point 10→0 ppm representation
-- corpus: `backend/nmr_api/open_data/bmrb_1h_corpus.npz`
-- provenance/checksums: `backend/nmr_api/open_data/provenance.json`
-- raw/open-data directory size: approximately 6.6 MB
-- trained encoder: `backend/nmr_api/models/masked_nmr_encoder.pt`
-- checkpoint size: approximately 480 KB
+The older user-supplied files in `/Users/bigray/Downloads/` are still useful
+test material, but the app no longer depends on them as the default runtime
+source.
 
-Compounds: alanine, glutamine, histidine, leucine, phenylalanine, tyrosine,
-valine, citrate, glycine, creatinine, lactate and glucose.
+### Public BMRB / model assets
+
+- BMRB pure-compound corpus: `backend/nmr_api/open_data/bmrb_1h_corpus.npz`
+- Open-data provenance: `backend/nmr_api/open_data/provenance.json`
+- Expanded reference-shift library: `backend/nmr_api/open_data/bmrb_reference_shifts.json`
+- Masked-spectrum encoder: `backend/nmr_api/models/masked_nmr_encoder.pt`
+- NMRformer folder: `backend/nmr_api/NMRformer`
+
+The self-supervised model is trained and available, but its retrieval benchmark
+uses augmented versions of the same small pure-reference collection. Do not
+present it as independent serum-mixture identification accuracy.
 
 ## What is actually implemented
 
-### Domain 1
+### Domain 1 single-spectrum profiling
 
 - Safe zipped Bruker FID ingestion with path-traversal checks.
-- Bruker digital-filter removal and correct direct-dimension orientation.
-- DC correction, exponential apodization, zero fill and FFT.
-- Zero/first-order automatic phase correction.
-- Asymmetric least-squares baseline correction.
+- Bruker digital-filter removal and direct-dimension orientation.
+- DC correction, apodization, zero filling, FFT, automatic phase correction and
+  asymmetric least-squares baseline correction.
 - Internal DSS/TSP/TMS referencing when confidently detected.
 - MAD-based noise estimation and prominence/width-aware peak picking.
 - Peak SNR, FWHM, area and artifact flags.
 - Complete-pattern metabolite matching with coverage, ppm error, ambiguity and
   confidence.
-- Optional NMRformer adapter; not falsely reported as active.
-- Self-supervised BMRB nearest-reference evidence; it does not override the
-  chemically explainable assignment.
+- Optional NMRformer hybrid support through a validated adapter.
+- Self-supervised nearest-reference evidence as supporting evidence only.
 - Per-spectrum QC and real-laboratory release-rule evaluation.
-- Processing from either a Bruker ZIP or two-column processed CSV/TSV.
+- Processing from either Bruker ZIP or two-column processed CSV/TSV.
 
-### Domain 2
+### Track 1 binned-spectra cohort pipeline
 
-- MetaboLights MAF parsing into sample × metabolite matrices.
-- Patient extraction from longitudinal sample IDs.
+This is the biggest update versus the older handoff. A working binned cohort
+pipeline now exists.
+
+Implemented flow:
+
+```text
+preprocessed/binned matrix
+→ orientation detection
+→ PQN / total-area / no normalization
+→ reference-shift annotation
+→ optional organizer identified-peak pins
+→ sample × metabolite table
+→ NNLS linear-combination deconvolution
+→ target-decoy/FDR-style filtering
+→ overlay visualization
+→ concentration CSV export
+→ optional biomarker discovery and biology if labels are available
+```
+
+Key routes:
+
+- `GET /spectral/demo-pipeline`
+- `POST /spectral/annotate`
+- `POST /spectral/pipeline`
+- `POST /spectral/pipeline-file`
+- `GET /spectral/demo-concentrations.csv`
+- `POST /spectral/export-concentrations`
+
+The one-file route accepts a binned CSV/TSV with an inline label column such as
+`Class`, `Group`, `Condition`, `Diagnosis`, `Phenotype` or `Status`. It works
+with string labels like `control/case`. There is a known bug with numeric
+`0/1` labels; see “Known gaps” below.
+
+### Domain 2 biomarkers and dimensionality
+
+- MetaboLights result parsing into sample × metabolite matrices.
+- Dataset switcher for `mtbls242`, `mtbls1`, `mtbls424`.
+- Metadata-driven task creation:
+  - `POST /track2/metadata-columns`
+  - `POST /track2/discover-with-metadata`
 - Leakage-safe variance/FDR/Top-k feature selection inside CV folds.
 - Repeated stratified patient-grouped nested CV.
 - Elastic-net logistic, linear SVM, PCA logistic, PCA linear SVM,
   HistGradientBoosting and XGBoost challengers.
-- Median imputation, scaling and PCA fitted separately inside every training
-  fold for PCA models.
+- Median imputation, scaling and PCA fitted separately inside training folds.
 - ROC-AUC, F1, Brier score, calibration error and stable-panel reporting.
+- Q², VIP scores and permutation p-values in the safe biomarker engine.
 - Exploratory full-cohort PCA scores, explained variance and loadings.
-- Exploratory UMAP fitted to the PCA representation with a fixed seed.
-- Upload endpoints for model comparison and PCA/UMAP.
+- Exploratory UMAP fitted to the PCA representation with fixed seed.
+- Biological interpretation via curated metabolite cards and pathway enrichment.
 
 ### UI
 
-The Tools menu currently exposes:
+The Tools menu exposes the major workflows:
 
-- Real laboratory workflow
-- Current-spectrum laboratory QC evaluation
-- Domain 2 biomarker/model comparison
-- Domain 2 PCA/UMAP visualization
-- Bruker FID processing
-- Processed CSV/TSV spectrum analysis
-- Domain 1 QC and assignments
-- Plugin/backend status
+- Track 1 → Track 2 automated pipeline for binned spectra.
+- Last imported pipeline result viewer.
+- Real laboratory workflow.
+- Current-spectrum laboratory QC evaluation.
+- Domain 2 biomarker/model comparison.
+- Domain 2 biological interpretation.
+- Domain 2 PCA/UMAP visualization.
+- Dataset switcher.
+- Bruker FID processing and processed CSV/TSV spectrum analysis.
+- Domain 1 QC/assignments, open-data status, plugin/backend status.
 
-## Verified results
+Recent UI work includes:
 
-Treat these as engineering results with the caveats immediately below.
+- Imported Track 1 data populates the main spectrum page, not only a popup.
+- Dynamic zoom/pan, pinch/trackpad zoom and drag-to-pan navigation.
+- Pinned multi-compound overlays.
+- Per-row pin controls and per-compound overlay colors.
+- Custom drag color picker with RGB/HEX entry, Enter-to-apply, Copy button and
+  optional browser `EyeDropper` support.
 
-### Domain 1
+## Verified scan results from June 26, 2026
 
-- Synthetic stress benchmark, 30 spectra:
-  - original peak F1: 0.22
-  - upgraded peak F1: 0.74
-  - true-resonance recall: 0.96
-  - average peak calls: 422 → 28
-- Real public BMRB leucine raw FID:
-  - internal standard detected and referenced
-  - 5/5 expected resonances recovered
-  - mean ppm error: 0.00404
-  - assignment confidence: 95.7
-  - self-supervised reference rank: leucine first
-- Self-supervised masked reconstruction:
-  - loss: 0.0242 → 0.0127
-  - augmented reference retrieval: top-1 0.975, top-5 1.000
+These are engineering smoke-test results, not final scientific validation.
 
-The SSL retrieval benchmark uses augmented versions of the same pure-reference
-collection. It is not independent serum-mixture identification accuracy.
+### Local checks
 
-### Domain 2
+```bash
+backend/nmr_api/.venv/bin/python -m unittest discover -s backend/nmr_api/tests -q
+```
 
-MTBLS242 time point 0 versus time point 4, two repeated patient-grouped outer
-CV runs:
+Result: **38 tests passing** in about 12 seconds.
+
+Additional checks:
+
+- Python modules compile successfully with `py_compile`.
+- `bash -n backend/nmr_api/run.sh` passes.
+- Inline frontend JavaScript parses with the macOS JavaScript engine.
+- Node is not installed on this machine, so `node --check` is unavailable.
+
+### API smoke tests
+
+A local server was started on `127.0.0.1:8102` and these routes responded:
+
+- `GET /healthz`
+- `GET /plugins`
+- `GET /datasets`
+- `GET /open-data`
+- `GET /self-supervised/status`
+- `GET /spectral/demo-pipeline`
+- `POST /spectral/pipeline-file`
+- `GET /biology`
+- `GET /biomarkers-model-suite?dataset=mtbls1&repeats=1`
+- `GET /biomarkers-projection?dataset=mtbls1&include_umap=false`
+- `GET /`
+- `GET /openapi.json`
+
+### Track 1 demo numbers
+
+`GET /spectral/demo-pipeline`:
+
+- 60 samples
+- 900 ppm bins
+- PQN normalization
+- 268 annotated metabolites
+- 578-entry reference-shift library
+- synthetic task: case/control with planted BCAA signal
+- biomarker AUC: `0.9263`
+
+`POST /spectral/pipeline-file` using a generated demo binned file with string
+labels:
+
+- label column detected: `Class`
+- classes: `control`, `case`
+- mean deconvolution fit R²: `0.9331`
+- FDR level: `0.05`
+- quantified metabolites: `126`
+- passing FDR: `35`
+- biomarker AUC: `0.9263`
+
+The same upload with numeric `Class = 0/1` did **not** detect labels. This is a
+known implementation bug, not a failure of the whole pipeline.
+
+### Domain 2 model-suite smoke test
+
+`GET /biomarkers-model-suite?dataset=mtbls1&repeats=1`:
 
 | Model | ROC-AUC |
 |---|---:|
-| PCA linear SVM | 0.9852 ± 0.0005 |
-| PCA logistic | 0.9816 ± 0.0010 |
-| Elastic-net logistic | 0.9652 ± 0.0053 |
-| Linear SVM | 0.9606 ± 0.0019 |
-| HistGradientBoosting | 0.9603 ± 0.0002 |
-| XGBoost | 0.9588 ± 0.0066 |
+| PCA logistic | 0.9869 |
+| PCA linear SVM | 0.9712 |
+| Linear SVM | 0.9236 |
+| Elastic-net logistic | 0.9142 |
+| HistGradientBoosting | 0.9065 |
+| XGBoost | 0.8777 |
 
-The recommendation rule selects **PCA logistic** because it is the simpler
-model within 0.01 ROC-AUC of the best challenger.
+These are smoke-test values on a bundled dataset with `repeats=1`, not final
+benchmark claims.
 
-Exploratory projection:
+### Biology smoke test
 
-- 177 samples × 21 metabolites
-- PC1: 22.893%
-- PC2: 12.021%
-- first two PCs: 34.915%
+`GET /biology?metabolites=lactate,alanine,glucose,pyruvate,citrate,leucine`
+returns curated metabolite cards and pathway enrichment. Top pathway in the
+smoke test was Glycolysis / Gluconeogenesis with glucose, lactate and pyruvate.
 
-These labels represent longitudinal surgery time points, **not disease versus
-control**. PCA/UMAP plots are exploratory and are not validation metrics.
+### Self-supervised status
 
-The older p≫n simulation benchmark reports AUC 0.988 ± 0.006 over 100 simulated
-datasets. Its null control was honest 0.497 versus leaky 0.914.
+`GET /self-supervised/status` reports:
+
+- available: true
+- trained: true
+- device: `mps`
+- embedding dimension: 64
+- final loss: about `0.0127`
+- augmented retrieval top-1 accuracy: `0.975`
+- top-5 accuracy: `1.0`
+
+Again, this is an internal augmented retrieval check, not independent mixture
+validation.
 
 ## API endpoints
 
@@ -242,12 +340,13 @@ datasets. Its null control was honest 0.497 versus leaky 0.914.
 - `GET /`
 - `GET /healthz`
 - `GET /plugins`
+- `GET /datasets`
 - `GET /domain1-peaks`
 - `POST /analyze`
 - `GET /compounds`
 - `POST /compounds-upload`
 
-### Domain 1
+### Domain 1 single-spectrum / open data
 
 - `GET /demo-spectrum`
 - `POST /process-fid`
@@ -257,7 +356,16 @@ datasets. Its null control was honest 0.497 versus leaky 0.914.
 - `GET /self-supervised/status`
 - `POST /self-supervised/train`
 
-### Domain 2
+### Track 1 binned spectral cohort
+
+- `GET /spectral/demo-pipeline`
+- `POST /spectral/annotate`
+- `POST /spectral/pipeline`
+- `POST /spectral/pipeline-file`
+- `GET /spectral/demo-concentrations.csv`
+- `POST /spectral/export-concentrations`
+
+### Track 2 / Domain 2 biomarkers
 
 - `GET /biomarkers`
 - `POST /biomarkers-upload`
@@ -267,106 +375,101 @@ datasets. Its null control was honest 0.497 versus leaky 0.914.
 - `GET /biomarkers-projection`
 - `POST /biomarkers-projection-upload`
 - `GET /biomarkers-benchmark`
+- `POST /track2/metadata-columns`
+- `POST /track2/discover-with-metadata`
+- `GET /biology`
+- `GET /enrich-names`
 
 ### Laboratory workflow
 
 - `GET /laboratory-workflow`
 - `POST /laboratory-workflow/evaluate-qc`
 
-## Tests
+## Known gaps and bugs — do not overclaim
 
-Last verified command:
+1. **Inline numeric labels are missed.**  
+   `spectral_cohort.extract_embedded_labels()` currently skips numeric columns,
+   so `Class = 0/1` is ignored even when the column name is clearly a label.
+   String labels such as `control/case` work. Fix by allowing numeric label
+   columns when the column name matches a label synonym or when cardinality is
+   small and the values are not ppm bins.
 
-```bash
-backend/nmr_api/.venv/bin/python -m unittest discover \
-  -s backend/nmr_api/tests -v
-```
+2. **Annotation is currently over-permissive.**  
+   The demo annotates 268 metabolites from a 578-entry reference library. That
+   is useful for showing coverage, but real lab claims need stricter scoring,
+   duplicate/synonym collapsing, ambiguity handling, mixture validation and
+   comparison against manual/Chenomx-reviewed ground truth.
 
-Current result: **17 tests passing**.
+3. **The strongest cohort pipeline assumes preprocessed/binned data.**  
+   It matches the workshop request for binned NMR peak/spectral files. It is
+   not yet a full raw multi-sample FID → alignment → binning production
+   pipeline. Single-spectrum raw processing exists, but batch raw cohort
+   alignment/binning is still a separate future feature.
 
-Test modules:
+4. **Concentration export is not yet laboratory-validated.**  
+   NNLS deconvolution and CSV export work, and the UI labels the table in µM
+   when internal-standard calibration is present. Treat these as Chenomx-style
+   estimates until validated with standards, internal calibration and manual
+   review on the target instrument/matrix.
 
-- `test_signal_processing.py`
-- `test_self_supervised.py`
-- `test_model_suite.py`
-- `test_dimensionality.py`
-- `test_laboratory_workflow.py`
+5. **NMRformer is bundled but not a free pass.**  
+   The files and adapter exist. Direct startup may not activate it. Even when
+   active, use it as supporting evidence until target-matrix validation proves
+   it improves assignments safely.
 
-## Critical limitations — do not overclaim
+6. **PCA/UMAP are exploratory.**  
+   Full-cohort PCA/UMAP separation is not classifier performance. Predictive
+   metrics must keep imputation, scaling, feature selection and PCA inside
+   training folds.
 
-1. The default UI spectrum is synthetic.
-2. Real raw-FID validation currently covers public pure-compound BMRB data,
-   especially leucine. It does **not** yet establish performance on real serum
-   mixtures.
-3. Concentrations shown in the UI are pseudo/scaled abundance, not validated
-   µM concentrations.
-4. The current MTBLS242 table has 21 metabolite features, not the expected raw
-   ~20,000-ppm-feature cohort.
-5. Time point 0 versus 4 is not diabetes/hypertension versus control.
-6. NMRTransformer and NMRformer are not currently active.
-7. UMAP is exploratory; attractive clusters are not proof of biology.
-8. The laboratory workflow is a machine-readable RUO design. There is no LIMS,
-   authentication, electronic signature or durable append-only audit store.
-9. This is research-use software, not a validated medical diagnostic.
+7. **Clinical/disease claims are limited by labels.**  
+   MTBLS242 is longitudinal surgery time points, not disease versus control.
+   MTBLS1 and MTBLS424 provide labeled demos, but final clinical claims need
+   independent validation.
 
-## Important missing feature from the latest workshop screenshots
+8. **The laboratory workflow is RUO design only.**  
+   There is no full LIMS, authentication, electronic signature or durable
+   append-only audit store.
 
-The application still does **not** implement a true multi-sample raw/processed
-spectral cohort pipeline. Specifically missing:
-
-- batch upload of many numeric spectra or Bruker experiments;
-- interpolation onto one common ppm grid;
-- cross-sample peak/spectral alignment;
-- fixed-width or adaptive/intelligent spectral binning;
-- cohort normalization such as PQN/total-area normalization;
-- sample × ppm-bin matrix export;
-- stacked/overlaid multi-sample spectrum visualization;
-- PCA/UMAP directly from those binned raw spectra.
-
-Current PCA/UMAP operates on the 21-metabolite Domain 2 results table, not on a
-newly generated spectral-bin matrix.
-
-If implementing the screenshot requirement, the desired flow is:
-
-```text
-multiple spectra
-→ common ppm grid
-→ global/segment alignment
-→ water/artifact masking
-→ quantitative normalization
-→ fixed and/or adaptive binning
-→ sample × bin matrix
-→ multi-spectrum overlay
-→ PCA/UMAP
-→ leakage-safe statistics/model comparison
-```
-
-This is the highest-priority missing computational feature.
+9. **Frontend is a large single-file app.**  
+   It works for a hackathon demo, but long-term maintainability would benefit
+   from modularization.
 
 ## Recommended next work
 
-1. Implement and validate the multi-spectrum alignment/binning pipeline above.
-2. Test it on genuinely independent serum/plasma spectra with manual or
-   Chenomx-reviewed ground truth.
-3. Add matrix-specific internal-standard calibration for real concentrations.
-4. Obtain true disease/control labels and the full raw ~20k-feature matrix.
-5. Add batch/QC metadata to PCA/UMAP and test run-order drift.
-6. Connect sample identity, QC decisions and report authorization to a LIMS and
-   durable audit system.
-7. Configure NMRTransformer/NMRformer only after installing and validating the
-   actual runtimes.
+1. Fix numeric inline label detection in `spectral_cohort.extract_embedded_labels`.
+2. Tighten Track 1 annotation: synonym collapsing, minimum unique resonances,
+   ambiguity scoring, matrix-specific exclusions and external validation.
+3. Test `/spectral/pipeline` and `/spectral/pipeline-file` on the actual
+   organizer binned files and metadata, then record the expected file format.
+4. Validate quantification against internal standards/manual Chenomx-style
+   review before making strong concentration claims.
+5. Add a true raw cohort path if needed: batch import → common ppm grid →
+   alignment → water/artifact masking → adaptive/fixed binning → matrix export.
+6. Clarify NMRformer startup in docs/tests and add a small integration smoke
+   test when the adapter is active.
+7. Update this handoff after any major code or validation change.
 
 ## Instructions for the next AI agent
 
-- Read this file before making claims about completeness.
-- Preserve the distinction between synthetic, pure-standard, longitudinal and
-  clinical validation.
-- Do not report pseudo-abundance as µM.
-- Keep all feature selection, scaling, imputation and PCA inside training folds
-  for predictive metrics.
-- Do not use full-cohort UMAP/PCA separation as classifier performance.
-- Preserve existing user changes; the workspace may be dirty and has no Git
-  history to recover from.
-- Use `apply_patch` for edits and the existing virtual environment for tests.
-- After code changes run the full 17-test suite, compile Python, validate
-  `run.sh`, and check frontend JavaScript syntax.
+- Read this file before making completeness claims.
+- Prefer the active app root: `/Applications/Vibing coding/Noom copy cat/ruuphenome`.
+- Check `git status --short` before editing; preserve unrelated dirty files.
+- Use `apply_patch` for file edits.
+- Use the existing venv; do not recreate the environment unless explicitly
+  asked.
+- After code changes, run:
+
+```bash
+backend/nmr_api/.venv/bin/python -m unittest discover -s backend/nmr_api/tests -q
+backend/nmr_api/.venv/bin/python -m py_compile $(find backend/nmr_api -name '*.py' -not -path '*/.venv/*')
+bash -n backend/nmr_api/run.sh
+```
+
+- For frontend changes, parse the inline JS with macOS JavaScript engine if Node
+  is unavailable.
+- Keep synthetic, pure-reference, longitudinal and clinical validation clearly
+  separated.
+- Do not report exploratory PCA/UMAP as predictive accuracy.
+- Do not claim NMRformer/NMRTransformer as active unless the runtime status
+  actually confirms it for the startup mode being used.
