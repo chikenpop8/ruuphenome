@@ -71,8 +71,29 @@ def variance_filter(X: np.ndarray, min_var: float = 1e-8) -> np.ndarray:
 
 
 # ── core discovery ──────────────────────────────────────────────────────────
+def _impute_median(Xtr: np.ndarray, *others: np.ndarray):
+    """Leakage-safe median imputation: medians are learned from the TRAINING fold
+    only, then applied to the training fold and any held-out arrays. Real
+    MetaboLights MAFs routinely carry a few missing cells; without this the
+    downstream scaler / logistic-regression reject NaN and the whole pass fails.
+    Datasets with no missing values are unaffected (nothing to fill)."""
+    med = np.nanmedian(Xtr, axis=0)
+    med = np.where(np.isfinite(med), med, 0.0)  # all-NaN column → neutral 0
+
+    def fill(A):
+        if A is None or np.isfinite(A).all():
+            return A
+        A = A.copy()
+        bad = ~np.isfinite(A)
+        A[bad] = np.take(med, np.where(bad)[1])
+        return A
+
+    return tuple(fill(A) for A in (Xtr, *others))
+
+
 def _select_in_fold(Xtr, ytr, k, fdr) -> np.ndarray:
     """Leakage-safe feature selection using ONLY the training fold."""
+    (Xtr,) = _impute_median(Xtr)
     keep = np.where(variance_filter(Xtr))[0]
     absr, pvals = screen_univariate(Xtr[:, keep], ytr)
     sig = benjamini_hochberg(pvals, fdr)
@@ -84,10 +105,11 @@ def _select_in_fold(Xtr, ytr, k, fdr) -> np.ndarray:
 
 
 def _fit_eval(Xtr, ytr, Xte, sel):
-    sc = StandardScaler().fit(Xtr[:, sel])
+    Xtr, Xte = _impute_median(Xtr[:, sel], Xte[:, sel])
+    sc = StandardScaler().fit(Xtr)
     clf = LogisticRegression(max_iter=2000)
-    clf.fit(sc.transform(Xtr[:, sel]), ytr)
-    return clf.predict_proba(sc.transform(Xte[:, sel]))[:, 1]
+    clf.fit(sc.transform(Xtr), ytr)
+    return clf.predict_proba(sc.transform(Xte))[:, 1]
 
 
 def _q2_score(y: np.ndarray, oof: np.ndarray) -> float:
