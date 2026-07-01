@@ -82,6 +82,8 @@ class MaskedSpectrumAutoencoder:
 
 def _device_name() -> str:
     torch, _nn = _torch()
+    if torch.cuda.is_available():
+        return "cuda"
     if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
         return "mps"
     return "cpu"

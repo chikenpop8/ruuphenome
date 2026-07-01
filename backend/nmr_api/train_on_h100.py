@@ -15,21 +15,53 @@ Usage (on the cluster, inside the project):
         --embedding-dim 128 --steps-per-epoch 128
 
 Outputs (committed back via the LiCO file tree):
-    models/masked_nmr_encoder.pt        retrained checkpoint
-    models/masked_nmr_training.json     loss history + config
-    models/h100_training_report.json    full run report incl. retrieval benchmark
+    models/masked_nmr_encoder.pt        retrained checkpoint (latest run, always overwritten)
+    models/masked_nmr_training.json     loss history + config (latest run)
+    models/h100_training_report.json    full run report incl. retrieval benchmark (latest run)
+
+Every run also auto-saves a copy of all three tagged with the ACTUAL config,
+e.g. models/masked_nmr_encoder_10ep_cuda_b256.pt — no manual `cp` step, so a
+short run can never silently overwrite a longer run's mislabeled checkpoint.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import time
 from pathlib import Path
 
 from . import open_data, self_supervised
 
 REPORT_PATH = self_supervised.MODEL_DIR / "h100_training_report.json"
+
+
+def _checkpoint_suffix(args: argparse.Namespace, device: dict) -> str:
+    """Deterministic tag derived from the ACTUAL run config — no hand-typed names.
+
+    A hand-typed `cp ... _200ep_cuda_b256.pt` after a 10-epoch run silently
+    overwrote the real 200-epoch checkpoint with a mislabeled 10-epoch one.
+    Deriving the suffix from args/device makes that mistake impossible: every
+    run's saved files are named after what actually ran, automatically.
+    """
+    tag = "cuda" if device.get("cuda_available") else "mps" if device.get("device_name") == "mps" else "cpu"
+    return f"{args.epochs}ep_{tag}_b{args.batch_size}"
+
+
+def _save_named_checkpoint(suffix: str) -> dict:
+    saved = {}
+    pairs = [
+        (self_supervised.CHECKPOINT_PATH, f"masked_nmr_encoder_{suffix}.pt"),
+        (REPORT_PATH, f"h100_training_report_{suffix}.json"),
+        (self_supervised.TRAINING_REPORT_PATH, f"masked_nmr_training_{suffix}.json"),
+    ]
+    for src, name in pairs:
+        if src.exists():
+            dest = self_supervised.MODEL_DIR / name
+            shutil.copy2(src, dest)
+            saved[src.name] = str(dest)
+    return saved
 
 
 def _device_summary() -> dict:
@@ -101,6 +133,11 @@ def main() -> dict:
         "checkpoint": report.get("checkpoint"),
     }
     REPORT_PATH.write_text(json.dumps(full, indent=2))
+
+    suffix = _checkpoint_suffix(args, device)
+    full["named_checkpoint_suffix"] = suffix
+    full["named_checkpoints"] = _save_named_checkpoint(suffix)
+
     print("=== H100 training complete ===")
     print(json.dumps(full, indent=2))
     return full
