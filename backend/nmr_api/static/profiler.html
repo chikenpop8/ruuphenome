@@ -1479,6 +1479,34 @@ const ACTIONS = {
   },
   openApiDocs: () => window.open("/docs", "_blank"),
   openHealth:  () => window.open("/healthz", "_blank"),
+  hackathonGuide: () => openModal("What should I open?", `
+    <table>
+      <tr><td><b>Hackathon Track 1</b></td><td>Use <b>Upload binned spectra</b>. This is the expected preprocessed NMR matrix: samples as rows, ppm bins/regions as columns. If the file has a Class/Group/Status column, RuuPhenome also runs biomarkers.</td></tr>
+      <tr><td><b>Identified peaks</b></td><td>Optional helper evidence. The backend can pin known ppm→metabolite assignments when this file is provided through the API.</td></tr>
+      <tr><td><b>Hackathon Track 2</b></td><td>Use <b>Open metabolite table</b> when you already have a table of metabolites/concentrations and want compound cards, export, and review.</td></tr>
+      <tr><td><b>Raw Bruker FID</b></td><td>Advanced Chenomx-style path: process a zipped Bruker experiment into a spectrum, QC, peaks, and assignments.</td></tr>
+    </table>
+    <p style="margin-top:12px;color:#666">Best demo path: upload binned spectra → review fitted metabolites on the spectrum → view biomarkers and biology → export the concentration table.</p>`),
+  ncdScreen: async () => {
+    progress.start("Running NCD screening panel…");
+    try {
+      const r = await fetch("/ncd-screen?repeats=1");
+      if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+      const d = await r.json();
+      const rows = d.panel.map(p => `
+        <tr><td><b>${p.ncd}</b><br><span style="color:#666">${p.dataset}</span></td>
+        <td>${p.auc ?? "—"}</td><td>${p.signal ?? "—"}</td>
+        <td style="font-size:12px;color:#666">${(p.top_biomarkers || []).join(", ") || p.error || "—"}</td></tr>`).join("");
+      openModal("NCD screening panel", `
+        <table>
+          <tr><td style="font-weight:600">Panel</td><td style="font-weight:600">AUC</td>
+          <td style="font-weight:600">Signal</td><td style="font-weight:600">Top biomarkers</td></tr>
+          ${rows}
+        </table>
+        <p style="margin-top:12px;color:#a24b35">${d.note}</p>`);
+      progress.done("NCD panel ready.");
+    } catch (e) { progress.done("NCD panel failed: " + e); }
+  },
   laboratoryWorkflow: async () => {
     setMsg("Loading the real-laboratory workflow…");
     try {
@@ -1818,8 +1846,9 @@ function stepCompound(dir) {
 // ── Build the dropdown menu bar ──
 const MENUS = [
   ["File", [
-    ["Open Track 1 binned spectra (your CSV)…", "openBinnedFile"],
-    ["Open Domain 2 results table (Track 2)…", "openDataset", "Ctrl+O"],
+    ["Upload binned spectra matrix…", "openBinnedFile"],
+    ["Open metabolite table…", "openDataset", "Ctrl+O"],
+    ["Run demo pipeline", "spectralPipeline"],
     ["Save results (CSV)", "saveResults", "Ctrl+S"],
     ["Export spectrum (PNG)", "exportSpectrum"],
     ["sep"],
@@ -1843,31 +1872,31 @@ const MENUS = [
     ["sep"],
     ["Toggle identified-only", "toggleIdentifiedOnly"],
   ]],
-  ["Tools", [
+  ["Profile Spectrum", [
+    ["Analyze processed spectrum…", "processSpectrum"],
+    ["Process raw Bruker FID…", "processFid"],
+    ["View QC and assignments…", "domain1Report"],
+    ["Lab release check…", "evaluateCurrentQc"],
+  ]],
+  ["Discover", [
+    ["View last analysis…", "viewLastPipeline"],
+    ["Run biomarker discovery…", "biomarkerDiscovery"],
+    ["Explain biology and pathways…", "biologicalInterpretation"],
+    ["NCD screening panel…", "ncdScreen"],
+    ["PCA visualization…", "dimensionalityAnalysis"],
+    ["sep"],
+    ["Choose demo/public cohort…", "selectDataset"],
+    ["Example diabetes signature…", "biologyExample"],
+  ]],
+  ["Advanced", [
     ["Real laboratory workflow…", "laboratoryWorkflow"],
-    ["Evaluate current spectrum for lab release…", "evaluateCurrentQc"],
-    ["sep"],
-    ["Track 1 → 2 automated pipeline (binned spectra)…", "spectralPipeline"],
-    ["View last import — biomarkers & biology…", "viewLastPipeline"],
-    ["sep"],
-    ["Select Domain 2 dataset…", "selectDataset"],
-    ["Biomarker discovery (Domain 2)…", "biomarkerDiscovery"],
-    ["Biological interpretation & pathways (Domain 2)…", "biologicalInterpretation"],
-    ["Example: diabetes metabolic signature…", "biologyExample"],
-    ["PCA / UMAP visualization (Domain 2)…", "dimensionalityAnalysis"],
-    ["Process Bruker FID (Domain 1)…", "processFid"],
-    ["Analyze processed spectrum (CSV/TSV)…", "processSpectrum"],
-    ["Domain 1 QC / assignments…", "domain1Report"],
-    ["sep"],
     ["Plugin / backend status…", "pluginStatus"],
     ["Analysis engine info…", "engineInfo"],
-    ["Re-run on demo dataset", "reloadDemo"],
-  ]],
-  ["Applications", [
     ["API documentation (Swagger)", "openApiDocs"],
     ["Health / engine status", "openHealth"],
   ]],
   ["Help", [
+    ["What file do I have?…", "hackathonGuide"],
     ["About RuuPhenome Profiler…", "about"],
   ]],
 ];

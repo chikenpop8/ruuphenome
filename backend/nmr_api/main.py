@@ -30,6 +30,7 @@ try:
         nmrformer_backend,
         open_data,
         pipeline,
+        profile_workflow,
         self_supervised,
         signal_processing,
         spectral_cohort,
@@ -48,6 +49,7 @@ except ImportError:  # pragma: no cover - direct script execution fallback
     import nmrformer_backend  # type: ignore
     import open_data  # type: ignore
     import pipeline  # type: ignore
+    import profile_workflow  # type: ignore
     import self_supervised  # type: ignore
     import signal_processing  # type: ignore
     import spectral_cohort  # type: ignore
@@ -97,6 +99,53 @@ DATASETS = {
         "class_names": {0: "no-relapse", 1: "relapse"},
         "source": "MetaboLights MTBLS424 (¹H NMR, serum)",
     },
+    "mtbls147": {
+        "label": "MTBLS147 — healthy reference cohort (plasma NMR)",
+        "kind": "reference",
+        "tsv": _OPEN / "demo_mtbls147.tsv",
+        "source": "MetaboLights MTBLS147 (¹H NMR, plasma; healthy individuals)",
+    },
+    "mtbls356": {
+        "label": "MTBLS356 — antiphospholipid syndrome vs healthy (serum NMR)",
+        "kind": "labeled",
+        "tsv": _OPEN / "demo_mtbls356.tsv",
+        "labels": _OPEN / "demo_mtbls356_labels.json",
+        "task": "antiphospholipid syndrome (thrombotic vascular disease) vs healthy",
+        "class_names": {0: "healthy", 1: "APS patient"},
+        "source": "MetaboLights MTBLS356 (¹H NMR, serum; 27 APS patients vs 27 healthy donors)",
+    },
+}
+
+# NCD screening panel — maps Thailand's major non-communicable diseases to a real,
+# validated public MetaboLights cohort. Each NCD is backed by a leakage-safe model;
+# the screening endpoint reports honest per-disease AUC, biomarkers and signal strength.
+NCD_PANEL = {
+    "diabetes": {
+        "ncd": "Type-2 diabetes",
+        "dataset": "mtbls1",
+        "thai_burden": "≈2.12M Thais undiagnosed (33% of cases); a 6× rise in 20 years.",
+    },
+    "metabolic": {
+        "ncd": "Obesity / metabolic syndrome",
+        "dataset": "mtbls242",
+        "thai_burden": "Rising obesity is a primary driver of diabetes and heart disease.",
+    },
+    "cancer": {
+        "ncd": "Cancer (breast — relapse)",
+        "dataset": "mtbls424",
+        "thai_burden": "Cancers are a leading contributor to the 76% of Thai deaths from NCDs.",
+    },
+    "cardiovascular": {
+        "ncd": "Cardiovascular / thrombotic — antiphospholipid syndrome (APS)",
+        "dataset": "mtbls356",
+        "thai_burden": (
+            "Cardiovascular disease (heart disease + stroke) is Thailand's leading NCD "
+            "killer. This cohort is APS — a thrombotic vascular disease whose hallmark "
+            "events are stroke and heart attack — showing the pipeline detects a "
+            "vascular-disease metabolic signature (a true ischemic-heart-disease cohort, "
+            "MTBLS395, has its outcome labels ethically withheld and cannot be used)."
+        ),
+    },
 }
 
 
@@ -116,6 +165,11 @@ def _load_dataset_task(dataset: str, group_a=None, group_b=None):
     tsv = Path(cfg["tsv"])
     if not tsv.exists():
         raise HTTPException(status_code=404, detail=f"Dataset '{dataset}' not bundled.")
+    if cfg["kind"] == "reference":
+        raise HTTPException(status_code=400, detail=(
+            f"'{dataset}' is a healthy reference cohort with no group contrast. "
+            "Use /reference-ranges for its normal ranges; biomarker discovery needs "
+            "a labeled or longitudinal dataset."))
     if cfg["kind"] == "labeled":
         Xs, y, patients = _labeled_biomarker_task(
             tsv.read_bytes(), _load_label_map(cfg["labels"]))
@@ -132,6 +186,7 @@ app = FastAPI(
         "them against annotated spectrum peaks to identify and rank metabolites."
     ),
 )
+_PROFILE_STATE: dict = {"qc": None, "auto": None}
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -429,6 +484,134 @@ async def process_spectrum(
         raise HTTPException(status_code=422, detail=f"Spectrum processing failed: {exc}")
 
 
+@app.post("/profile/qc")
+async def profile_qc(
+    spectrum_file: UploadFile = File(...),
+    snr_threshold: float = Form(default=5.0),
+):
+    """Deterministic QC gate for a processed two-column spectrum."""
+    filename = spectrum_file.filename or ""
+    if not filename.lower().endswith((".csv", ".tsv", ".txt")):
+        raise HTTPException(status_code=400, detail="Expected a .csv, .tsv, or .txt spectrum.")
+    raw = await spectrum_file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Uploaded spectrum is empty.")
+    try:
+        qc = profile_workflow.qc_spectrum(raw, filename, snr_threshold=snr_threshold)
+        _PROFILE_STATE["qc"] = qc
+        return qc
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Profile QC failed: {exc}")
+
+
+@app.post("/profile/auto")
+async def profile_auto(
+    spectrum_file: UploadFile = File(...),
+    snr_threshold: float = Form(default=5.0),
+    tolerance_ppm: float = Form(default=0.04),
+    assignment_backend: str = Form(default="hybrid"),
+    fdr: float = Form(default=0.05),
+    hi: float = Form(default=0.85),
+    lo: float = Form(default=0.5),
+    bootstrap_iterations: int = Form(default=24),
+    override: bool = False,
+    reason: str | None = None,
+):
+    """Auto-profile a processed spectrum into confidence-gated metabolite results."""
+    filename = spectrum_file.filename or ""
+    if not filename.lower().endswith((".csv", ".tsv", ".txt")):
+        raise HTTPException(status_code=400, detail="Expected a .csv, .tsv, or .txt spectrum.")
+    if assignment_backend not in ("hybrid", "pattern-matcher", "nmrformer"):
+        raise HTTPException(
+            status_code=400,
+            detail="assignment_backend must be hybrid, pattern-matcher, or nmrformer.",
+        )
+    if assignment_backend == "nmrformer" and not nmrformer_backend.status()["available"]:
+        raise HTTPException(status_code=501, detail=nmrformer_backend.status()["reason"])
+    if not 0 < fdr <= 1:
+        raise HTTPException(status_code=400, detail="fdr must be between 0 and 1.")
+    if not 0 <= lo < hi <= 1:
+        raise HTTPException(status_code=400, detail="Require 0 <= lo < hi <= 1.")
+    raw = await spectrum_file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Uploaded spectrum is empty.")
+    try:
+        qc = profile_workflow.qc_spectrum(raw, filename, snr_threshold=snr_threshold)
+        if qc["verdict"] == "fail" and not (override and reason):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": "QC failed; pass override=true&reason=... to continue.",
+                    "qc": qc,
+                },
+            )
+        shifts, _abundance, names = _domain1_reference_library()
+        result = profile_workflow.auto_profile(
+            raw,
+            filename,
+            shifts,
+            names,
+            snr_threshold=snr_threshold,
+            tolerance_ppm=tolerance_ppm,
+            assignment_backend=assignment_backend,
+            fdr=fdr,
+            hi=hi,
+            lo=lo,
+            bootstrap_iterations=max(0, min(int(bootstrap_iterations), 100)),
+        )
+        result["qc"] = qc
+        if override and reason:
+            result["spectrum_meta"]["qc_override"] = {"reason": reason}
+        _PROFILE_STATE["qc"] = qc
+        _PROFILE_STATE["auto"] = result
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Auto-profile failed: {exc}")
+
+
+@app.get("/profile/triage")
+def profile_triage(hi: float = 0.85, lo: float = 0.5):
+    """Bucket the latest auto-profile results into accept/review/reject."""
+    if not 0 <= lo < hi <= 1:
+        raise HTTPException(status_code=400, detail="Require 0 <= lo < hi <= 1.")
+    auto = _PROFILE_STATE.get("auto")
+    if not auto:
+        raise HTTPException(status_code=404, detail="Run POST /profile/auto first.")
+    return profile_workflow.triage(auto["metabolites"], hi=hi, lo=lo)
+
+
+@app.get("/profile/report")
+def profile_report(signed_by: str | None = None):
+    """Assemble the latest QC, metabolites, NCD panel and provenance."""
+    auto = _PROFILE_STATE.get("auto")
+    if not auto:
+        raise HTTPException(status_code=404, detail="Run POST /profile/auto first.")
+    triaged = profile_workflow.triage(auto["metabolites"])
+    return profile_workflow.report_payload(
+        qc=_PROFILE_STATE.get("qc"),
+        auto=auto,
+        triaged=triaged,
+        ncd_panel=ncd_screen(repeats=1),
+        signed_by=signed_by,
+    )
+
+
+@app.get("/profile/report.csv")
+def profile_report_csv():
+    """Export the latest auto-profile metabolite table as CSV."""
+    auto = _PROFILE_STATE.get("auto")
+    if not auto:
+        raise HTTPException(status_code=404, detail="Run POST /profile/auto first.")
+    csv = profile_workflow.metabolites_csv(auto["metabolites"])
+    return Response(
+        content=csv,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=ruuphenome_profile.csv"},
+    )
+
+
 @app.get("/open-data")
 def open_data_status():
     """Report the curated open BMRB corpus and complete provenance."""
@@ -550,6 +733,35 @@ def _labeled_biomarker_task(raw: bytes, label_map: dict):
     return matrix, y, patients
 
 
+def _reference_ranges(raw: bytes) -> dict:
+    """Per-metabolite healthy normal ranges from a reference cohort MAF.
+
+    A contrast-free healthy cohort (e.g. MTBLS147) has no biomarker task, but it is
+    a valid *normal reference*: each metabolite's healthy distribution lets any new
+    sample be flagged as within-range or abnormal.
+    """
+    import numpy as np
+
+    X, _names, _groups = biomarkers.build_matrix(raw)
+    ranges = []
+    for col in X.columns:
+        v = X[col].to_numpy(dtype=float)
+        v = v[np.isfinite(v)]
+        if v.size == 0:
+            continue
+        ranges.append({
+            "metabolite": col,
+            "n": int(v.size),
+            "mean": round(float(np.mean(v)), 4),
+            "std": round(float(np.std(v)), 4),
+            "median": round(float(np.median(v)), 4),
+            "ref_low_2_5": round(float(np.percentile(v, 2.5)), 4),
+            "ref_high_97_5": round(float(np.percentile(v, 97.5)), 4),
+        })
+    return {"n_samples": int(X.shape[0]), "n_metabolites": len(ranges),
+            "reference_ranges": ranges}
+
+
 def _dimensionality_task(
     raw: bytes,
     group_a: int | None,
@@ -622,6 +834,68 @@ def biomarkers_safe(group_a: int | None = None, group_b: int | None = None,
         background=list(Xs.columns),
     )
     return res
+
+
+@app.get("/reference-ranges")
+def reference_ranges(dataset: str = "mtbls147"):
+    """Healthy normal ranges per metabolite from a reference cohort (e.g. MTBLS147)."""
+    cfg = DATASETS.get(dataset)
+    if cfg is None:
+        raise HTTPException(status_code=404, detail=f"Unknown dataset '{dataset}'.")
+    tsv = Path(cfg["tsv"])
+    if not tsv.exists():
+        raise HTTPException(status_code=404, detail=f"Dataset '{dataset}' not bundled.")
+    out = _reference_ranges(tsv.read_bytes())
+    out["dataset"] = dataset
+    out["label"] = cfg.get("label")
+    out["source"] = cfg.get("source")
+    return out
+
+
+_NCD_CACHE: dict = {}
+
+
+@app.get("/ncd-screen")
+def ncd_screen(repeats: int = 3):
+    """Screen Thailand's major NCDs. Each disease is backed by a leakage-safe model on
+    a real public MetaboLights cohort; returns per-NCD validation AUC, top biomarkers
+    and an honest signal-strength flag. First call warms a cache (~1 min)."""
+    import numpy as np
+
+    panel = []
+    for key, cfg in NCD_PANEL.items():
+        cache_key = (key, repeats)
+        if cache_key not in _NCD_CACHE:
+            try:
+                Xs, y, patients, task = _load_dataset_task(cfg["dataset"])
+                res = biomarker_engine.discover(
+                    Xs.values, np.asarray(y), k=8, repeats=repeats,
+                    feature_names=list(Xs.columns), groups=patients)
+                _NCD_CACHE[cache_key] = {
+                    "auc": round(float(res.get("honest_roc_auc", 0.0)), 3),
+                    "q2": round(float(res.get("honest_q2", 0.0)), 3),
+                    "permutation_p_value": res.get("permutation_p_value"),
+                    "top_biomarkers": (res.get("stable_panel") or [])[:6],
+                    "task": task,
+                    "n_samples": int(Xs.shape[0]),
+                    "n_patients": int(len(set(map(str, patients)))),
+                }
+            except Exception as exc:
+                _NCD_CACHE[cache_key] = {"error": str(exc), "auc": 0.0}
+        entry = dict(_NCD_CACHE[cache_key])
+        auc = float(entry.get("auc", 0.0))
+        entry["signal"] = ("strong" if auc >= 0.85
+                           else "moderate" if auc >= 0.70 else "weak")
+        entry["ncd"] = cfg["ncd"]
+        entry["dataset"] = cfg["dataset"]
+        entry["thai_burden"] = cfg["thai_burden"]
+        panel.append(entry)
+    return {
+        "panel": panel,
+        "note": ("Each NCD model is validated leakage-safe on its own public cohort. "
+                 "Screening a new sample requires matrix-matched data and is subject to "
+                 "batch effects — this is a research screen, not a clinical diagnosis."),
+    }
 
 
 # ── Track 1: binned-spectra cohort pipeline (annotate → visualize → bridge) ──
