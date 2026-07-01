@@ -117,11 +117,21 @@ backend/nmr_api/open_data/demo_mtbls242.tsv
 
 Override with `NMR_DEFAULT_TSV` if needed.
 
-The app registry currently exposes:
+The app registry (`DATASETS` in `main.py`) currently exposes:
 
-- `mtbls242` — gastric-bypass longitudinal time-point task, serum NMR.
-- `mtbls1` — type-2 diabetes vs control, urine NMR.
-- `mtbls424` — breast-cancer relapse vs no-relapse, serum NMR.
+- `mtbls242` — gastric-bypass longitudinal time-point task, serum NMR (`kind: longitudinal`).
+- `mtbls1` — type-2 diabetes vs control, urine NMR (`kind: labeled`).
+- `mtbls424` — breast-cancer relapse vs no-relapse, serum NMR (`kind: labeled`).
+- `mtbls147` — healthy reference cohort, plasma NMR (`kind: reference`; no group
+  contrast — only `/reference-ranges`, not biomarker discovery).
+- `mtbls356` — antiphospholipid syndrome (thrombotic vascular disease) vs healthy
+  donor, serum NMR (`kind: labeled`).
+
+The `NCD_PANEL` in `main.py` maps Thailand's major NCDs to these labeled cohorts;
+`/ncd-screen` reports the honest leakage-safe AUC for each. Current honest AUCs
+(from `biomarker_engine.discover`, the exact path `/ncd-screen` uses): diabetes
+**0.925**, cardiovascular/APS **0.764** (perm-p 0.0099), cancer-relapse **0.573**.
+See "How to add a new NCD cohort" below for the procedure that produced `mtbls356`.
 
 The older user-supplied files in `/Users/bigray/Downloads/` are still useful
 test material, but the app no longer depends on them as the default runtime
@@ -156,6 +166,16 @@ present it as independent serum-mixture identification accuracy.
 - Self-supervised nearest-reference evidence as supporting evidence only.
 - Per-spectrum QC and real-laboratory release-rule evaluation.
 - Processing from either Bruker ZIP or two-column processed CSV/TSV.
+- Confidence-gated profile backend for processed CSV/TSV spectra:
+  - `POST /profile/qc`
+  - `POST /profile/auto`
+  - `GET /profile/triage`
+  - `GET /profile/report`
+  - `GET /profile/report.csv`
+  The profile result contract lives in `profile_schema.py`; orchestration lives
+  in `profile_workflow.py`. Auto-profile reuses peak picking, pattern/NMRformer
+  assignment, NNLS deconvolution, target-decoy FDR, bootstrap concentration
+  intervals, and full per-metabolite provenance.
 
 ### Track 1 binned-spectra cohort pipeline
 
@@ -424,8 +444,12 @@ validation.
 
 7. **Clinical/disease claims are limited by labels.**  
    MTBLS242 is longitudinal surgery time points, not disease versus control.
-   MTBLS1 and MTBLS424 provide labeled demos, but final clinical claims need
-   independent validation.
+   MTBLS1, MTBLS424 and MTBLS356 provide labeled demos, but final clinical claims
+   need independent validation. Name each cohort's disease as it actually is —
+   e.g. MTBLS356 is antiphospholipid syndrome (a thrombotic vascular disease),
+   used as the cardiovascular panel slot, not a general ischemic-heart-disease
+   cohort. A true AMI cohort (MTBLS395) exists but its outcome labels are
+   ethically withheld and cannot be used. See "How to add a new NCD cohort".
 
 8. **The laboratory workflow is RUO design only.**  
    There is no full LIMS, authentication, electronic signature or durable
@@ -434,6 +458,175 @@ validation.
 9. **Frontend is a large single-file app.**  
    It works for a hackathon demo, but long-term maintainability would benefit
    from modularization.
+
+## How to add a new NCD cohort (data → registry → AUC test)
+
+This is the exact, reproducible procedure used to add `mtbls356` (the
+cardiovascular/APS cohort). Follow it to wire any new MetaboLights NMR
+disease cohort into the NCD panel and AUC-test it honestly. **Open data only —
+never the closed competition dataset.**
+
+### 0. What a usable cohort needs (both gates must pass)
+
+A candidate study must have **both**:
+
+1. A **populated per-sample MAF** — `m_*_maf.tsv` whose sample columns (column 19
+   onward) hold real numeric concentrations, one column per sample. Many NMR
+   depositions ship an *empty* MAF (group-summary columns only, or all blank) —
+   reject these.
+2. **Open binary labels** — a `Factor Value[...]` column in `s_*.txt` with a real
+   two-class contrast (disease vs control). Many clinical outcomes are
+   **ethically withheld** (`NA` / "not free available for ethical restrictions") —
+   reject these (e.g. `MTBLS395`, a rich AMI cohort whose death labels are
+   withheld and therefore unusable).
+
+Both gates exist because most cardiovascular NMR studies fail one of them.
+
+### 1. Find candidates (EBI Search + FTP probe)
+
+```bash
+# Candidate accessions for a disease area:
+curl -sS "https://www.ebi.ac.uk/ebisearch/ws/rest/metabolights?query=<DISEASE_TERMS>&size=40&fields=name,technology_type&format=json"
+# Then for each accession, probe the real files on the EBI FTP:
+BASE="https://ftp.ebi.ac.uk/pub/databases/metabolights/studies/public"
+curl -sS "$BASE/<ACC>/"                       # list m_/s_/a_ files
+curl -sS "$BASE/<ACC>/m_<ACC>..._maf.tsv"     # check sample columns are numeric
+curl -sS "$BASE/<ACC>/s_<ACC>.txt"            # check Factor Value distribution
+```
+
+Verify the MAF sample-column headers (row 1, cols 19+) **match** the `Sample Name`
+column in `s_*.txt`, and that the chosen factor splits cleanly into two classes.
+
+### 2. Two real gotchas to clean (both bit us on `mtbls356`)
+
+- **European comma-decimals.** Some MAFs store `26,2` instead of `26.2`;
+  `biomarkers.build_matrix` then silently coerces ~90% of values to `NaN`.
+  Fix when building the demo TSV: in **sample columns only** (index ≥ 18),
+  replace `,`→`.` for cells matching `^-?\d+,\d+$`. Leave annotation columns
+  (SMILES/InChI/chemical_shift) untouched. Confirm with: parsed matrix has
+  near-zero `NaN` afterward.
+- **Missing cells.** A few genuinely-blank cells are normal. The discovery
+  pipeline now tolerates them (`biomarker_engine._impute_median`, leakage-safe
+  per-fold). Do **not** fabricate values in the stored TSV to "fix" this.
+
+### 3. Build the two project files
+
+Drop into `backend/nmr_api/open_data/`:
+
+- `demo_<acc>.tsv` — the cleaned MAF (decimals normalized as above).
+- `demo_<acc>_labels.json` — `{ "<SampleName>": 0|1, ... }`, derived from the
+  **authoritative `Factor Value` column** in `s_*.txt` (not from guessing on the
+  sample-name prefix). Map disease→1, control→0.
+
+### 4. Register it (two edits in `main.py`)
+
+```python
+# DATASETS:
+"<acc>": {
+    "label": "<ACC> — <disease> vs <control> (<matrix> NMR)",
+    "kind": "labeled",
+    "tsv": _OPEN / "demo_<acc>.tsv",
+    "labels": _OPEN / "demo_<acc>_labels.json",
+    "task": "<disease> vs <control>",
+    "class_names": {0: "<control>", 1: "<disease>"},
+    "source": "MetaboLights <ACC> (¹H NMR, <matrix>; <n_case> vs <n_ctrl>)",
+},
+# NCD_PANEL:
+"<ncd_key>": {"ncd": "<honest disease name>", "dataset": "<acc>",
+              "thai_burden": "<honest burden context>"},
+```
+
+Honesty rule: name the disease the cohort **actually** contains. `mtbls356` is
+labeled "antiphospholipid syndrome (thrombotic vascular disease)", not "general
+cardiovascular disease", because that is what the data is.
+
+### 5. AUC-test it (must reproduce a known cohort first)
+
+Run the leakage-safe nested-CV that `/ncd-screen` uses. The eval imports only the
+light modules (`biomarkers`, `biomarker_engine`) — no FastAPI/torch needed:
+
+```python
+from nmr_api import biomarkers, biomarker_engine
+raw = open("backend/nmr_api/open_data/demo_<acc>.tsv","rb").read()
+lab = {k:int(v) for k,v in json.load(open(".../demo_<acc>_labels.json")).items()}
+X,_,_ = biomarkers.build_matrix(raw)
+rows  = [s for s in X.index if s in lab]
+M = X.loc[rows].dropna(axis=1, how="all")
+y = np.array([lab[s] for s in rows]); groups = np.array(rows)  # 1 sample = 1 patient
+res = biomarker_engine.discover(M.values, y, k=8, repeats=3,
+                                feature_names=list(M.columns), groups=groups)
+# res: honest_roc_auc, honest_q2, permutation_p_value, stable_panel, leaky_roc_auc
+```
+
+**Sanity gate:** always run `mtbls1` through the same harness in the same pass and
+confirm it still reports **AUC ≈ 0.925** (diabetes). If that drifts, your harness
+or an edit is wrong — fix before trusting the new number.
+
+### 6. Interpret the AUC honestly (do not chase a big number)
+
+- Compare `honest_roc_auc` to `leaky_roc_auc`. A large gap = the honest CV is
+  correctly refusing an inflated estimate. **A near-zero gap with a low AUC means
+  the biological signal is genuinely weak — report it, do not "fix" it.**
+  (`mtbls424` relapse: honest 0.573, leaky 0.571 → the signal isn't there; that is
+  the truth, not a bug.)
+- `permutation_p_value < 0.05` is the real test that a moderate AUC is a true
+  signal (`mtbls356`: 0.764 with p=0.0099 is a genuine, defensible result on n=54).
+- Signal flag thresholds used by `/ncd-screen`: `≥0.85 strong`, `≥0.70 moderate`,
+  else `weak`.
+- An AUC near 1.0 on a small cohort is a **red flag for leakage**, not a success.
+
+## Profiler workflow — train on H100, reuse, or neither?
+
+The proposed confidence-gated profiler flow (QC gate → auto-profile → triage →
+quantify → NCD panel → report; AI proposes, human verifies only the flagged
+cases) needs **almost no new training**. Most stages are deterministic math or
+models the repo already ships. The H100 is required **only** for the optional
+"wow" upgrades, and every one of those trains on open or simulated data.
+
+### A. Already a trained open-source model in the repo — REUSE, no training
+
+- **Metabolite assignment (Stage 2)** — `NMRformer/onedTrans_0.9782` (bundled,
+  72 classes, ~97.8% top-1, inference-only). Open-source, pretrained.
+- **Spectrum representation / fingerprint** — masked-spectrum SSL encoder
+  `models/masked_nmr_encoder.pt` (trained on open BMRB). Feeds confidence and the
+  Track-2 fingerprint.
+
+### B. No model at all — deterministic / statistical (no training, no H100)
+
+- **Stage 1 QC gate** — SNR, baseline flatness, residual-water integral, TSP/DSS
+  referencing: rule-based thresholds.
+- **Stage 2 deconvolution** — NNLS against the reference library: convex
+  optimization, no learned weights.
+- **Stage 3 confidence + FDR** — target-decoy FDR plus fit-residual and the
+  NMRformer assignment probability, combined arithmetically. (Optional: a tiny
+  logistic/isotonic *calibration* of that score — CPU, seconds, not H100.)
+- **Stage 4 quantify** — NNLS concentrations + bootstrap uncertainty.
+- **Stage 6 report/provenance** — templating only.
+
+### C. Trained at runtime, but CPU not H100
+
+- **Stage 5 NCD panel** — classical ML (elastic-net / SVM / HistGB / XGBoost from
+  `model_suite.py`) fit per-cohort on the small open MTBLS tables in seconds. No
+  deep learning; never touches the GPU.
+
+### D. Optional NEW H100 training on open data (the upgrades that win)
+
+Ship the whole workflow without these; add them only to beat the baseline.
+
+1. **Low→high-field upconverter** (the hero demo) — genuinely needs the H100.
+   Data: degrade open high-field MTBLS/BMRB spectra to benchtop (~60 MHz)
+   resolution, train a recovery model. No off-the-shelf NMR field-upconverter
+   exists to reuse.
+2. **NN-based quantifier** — optional upgrade over NNLS. Data: GISSMO-simulated
+   mixtures with known concentrations (open). Supervised regression on the H100.
+3. **NMRformer fine-tune** — only to expand beyond its 72 metabolites or to
+   instrument-match the competition matrix. Open BMRB/GISSMO data on the H100.
+
+**Bottom line:** the human-in-the-loop profiler ships with **zero new training** —
+reuse NMRformer + the SSL encoder, plus deterministic math and CPU classical ML.
+Spend the H100 only on the optional field-upconverter / NN-quantifier that turn a
+solid tool into a hackathon-winning one. All training stays open-data-only; the
+closed competition dataset is never used for training (see data-governance notes).
 
 ## Recommended next work
 
