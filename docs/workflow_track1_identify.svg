@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 1410" width="940" height="1410" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif">
+<rect width="940" height="1410" fill="#FFFFFF"/>
+<rect x="0" y="0" width="940" height="103" fill="#2C4BE0"/>
+<text x="40" y="46" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="24" font-weight="700" fill="#FFFFFF">Track 1 — Identify &amp; Quantify metabolites</text>
+<text x="40" y="80" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" fill="#FFFFFFCC">How a binned ¹H-NMR spectrum becomes a set of FDR-confirmed, quantified metabolites.</text>
+<rect x="40" y="129" width="860" height="82" rx="12" fill="#EDF0FD" stroke="#2C4BE0" stroke-width="1"/>
+<text x="58" y="151" font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="10.5" letter-spacing="1.5" fill="#2C4BE0" font-weight="700">DATA IN</text>
+<text x="58" y="171" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#17171A">Binned ¹H-NMR matrix — samples × ppm-bins of float intensities (e.g. 120 samples × 900 bins, 0–9</text>
+<text x="58" y="187" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#17171A">ppm). Auto-detects CSV/TSV orientation.</text>
+<line x1="470.0" y1="209" x2="470.0" y2="227" stroke="#2C4BE0" stroke-width="2"/>
+<path d="M465.0,222 L470.0,229 L475.0,222 Z" fill="#2C4BE0"/>
+<rect x="40" y="233" width="860" height="106" rx="11" fill="#FFFFFF" stroke="#E4E6EC" stroke-width="1"/>
+<rect x="40" y="233" width="6" height="106" rx="3" fill="#2C4BE0"/>
+<circle cx="68" cy="261" r="14" fill="#EDF0FD" stroke="#2C4BE0" stroke-width="1.4"/>
+<text x="68" y="265.5" text-anchor="middle" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="13" font-weight="700" fill="#2C4BE0">1</text>
+<text x="86" y="259" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="15" font-weight="700" fill="#17171A">Load &amp; profile</text>
+<text x="86" y="279" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">Auto-detect orientation, sort ppm ascending, profile bin-width, ppm range, % missing and negative intensities.</text>
+<text x="86" y="301" font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="11.5" font-weight="600" fill="#2C4BE0">coarse-bin flag if &gt;0.01 ppm/bin</text>
+<text x="86" y="316" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#8A8A93">→ produces: X (samples×bins), bin_ppm, quality profile</text>
+<line x1="470.0" y1="337" x2="470.0" y2="355" stroke="#2C4BE0" stroke-width="2"/>
+<path d="M465.0,350 L470.0,357 L475.0,350 Z" fill="#2C4BE0"/>
+<rect x="40" y="361" width="860" height="122" rx="11" fill="#FFFFFF" stroke="#E4E6EC" stroke-width="1"/>
+<rect x="40" y="361" width="6" height="122" rx="3" fill="#2C4BE0"/>
+<circle cx="68" cy="389" r="14" fill="#EDF0FD" stroke="#2C4BE0" stroke-width="1.4"/>
+<text x="68" y="393.5" text-anchor="middle" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="13" font-weight="700" fill="#2C4BE0">2</text>
+<text x="86" y="387" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="15" font-weight="700" fill="#17171A">Normalize (PQN)</text>
+<text x="86" y="407" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">Probabilistic Quotient Normalization — dilution-robust: total-area normalize, build a median reference, divide each</text>
+<text x="86" y="423" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">sample by its quotient median.</text>
+<text x="86" y="445" font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="11.5" font-weight="600" fill="#2C4BE0">default = PQN (Dieterle 2006)</text>
+<text x="86" y="460" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#8A8A93">→ produces: normalized matrix Xn</text>
+<line x1="470.0" y1="481" x2="470.0" y2="499" stroke="#2C4BE0" stroke-width="2"/>
+<path d="M465.0,494 L470.0,501 L475.0,494 Z" fill="#2C4BE0"/>
+<rect x="40" y="505" width="860" height="122" rx="11" fill="#FFFFFF" stroke="#E4E6EC" stroke-width="1"/>
+<rect x="40" y="505" width="6" height="122" rx="3" fill="#2C4BE0"/>
+<circle cx="68" cy="533" r="14" fill="#EDF0FD" stroke="#2C4BE0" stroke-width="1.4"/>
+<text x="68" y="537.5" text-anchor="middle" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="13" font-weight="700" fill="#2C4BE0">3</text>
+<text x="86" y="531" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="15" font-weight="700" fill="#17171A">Occupancy floor (noise gate)</text>
+<text x="86" y="551" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">Robust noise gate: floor = baseline + 5 × 1.4826 × MAD. A bin counts as &#x27;occupied&#x27; only above this floor (near-zero false</text>
+<text x="86" y="567" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">positives on pure noise).</text>
+<text x="86" y="589" font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="11.5" font-weight="600" fill="#2C4BE0">k = 5 σ (MAD-based)</text>
+<text x="86" y="604" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#8A8A93">→ produces: occupied-bin mask</text>
+<line x1="470.0" y1="625" x2="470.0" y2="643" stroke="#2C4BE0" stroke-width="2"/>
+<path d="M465.0,638 L470.0,645 L475.0,638 Z" fill="#2C4BE0"/>
+<rect x="40" y="649" width="860" height="122" rx="11" fill="#FFFFFF" stroke="#E4E6EC" stroke-width="1"/>
+<rect x="40" y="649" width="6" height="122" rx="3" fill="#2C4BE0"/>
+<circle cx="68" cy="677" r="14" fill="#EDF0FD" stroke="#2C4BE0" stroke-width="1.4"/>
+<text x="68" y="681.5" text-anchor="middle" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="13" font-weight="700" fill="#2C4BE0">4</text>
+<text x="86" y="675" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="15" font-weight="700" fill="#17171A">Annotate → metabolites</text>
+<text x="86" y="695" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">Match each library metabolite&#x27;s characteristic ¹H shifts to occupied bins; the D₂O guard keeps only non-exchangeable C–H</text>
+<text x="86" y="711" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">(OH/NH vanish in D₂O); assign an MSI confidence level.</text>
+<text x="86" y="733" font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="11.5" font-weight="600" fill="#2C4BE0">tol 0.03 ppm · coverage ≥ 0.5 · MSI L2 ceiling</text>
+<text x="86" y="748" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#8A8A93">→ produces: present metabolites + MSI level + D₂O grade</text>
+<line x1="470.0" y1="769" x2="470.0" y2="787" stroke="#2C4BE0" stroke-width="2"/>
+<path d="M465.0,782 L470.0,789 L475.0,782 Z" fill="#2C4BE0"/>
+<rect x="40" y="793" width="860" height="122" rx="11" fill="#FFFFFF" stroke="#E4E6EC" stroke-width="1"/>
+<rect x="40" y="793" width="6" height="122" rx="3" fill="#2C4BE0"/>
+<circle cx="68" cy="821" r="14" fill="#EDF0FD" stroke="#2C4BE0" stroke-width="1.4"/>
+<text x="68" y="825.5" text-anchor="middle" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="13" font-weight="700" fill="#2C4BE0">5</text>
+<text x="86" y="819" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="15" font-weight="700" fill="#17171A">Deconvolve (NNLS + target–decoy FDR)</text>
+<text x="86" y="839" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">Un-mix overlapping peaks: fit unit-area Gaussians (σ 0.012 ppm) by non-negative least squares; build DECOYS shifted +0.37</text>
+<text x="86" y="855" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">ppm into empty space; FDR(t) = #decoys≥t / #targets≥t.</text>
+<text x="86" y="877" font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="11.5" font-weight="600" fill="#2C4BE0">σ 0.012 · decoy +0.37 ppm · FDR ≤ 0.05</text>
+<text x="86" y="892" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#8A8A93">→ produces: concentrations, fit R², SNR-vs-decoy, passes_fdr</text>
+<line x1="470.0" y1="913" x2="470.0" y2="931" stroke="#2C4BE0" stroke-width="2"/>
+<path d="M465.0,926 L470.0,933 L475.0,926 Z" fill="#2C4BE0"/>
+<rect x="40" y="937" width="860" height="122" rx="11" fill="#FFFFFF" stroke="#E4E6EC" stroke-width="1"/>
+<rect x="40" y="937" width="6" height="122" rx="3" fill="#2C4BE0"/>
+<circle cx="68" cy="965" r="14" fill="#EDF0FD" stroke="#2C4BE0" stroke-width="1.4"/>
+<text x="68" y="969.5" text-anchor="middle" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="13" font-weight="700" fill="#2C4BE0">6</text>
+<text x="86" y="963" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="15" font-weight="700" fill="#17171A">Hybrid identification</text>
+<text x="86" y="983" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">Deterministic FDR-confirmed calls ∪ a learned pSCNN channel (pseudo-Siamese CNN) that recognises 30 common metabolites</text>
+<text x="86" y="999" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">and rescues ones strict FDR misses.</text>
+<text x="86" y="1021" font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="11.5" font-weight="600" fill="#2C4BE0">pSCNN mean probability ≥ 0.6</text>
+<text x="86" y="1036" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#8A8A93">→ produces: deterministic ∪ pSCNN identifications</text>
+<line x1="470.0" y1="1057" x2="470.0" y2="1075" stroke="#2C4BE0" stroke-width="2"/>
+<path d="M465.0,1070 L470.0,1077 L475.0,1070 Z" fill="#2C4BE0"/>
+<rect x="40" y="1081" width="860" height="122" rx="11" fill="#FFFFFF" stroke="#E4E6EC" stroke-width="1"/>
+<rect x="40" y="1081" width="6" height="122" rx="3" fill="#2C4BE0"/>
+<circle cx="68" cy="1109" r="14" fill="#EDF0FD" stroke="#2C4BE0" stroke-width="1.4"/>
+<text x="68" y="1113.5" text-anchor="middle" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="13" font-weight="700" fill="#2C4BE0">7</text>
+<text x="86" y="1107" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="15" font-weight="700" fill="#17171A">Safety gate → Track 2</text>
+<text x="86" y="1127" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">Only FDR-confirmed, overlap-resolved concentrations feed biomarker discovery; if none pass, fall back to annotated</text>
+<text x="86" y="1143" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">abundance flagged low-confidence.</text>
+<text x="86" y="1165" font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="11.5" font-weight="600" fill="#2C4BE0">confidence = high if ≥3 FDR-confirmed</text>
+<text x="86" y="1180" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#8A8A93">→ produces: clean discovery matrix (samples × confirmed metabolites)</text>
+<line x1="470.0" y1="1203" x2="470.0" y2="1219" stroke="#2C4BE0" stroke-width="2"/>
+<path d="M465.0,1214 L470.0,1221 L475.0,1214 Z" fill="#2C4BE0"/>
+<rect x="40" y="1227" width="860" height="105" rx="12" fill="#2C4BE0"/>
+<text x="58" y="1251" font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="10.5" letter-spacing="1.5" fill="#FFFFFFDD" font-weight="700">HOW WE GET THE ANSWER</text>
+<text x="58" y="1273" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" fill="#FFFFFF">A metabolite is FDR-CONFIRMED ⟺ its mean NNLS concentration beats the target–decoy null at α =</text>
+<text x="58" y="1290" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" fill="#FFFFFF">0.05. Quantities are reported in µM when a DSS internal standard is detected, otherwise</text>
+<text x="58" y="1307" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" fill="#FFFFFF">relative. Only these confirmed calls flow into Track 2.</text>
+<text x="40" y="1352" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="10.5" fill="#8A8A93">Grounded in: Sumner 2007 (MSI levels)  ·  Dieterle 2006 (PQN)  ·  Elias &amp; Gygi 2007 (target–decoy FDR)  ·  Wei 2022</text>
+<text x="40" y="1367" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="10.5" fill="#8A8A93">(pSCNN)  ·  HMDB 5.0 (reference shifts)</text>
+<text x="900" y="1390" text-anchor="end" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="10" fill="#8A8A93">RuuPhenome · research use only (RUO)</text>
+</svg>

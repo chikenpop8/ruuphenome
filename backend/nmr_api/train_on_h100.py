@@ -78,6 +78,80 @@ def _device_summary() -> dict:
         return {"error": str(exc)}
 
 
+def _train_gissmo_quant(args: argparse.Namespace, device: dict) -> dict:
+    """F8 — train the GISSMO transformer quantifier on open simulated mixtures.
+    Loads the bundled corpus (no download on the node); config-tags the outputs."""
+    from . import gissmo_corpus, quantifier
+    corpus = gissmo_corpus.load_corpus()
+    src = "gissmo_corpus.json" if gissmo_corpus.CORPUS_PATH.exists() else "verified-panel fallback (run build_corpus off-VM for a bigger corpus)"
+    steps = max(1, args.mixtures // args.batch_size)
+    train_device = quantifier._pick_device().type            # cuda on the H100 node
+    print(f"GISSMO quantifier · device {train_device.upper()} · {len(corpus)} compounds ({src}) · "
+          f"field {args.field_mhz} MHz · n_bins {args.n_bins} · epochs {args.epochs} · "
+          f"mixtures/epoch {args.mixtures} (steps {steps}) · batch {args.batch_size}")
+    if train_device == "cpu":
+        print("WARNING: training on CPU — no GPU detected. On the H100 node this should say CUDA.")
+    t0 = time.time()
+    model, meta = quantifier.train(
+        corpus, n_bins=args.n_bins, epochs=args.epochs, steps_per_epoch=steps,
+        batch_size=args.batch_size, lr=args.learning_rate, patch=args.patch,
+        seed=args.seed, save=True)
+    train_seconds = round(time.time() - t0, 1)
+    report = {
+        "model": "gissmo-quant", "device": device,
+        "trained_on_device": meta.get("device"),      # the device the model ACTUALLY ran on
+        "config": vars(args),
+        "n_compounds": len(meta["names"]), "field_mhz": args.field_mhz,
+        "mixtures_per_epoch": args.mixtures, "steps_per_epoch_actual": steps,
+        "train_seconds": train_seconds,
+        "initial_loss": meta["loss_history"][0], "final_loss": meta["loss_history"][-1],
+        "checkpoint": str(quantifier.CHECKPOINT_PATH),
+        "note": ("Relative-concentration quantifier trained on open GISSMO-simulated mixtures. "
+                 "RUO — benchmark identification vs deterministic + pSCNN on the held-out set; "
+                 "not clinical validation."),
+    }
+    report_path = quantifier.CHECKPOINT_PATH.parent / "gissmo_quantifier_report.json"
+    report_path.write_text(json.dumps(report, indent=2))
+    # config-tagged copies (never hand-named)
+    suffix = _checkpoint_suffix(args, device)
+    for src_path, name in [(quantifier.CHECKPOINT_PATH, f"gissmo_quantifier_{suffix}.pt"),
+                           (report_path, f"gissmo_quantifier_report_{suffix}.json")]:
+        if src_path.exists():
+            shutil.copy2(src_path, src_path.parent / name)
+    report["named_checkpoint_suffix"] = suffix
+    print("=== GISSMO quantifier training complete ===")
+    print(json.dumps(report, indent=2))
+    return report
+
+
+def _train_pscnn(args: argparse.Namespace, device: dict) -> dict:
+    """Train + PERSIST the serve-time pSCNN identification channel to
+    models/pscnn_identifier.pt so the app's hybrid (deterministic + pSCNN) is
+    reachable. Small/CPU-fast; open data only."""
+    from . import pscnn
+    panel = pscnn.default_panel()
+    dev = pscnn._pick_device().type
+    print(f"pSCNN identifier · device {dev.upper()} · {len(panel)} panel compounds · "
+          f"epochs {args.epochs} · pairs {args.pairs} · batch {args.batch_size}")
+    t0 = time.time()
+    model, meta = pscnn.train(panel, n_mixtures=args.pairs, epochs=args.epochs,
+                              batch_size=args.batch_size, seed=args.seed, save=True)
+    report = {
+        "model": "pscnn", "device": device, "trained_on_device": meta.get("device"),
+        "n_compounds": len(meta["panel"]), "panel": meta["panel"],
+        "epochs": args.epochs, "pairs": args.pairs, "seed": args.seed,
+        "train_seconds": round(time.time() - t0, 1),
+        "final_loss": meta["loss_history"][-1],
+        "checkpoint": str(pscnn.CHECKPOINT_PATH),
+        "note": ("Serve-time pSCNN present/absent identification channel; blended with the "
+                 "deterministic calls to form the hybrid identification. Open data, RUO."),
+    }
+    (pscnn.CHECKPOINT_PATH.parent / "pscnn_identifier_report.json").write_text(json.dumps(report, indent=2))
+    print("=== pSCNN training complete ===")
+    print(json.dumps(report, indent=2))
+    return report
+
+
 def main() -> dict:
     ap = argparse.ArgumentParser(description="Retrain the SSL NMR encoder (H100-ready).")
     ap.add_argument("--epochs", type=int, default=200)
@@ -88,10 +162,26 @@ def main() -> dict:
     ap.add_argument("--seed", type=int, default=2026)
     ap.add_argument("--rebuild-corpus", action="store_true",
                     help="Re-download + reprocess the open BMRB corpus first.")
+    # F8 — supervised GISSMO quantifier mode
+    ap.add_argument("--supervised", choices=["ssl", "gissmo-quant", "pscnn"], default="ssl",
+                    help="'ssl' (masked encoder), 'gissmo-quant' (F8 quantifier), or 'pscnn' (serve-time identifier)")
+    ap.add_argument("--pairs", type=int, default=6000,
+                    help="[pscnn] synthetic training mixtures")
+    ap.add_argument("--mixtures", type=int, default=250000,
+                    help="[gissmo-quant] simulated mixtures per epoch")
+    ap.add_argument("--field-mhz", type=int, default=500,
+                    help="[gissmo-quant] spectrometer field for the report (informational)")
+    ap.add_argument("--n-bins", type=int, default=2048, help="[gissmo-quant] spectrum length")
+    ap.add_argument("--patch", type=int, default=16, help="[gissmo-quant] transformer patch size")
     args = ap.parse_args()
 
     device = _device_summary()
     print("Device:", json.dumps(device))
+
+    if args.supervised == "gissmo-quant":
+        return _train_gissmo_quant(args, device)
+    if args.supervised == "pscnn":
+        return _train_pscnn(args, device)
 
     # 1. ensure the open BMRB corpus exists (download is best-effort).
     if args.rebuild_corpus or not open_data.CORPUS_PATH.exists():

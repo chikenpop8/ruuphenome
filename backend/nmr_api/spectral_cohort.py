@@ -21,11 +21,17 @@ engine — one automated pipeline across both tracks.
 from __future__ import annotations
 
 import io
+import re
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
 from scipy.optimize import nnls
+
+try:  # honesty/correctness layer (MSI level + D2O exchangeable-proton guard)
+    from . import identification_quality as idq
+except ImportError:  # pragma: no cover - direct script execution fallback
+    import identification_quality as idq  # type: ignore
 
 
 # ── reference ¹H shift fingerprints (ppm), HMDB 5.0 — name-keyed ─────────────
@@ -180,6 +186,82 @@ def _normalize_name(name: str) -> str:
     return name.strip().lower()
 
 
+# ── matrix-gated physiological reference panels (serum / urine) ───────────────
+# The bundled REFERENCE_SHIFTS is ~578 generic BMRB compounds, many of which are NOT
+# biofluid metabolites (nicotine, carvone, tetrahydronaphthalene…) — on real serum/urine
+# they cause massive over-annotation. When the sample MATRIX is known, restrict the
+# candidate set to a curated physiological panel (serum: Psychogios 2011; urine:
+# Bouatra 2013) so fewer spurious matches/decoys survive and the deterministic FDR can
+# confirm real compounds. Unknown matrix → full library (no change).
+_PANEL_NAMES: Dict[str, set] = {}
+_MATRIX_TO_PANEL = {"serum": "serum", "plasma": "serum", "blood": "serum",
+                    "blood serum": "serum", "urine": "urine"}
+
+
+def _panel_names(key: str) -> set:
+    if key not in _PANEL_NAMES:
+        try:
+            p = Path(__file__).resolve().parent / "open_data" / f"{key}_panel.json"
+            names = json.loads(p.read_text(encoding="utf-8")).get("metabolites", [])
+            _PANEL_NAMES[key] = {_normalize_name(n) for n in names}
+        except Exception:
+            _PANEL_NAMES[key] = set()
+    return _PANEL_NAMES[key]
+
+
+def panel_reference_shifts(matrix, reference_shifts=None):
+    """REFERENCE_SHIFTS restricted to the physiological panel for `matrix` (serum/urine),
+    or None to keep the full library. Only names present in the library are kept; if
+    fewer than 8 resolve, returns None so identification is never crippled by a typo."""
+    key = _MATRIX_TO_PANEL.get(str(matrix or "").strip().lower())
+    if not key:
+        return None
+    wanted = _panel_names(key)
+    if not wanted:
+        return None
+    lib = reference_shifts or REFERENCE_SHIFTS
+    ref = {n: s for n, s in lib.items() if _normalize_name(n) in wanted}
+    return ref if len(ref) >= 8 else None
+
+
+# ── solvent/matrix provenance — honest, not fabricated ───────────────────────
+# The competition matrices are serum AND urine (both aqueous, D2O buffer); the matrix
+# is condition-aware (see panel_reference_shifts / provenance). REFERENCE_SHIFTS is from
+# HMDB 5.0 (see the header comment above), which is biofluid-appropriate by
+# convention (HMDB's own reference spectra are conventionally aqueous/D2O near
+# physiological pH) — but NEITHER this dict nor open_data/bmrb_reference_shifts
+# .json records solvent/pH/temperature per entry, so no single shift value can
+# currently be verified with certainty. A real chemistry classification (which
+# of a metabolite's shifts, if any, come from exchangeable COOH/OH/NH protons
+# that vanish via D/H exchange in D2O) needs literature or BMRB-experimental-
+# metadata cross-referencing per compound — not something to fabricate at scale
+# for 578 entries. Sanity check already run: purely-exchangeable-proton
+# molecules with NO non-exchanging CH at all (urea, guanidine, ammonia,
+# ammonium) are correctly ABSENT from this library — evidence the source
+# curation already excludes the most obvious D2O-invisible cases, but this is
+# not proof every remaining entry is safe.
+SOLVENT_SOURCE_NOTE = (
+    "Sourced from HMDB 5.0 (biofluid-conventional, likely aqueous/D2O) but "
+    "solvent/pH/temperature is not recorded per-shift, so this cannot be "
+    "verified per metabolite. Exchangeable-proton peaks (COOH/OH/NH) can "
+    "shift or vanish in D2O regardless of source database. See HANDOFF.md "
+    "'Known gaps' -> bioinformatics gap 1."
+)
+
+
+def solvent_confidence(name: str) -> Dict[str, str]:
+    """Honest solvent/matrix confidence for one metabolite's reference shifts.
+
+    Always returns 'unverified' today — there is no per-entry provenance to
+    report otherwise. This exists so the gap is a queryable, auditable API
+    field rather than only documentation, and so future work (BMRB experimental
+    metadata cross-reference, or manual literature review) has a concrete place
+    to write real per-compound verdicts instead of overwriting undocumented
+    trust.
+    """
+    return {"status": "unverified", "source": "HMDB 5.0", "note": SOLVENT_SOURCE_NOTE}
+
+
 # ── binned-matrix loading ─────────────────────────────────────────────────────
 def _looks_numeric(values: Sequence[str]) -> float:
     """Fraction of header tokens that parse as floats (i.e. look like ppm bins)."""
@@ -193,6 +275,99 @@ def _looks_numeric(values: Sequence[str]) -> float:
     return ok / max(1, len(values))
 
 
+# A binned matrix carries only sample IDs, ppm bins, and intensities. The pipeline
+# targets fine binning (~0.0005–0.001 ppm, ~20k bins over 0.5–10 ppm); coarser buckets
+# merge neighbouring peaks and reduce identification precision.
+COARSE_BIN_PPM = 0.01
+VERY_COARSE_BIN_PPM = 0.04
+
+
+def profile_matrix(df_prefill: pd.DataFrame, bin_ppm: np.ndarray) -> Dict:
+    """Auto-detected provenance from the matrix ALONE (a binned matrix carries no pH /
+    solvent / temperature / prep). Reports shape, ppm range, estimated bin width, and
+    QC warnings (coarse bins, negative/transformed intensities, missing values).
+    `df_prefill` must be the numeric frame BEFORE NaNs are filled, so missing values
+    and negative intensities are detectable."""
+    bins = np.asarray(bin_ppm, dtype=float)
+    n_samples, n_features = int(df_prefill.shape[0]), int(df_prefill.shape[1])
+    ppm_lo = float(bins.min()) if bins.size else 0.0
+    ppm_hi = float(bins.max()) if bins.size else 0.0
+    diffs = np.diff(np.sort(bins)) if bins.size > 1 else np.asarray([])
+    bin_width = float(np.median(diffs)) if diffs.size else 0.0
+
+    vals = df_prefill.to_numpy(dtype=float)
+    finite = np.isfinite(vals)
+    n_missing = int((~finite).sum())
+    frac_missing = float((~finite).mean()) if vals.size else 0.0
+    min_val = float(np.nanmin(vals)) if finite.any() else 0.0
+    has_negative = bool(min_val < 0)
+
+    warnings: List[str] = []
+    coarse = bin_width > COARSE_BIN_PPM
+    if bin_width > VERY_COARSE_BIN_PPM:
+        warnings.append(
+            f"Very coarse binning (~{bin_width:.3f} ppm/bin, {n_features} bins): neighbouring "
+            "peaks are merged and identification precision is limited. The pipeline targets fine "
+            "bins (~0.0005–0.001 ppm, ~20k bins).")
+    elif coarse:
+        warnings.append(
+            f"Coarse binning (~{bin_width:.3f} ppm/bin): neighbouring peaks may merge — expect "
+            "reduced identification precision vs fine (~0.001 ppm) bins.")
+    if has_negative:
+        warnings.append(
+            f"Negative intensities present (min {min_val:.3g}) — data looks baseline-subtracted or "
+            "transformed. NNLS assumes non-negative intensities; negatives are clipped to 0 for fitting.")
+    if n_missing:
+        warnings.append(
+            f"{n_missing} missing value(s) ({frac_missing * 100:.1f}%) present — treated as 0 (absent).")
+
+    return {
+        "n_samples": n_samples,
+        "n_features": n_features,
+        "n_bins": n_features,
+        "ppm_range": [round(ppm_lo, 3), round(ppm_hi, 3)],
+        "bin_width_est": round(bin_width, 5),
+        "coarse_bins": bool(coarse),
+        "has_negative_intensity": has_negative,
+        "n_missing": n_missing,
+        "fraction_missing": round(frac_missing, 4),
+        "warnings": warnings,
+    }
+
+
+def load_binned_matrix_profiled(raw: bytes) -> Tuple[pd.DataFrame, np.ndarray, Dict]:
+    """Load a binned NMR matrix and profile it in one pass — returns
+    (X [samples × bins], bin_ppm, matrix_profile). See load_binned_matrix for the
+    layout auto-detection; the profile is computed from the pre-fill numeric frame."""
+    text = raw.decode("utf-8", errors="replace")
+    sep = "\t" if text[:2048].count("\t") >= text[:2048].count(",") else ","
+    df = pd.read_csv(io.StringIO(text), sep=sep, index_col=0, low_memory=False)
+
+    # Decide orientation from whether the column headers are numeric ppm values.
+    header_numeric = _looks_numeric(df.columns.astype(str))
+    index_numeric = _looks_numeric(df.index.astype(str))
+    if header_numeric < 0.6 and index_numeric >= 0.6:
+        df = df.T  # layout (b): bins were rows → transpose so samples are rows
+
+    ppm, keep = [], []
+    for col in df.columns:
+        try:
+            ppm.append(float(str(col).replace("ppm", "").strip()))
+            keep.append(col)
+        except ValueError:
+            continue
+    if not keep:
+        raise ValueError("No numeric ppm-bin columns found in the matrix.")
+
+    bin_ppm = np.asarray(ppm, dtype=float)
+    order = np.argsort(bin_ppm)
+    pre = df[keep].apply(pd.to_numeric, errors="coerce").iloc[:, order]   # NaNs preserved
+    pre.columns = [round(float(p), 5) for p in bin_ppm[order]]
+    profile = profile_matrix(pre, bin_ppm[order])
+    X = pre.fillna(0.0)
+    return X, bin_ppm[order], profile
+
+
 def load_binned_matrix(raw: bytes) -> Tuple[pd.DataFrame, np.ndarray]:
     """
     Load a binned NMR matrix as samples × ppm-bins, auto-detecting orientation.
@@ -203,35 +378,8 @@ def load_binned_matrix(raw: bytes) -> Tuple[pd.DataFrame, np.ndarray]:
 
     Returns (X [samples × bins], bin_ppm [bin centers, ascending columns]).
     """
-    text = raw.decode("utf-8", errors="replace")
-    sep = "\t" if text[:2048].count("\t") >= text[:2048].count(",") else ","
-    df = pd.read_csv(io.StringIO(text), sep=sep, index_col=0, low_memory=False)
-
-    # Decide orientation from whether the column headers are numeric ppm values.
-    header_numeric = _looks_numeric(df.columns.astype(str))
-    index_numeric = _looks_numeric(df.index.astype(str))
-
-    if header_numeric < 0.6 and index_numeric >= 0.6:
-        df = df.T  # layout (b): bins were rows → transpose so samples are rows
-
-    # Coerce bin labels to float ppm; drop any non-numeric columns.
-    ppm = []
-    keep = []
-    for col in df.columns:
-        try:
-            ppm.append(float(str(col).replace("ppm", "").strip()))
-            keep.append(col)
-        except ValueError:
-            continue
-    if not keep:
-        raise ValueError("No numeric ppm-bin columns found in the matrix.")
-
-    X = df[keep].apply(pd.to_numeric, errors="coerce").fillna(0.0)
-    bin_ppm = np.asarray(ppm, dtype=float)
-    order = np.argsort(bin_ppm)
-    X = X.iloc[:, order]
-    X.columns = [round(float(p), 5) for p in bin_ppm[order]]
-    return X, bin_ppm[order]
+    X, bin_ppm, _ = load_binned_matrix_profiled(raw)
+    return X, bin_ppm
 
 
 # ── normalization (safety net; organizers may already normalize) ─────────────
@@ -248,10 +396,11 @@ def extract_embedded_labels(raw: bytes, sample_ids: Sequence[str]) -> Tuple[Opti
     label_names = ("class", "group", "condition", "label", "diagnosis",
                    "phenotype", "status", "type", "category")
     for col in df.columns:
-        if pd.api.types.is_numeric_dtype(df[col]):
-            continue                                   # ppm bins are numeric
         name_hit = str(col).strip().lower() in label_names
         vals = df[col].dropna().astype(str)
+        # A numeric Class/Group column (0/1, 1/2, ...) is a real label; a numeric
+        # ppm-bin column is near-continuous and fails the cardinality check below
+        # on its own, so no separate blanket skip is needed for numeric dtype.
         if not (name_hit or 2 <= vals.nunique() <= 6):
             continue
         counts = vals.value_counts()
@@ -264,7 +413,12 @@ def extract_embedded_labels(raw: bytes, sample_ids: Sequence[str]) -> Tuple[Opti
             v = str(df[col].get(sid, "")).strip()
             if v in classes:
                 label_map[str(sid)] = 1 if v == positive else 0
-        if len(set(label_map.values())) >= 2:
+        # A real label column labels (nearly) ALL samples with its top-2 classes; a
+        # continuous ppm-bin column in a small cohort can pass the cardinality gate
+        # but only its top-2 values exact-match a couple of samples — reject those by
+        # requiring the label to cover a majority of the cohort.
+        min_cover = max(4, int(0.6 * len(sample_ids)))
+        if len(set(label_map.values())) >= 2 and len(label_map) >= min_cover:
             return label_map, {
                 "label_column": str(col), "classes": classes,
                 "positive_class": positive,
@@ -276,7 +430,10 @@ def extract_embedded_labels(raw: bytes, sample_ids: Sequence[str]) -> Tuple[Opti
 def total_area_normalize(X: pd.DataFrame) -> pd.DataFrame:
     """Scale each sample so its total integrated area is constant."""
     areas = X.abs().sum(axis=1).replace(0, np.nan)
-    return X.div(areas, axis=0).fillna(0.0) * float(np.nanmedian(areas))
+    scale = float(np.nanmedian(areas))
+    if not np.isfinite(scale):          # all-zero / all-NaN cohort → no valid scale
+        scale = 1.0
+    return X.div(areas, axis=0).fillna(0.0) * scale
 
 
 def pqn_normalize(X: pd.DataFrame) -> pd.DataFrame:
@@ -294,6 +451,28 @@ def pqn_normalize(X: pd.DataFrame) -> pd.DataFrame:
 
 
 # ── annotation: bins → metabolites ───────────────────────────────────────────
+def _occupancy_floor(profile: np.ndarray, *, k: float = 5.0, frac: float = 0.02) -> float:
+    """Absolute signal-vs-noise floor for the 'occupied bin' test.
+
+    A bin counts as occupied only if its cohort-median intensity rises above the
+    baseline noise, estimated robustly as baseline + k·(1.4826·MAD) — a k-sigma
+    floor that is ~0 false positives on pure noise. Falls back to a fraction of
+    the peak height when the baseline is degenerate (a 'cleaned' / mostly-zero
+    spectrum has ~0 MAD, where the old relative quantile collapsed to 0 and called
+    almost every metabolite present). Replaces the broken np.quantile(profile,0.75)
+    gate that flagged ~25% of ALL bins as occupied regardless of signal."""
+    prof = np.asarray(profile, dtype=float)
+    prof = prof[np.isfinite(prof)]
+    if prof.size == 0:
+        return np.inf
+    baseline = float(np.median(prof))
+    mad = float(np.median(np.abs(prof - baseline)))
+    if mad > 1e-12:
+        return baseline + k * 1.4826 * mad
+    pmax = float(np.max(prof))
+    return frac * pmax if pmax > 0 else np.inf
+
+
 def annotate(
     X: pd.DataFrame,
     bin_ppm: np.ndarray,
@@ -303,6 +482,7 @@ def annotate(
     tol_ppm: float = 0.03,
     occupancy_quantile: float = 0.75,
     min_coverage: float = 0.5,
+    apply_d2o_guard: bool = True,
 ) -> Dict:
     """
     Targeted profiling: map occupied ppm bins to metabolites by reference-shift
@@ -324,14 +504,23 @@ def annotate(
     Returns annotation report + sample × metabolite abundance matrix.
     """
     refs = {**(reference_shifts or REFERENCE_SHIFTS)}
-    # Fold organizer-identified peaks into the reference library.
+    # Organizer-provided {ppm: metabolite} pins are AUTHORITATIVE ground truth:
+    # fold them into the library AND record which positions are pinned so they
+    # bypass the occupancy gate and force the metabolite present (authoritative
+    # pins). Previously such labels were silently dropped below the occupancy gate.
+    pinned: Dict[str, set] = {}
     if identified_peaks:
         for ppm, name in identified_peaks.items():
-            refs.setdefault(_normalize_name(name), []).append(float(ppm))
+            key = _normalize_name(name)
+            refs.setdefault(key, []).append(float(ppm))
+            pinned.setdefault(key, set()).add(round(float(ppm), 4))
 
     bins = np.asarray(X.columns, dtype=float)
     median_profile = X.median(axis=0).values
-    occ_threshold = np.quantile(median_profile, occupancy_quantile)
+    # absolute noise-floor gate (was a relative 0.75-quantile that called ~25% of
+    # bins occupied on ANY input — 103/578 metabolites on pure noise, 575/578 on a
+    # sparse spectrum). occupancy_quantile is kept only for backward-compat.
+    occ_threshold = _occupancy_floor(median_profile)
 
     def nearest_bin(shift: float) -> Optional[int]:
         j = int(np.argmin(np.abs(bins - shift)))
@@ -340,27 +529,62 @@ def annotate(
     metabolites = []
     abundance_cols: Dict[str, np.ndarray] = {}
     for name, shifts in refs.items():
-        matched_idx, matched_shifts = [], []
+        pins = pinned.get(name, set())
+        matched_idx, matched_shifts, robust_idx = [], [], []
+        has_pin_match = False
         for s in shifts:
             j = nearest_bin(s)
-            if j is not None and median_profile[j] >= occ_threshold:
-                matched_idx.append(j)
-                matched_shifts.append(round(float(bins[j]), 4))
-        coverage = len(matched_idx) / max(1, len(shifts))
-        present = coverage >= min_coverage and len(matched_idx) > 0
+            if j is None:
+                continue
+            is_pin = round(float(s), 4) in pins
+            # a bin counts if occupied, OR if the organizer pinned this position
+            if not (is_pin or median_profile[j] >= occ_threshold):
+                continue
+            bppm = round(float(bins[j]), 4)
+            matched_idx.append(j)
+            matched_shifts.append(bppm)
+            if is_pin:
+                has_pin_match = True
+            # D2O guard (condition-aware): in aqueous/D2O only non-exchangeable C-H
+            # resonances are reliable; in a non-aqueous solvent every matched shift counts.
+            if (not apply_d2o_guard) or idq.classify_shift(bppm) == "non_exchangeable":
+                robust_idx.append(j)
+        if not matched_idx:
+            continue
+        d2o = idq.d2o_assessment(matched_shifts, len(shifts),
+                                 structure=idq.metabolite_exchangeable(name),
+                                 apply_guard=apply_d2o_guard)
+        # Present if organizer-pinned, else if it clears coverage on RELIABLE
+        # (non-exchangeable) resonances — prefer non-exchangeable protons in D2O.
+        present = has_pin_match or (d2o["robust_coverage"] >= min_coverage and d2o["usable_in_d2o"])
         if not present:
             continue
-        cols = X.iloc[:, sorted(set(matched_idx))]
+        # Abundance from reliable non-exchangeable bins; fall back to pinned bins.
+        evidence_idx = robust_idx or (matched_idx if has_pin_match else [])
+        if not evidence_idx:
+            continue
+        cols = X.iloc[:, sorted(set(evidence_idx))]
         abundance = cols.mean(axis=1).values            # per-sample abundance
         abundance_cols[name] = abundance
+        msi = idq.msi_level(d2o["robust_coverage"], d2o["n_nonexchangeable"], provided=has_pin_match)
         metabolites.append({
             "metabolite": name,
-            "coverage": round(coverage, 3),
+            "provenance": "organizer_pin" if has_pin_match else "reference_match",
+            "coverage": round(len(matched_idx) / max(1, len(shifts)), 3),
+            "robust_coverage": d2o["robust_coverage"],
             "expected_shifts": len(shifts),
             "matched_shifts": matched_shifts,
             "matched_count": len(matched_idx),
-            "confidence": round(min(100.0, coverage * 100.0), 1),
+            "confidence": round(min(100.0, d2o["robust_coverage"] * 100.0), 1),
             "mean_abundance": round(float(np.mean(abundance)), 5),
+            "msi_level": msi["msi_level"],
+            "msi_label": msi["msi_label"],
+            "d2o": {k: d2o[k] for k in ("robust_shifts", "n_nonexchangeable",
+                                        "n_water_hdo", "n_exchangeable_risk",
+                                        "usable_in_d2o", "d2o_grade", "structural_exchangeable",
+                                        "structural_ch", "observable_fraction",
+                                        "d2o_caveat", "reference_standard")},
+            "solvent_confidence": solvent_confidence(name),
         })
 
     metabolites.sort(key=lambda m: (-m["coverage"], -m["matched_count"]))
@@ -373,9 +597,24 @@ def annotate(
         "ppm_range": [round(float(bins.min()), 3), round(float(bins.max()), 3)],
         "occupancy_threshold": round(float(occ_threshold), 6),
         "n_metabolites_annotated": len(metabolites),
+        "n_organizer_pins": int(sum(1 for m in metabolites if m["provenance"] == "organizer_pin")),
         "metabolites": metabolites,
         "annotated_matrix": annotated,        # samples × metabolite (for Track 2)
         "reference_library_size": len(refs),
+        "identification_standard": idq.MSI_SCHEME,
+        "apply_d2o_guard": bool(apply_d2o_guard),
+        "d2o_guard": (
+            "Residual-water/HDO (4.70–4.90 ppm) and downfield-exchangeable (>9.5 ppm) "
+            "matches are excluded from evidence; an identification requires a "
+            "non-exchangeable C-H resonance (prefer non-exchangeable protons in D2O). "
+            "Reference: DSS at 0.00 ppm."
+            if apply_d2o_guard else
+            "Non-aqueous solvent: the D₂O exchangeable-proton disappearance rule is NOT "
+            "applied — OH/NH/SH protons remain observable and every matched resonance "
+            "counts. Reference shifts remain aqueous/HMDB-derived (organic-solvent "
+            "positions are not modeled)."
+        ),
+        "solvent_disclaimer": SOLVENT_SOURCE_NOTE,
     }
 
 
@@ -392,6 +631,11 @@ def _reference_matrix(bin_ppm, refs, sigma_ppm) -> Tuple[np.ndarray, List[str]]:
     areas = R.sum(axis=1, keepdims=True)
     areas[areas == 0] = 1.0
     return R / areas, names
+
+
+# F7 — above this bin count, NNLS is restricted to informative (reference-peak)
+# bins so a ~20k-feature competition matrix does not blow up memory/time.
+_NNLS_BIN_CAP = 3000
 
 
 def deconvolve(
@@ -425,6 +669,10 @@ def deconvolve(
     full_refs = reference_shifts or REFERENCE_SHIFTS
     bins_arr = np.asarray(bin_ppm, dtype=float)
     ppm_max = float(np.max(bins_arr))
+    # Decoys wrap shifts modulo the ppm span. Guard against a non-positive max
+    # (a lone 0-ppm calibration column, or an all-upfield matrix) so the modulo
+    # below never divides by zero.
+    decoy_span = ppm_max if ppm_max > 0 else (float(np.ptp(bins_arr)) or 1.0)
 
     # ASICS-style pre-screen: only fit references with ≥1 peak in an occupied bin.
     # Keeps a large library (breadth) without paying NNLS cost for absent compounds.
@@ -435,16 +683,30 @@ def deconvolve(
         return any(np.min(np.abs(occupied - s)) <= 0.03 for s in shifts) if occupied.size else True
     refs = {n: sh for n, sh in full_refs.items() if _present(sh)} or full_refs
 
-    decoys = {f"decoy::{n}": [((s + decoy_shift_ppm) % ppm_max) for s in sh]
+    decoys = {f"decoy::{n}": [((s + decoy_shift_ppm) % decoy_span) for s in sh]
               for n, sh in refs.items()}
-    R, names = _reference_matrix(bin_ppm, {**refs, **decoys}, sigma_ppm)
+    # F7 — 20k-bin scaling. A ~20k-bin competition matrix is heavily oversampled
+    # (a peak at sigma_ppm spans dozens of bins), so the per-sample NNLS is run on
+    # a coarse FIT grid (≈ _NNLS_BIN_CAP bins) — negligible effect on the fitted
+    # coefficients, but ~10x fewer rows so the dense NNLS stays tractable. Small
+    # grids (the demo) use the native grid unchanged, so prior numbers hold.
+    bins_native = np.asarray(bin_ppm, dtype=float)
+    if len(bins_native) > _NNLS_BIN_CAP:
+        _grid = np.linspace(float(bins_native.min()), float(bins_native.max()), _NNLS_BIN_CAP)
+        R, names = _reference_matrix(_grid, {**refs, **decoys}, sigma_ppm)
+        Xfit = np.vstack([np.interp(_grid, bins_native, np.clip(row, 0, None))
+                          for row in X.values.astype(float)])
+    else:
+        _grid = bins_native
+        R, names = _reference_matrix(bin_ppm, {**refs, **decoys}, sigma_ppm)
+        Xfit = np.clip(X.values.astype(float), 0, None)
     A = R.T                                   # bins × (targets+decoys)
     n_target = len(refs)
 
     conc = np.zeros((X.shape[0], len(names)))
     fit_r2 = []
-    for r in range(X.shape[0]):
-        s = np.clip(X.iloc[r].values.astype(float), 0, None)
+    for r in range(Xfit.shape[0]):
+        s = Xfit[r]
         c, _ = nnls(A, s)
         conc[r] = c
         pred = A @ c
@@ -462,8 +724,14 @@ def deconvolve(
     null_level = float(np.quantile(decoy_mean, 0.95)) if decoy_mean.size else 0.0
 
     # target–decoy FDR at the chosen level → detection threshold
+    # Standard target–decoy acceptance: walk thresholds from high to low, track the
+    # DEEPEST concentration threshold whose FDR still passes, then accept every
+    # target at or above it. Accepting individual indices whose own-threshold ratio
+    # happens to pass is non-monotone — a mid-concentration decoy can reject a strong
+    # metabolite while a weaker one below it passes ("holes"). Accept a clean prefix
+    # of the descending order instead.
     order = np.argsort(target_mean)[::-1]
-    chosen = []
+    cutoff = None
     for idx in order:
         t = target_mean[idx]
         if t <= 0:
@@ -471,8 +739,11 @@ def deconvolve(
         n_dec = int(np.sum(decoy_mean >= t))
         n_tar = int(np.sum(target_mean >= t))
         if n_tar and (n_dec / n_tar) <= fdr:
-            chosen.append(idx)
-    chosen = set(chosen)
+            cutoff = t
+    if cutoff is None:
+        chosen = set()
+    else:
+        chosen = {int(i) for i in np.where(target_mean >= cutoff)[0] if target_mean[i] > 0}
 
     conc_df = pd.DataFrame(target_conc, index=X.index, columns=target_names)
     detection_rate = (target_conc > null_level).mean(axis=0)
@@ -488,6 +759,23 @@ def deconvolve(
             units = "µM"
     conc_df = conc_df * cal_factor if cal_factor else conc_df
 
+    # ── per-compound fit (Chenomx-style compound-by-compound modeling) ──
+    # Each metabolite's INDIVIDUAL modeled contribution = its unit-area Gaussian reference
+    # × its NNLS concentration; from these we derive a support-restricted local fit quality
+    # (how well the total fit explains the bins that compound occupies). NOTE: these are
+    # single-Gaussian centroids (singlets only) — NOT J-coupling multiplet lineshapes.
+    R_target = R[:n_target]
+    s0 = Xfit[0]                                      # observed (fit grid), overlay sample
+    fit0 = R_target.T @ target_conc[0]                # total NNLS reconstruction
+    resid0 = s0 - fit0
+    local_r2 = np.zeros(n_target)
+    for i in range(n_target):
+        supp = R_target[i] > 0.05 * (float(R_target[i].max()) or 1.0)
+        if int(supp.sum()) >= 2:
+            sv = s0[supp]
+            ss = float(np.sum((sv - sv.mean()) ** 2))
+            local_r2[i] = (1.0 - float(np.sum(resid0[supp] ** 2)) / ss) if ss > 0 else 0.0
+
     metabolites = []
     for i, nm in enumerate(target_names):
         if target_mean[i] <= 0 or nm.lower() in INTERNAL_STANDARDS:
@@ -498,6 +786,7 @@ def deconvolve(
             "mean_concentration": round(float(target_mean[i]), 5),
             "detection_rate": round(float(detection_rate[i]), 3),
             "snr_vs_decoy": round(snr, 2),
+            "fit_quality": round(float(max(0.0, local_r2[i])), 3),   # local residual fit (0–1)
             "passes_fdr": bool(i in chosen),
         }
         if cal_factor:
@@ -505,17 +794,27 @@ def deconvolve(
         metabolites.append(entry)
     metabolites.sort(key=lambda m: -m["mean_concentration"])
 
-    # ── reference-fit overlay (Chenomx signature view) for one sample ──
-    bins = np.asarray(bin_ppm, dtype=float)
-    R_target = R[:n_target]
-    s0 = np.clip(X.iloc[0].values.astype(float), 0, None)
-    fit0 = R_target.T @ target_conc[0]
-    idx = np.linspace(0, len(bins) - 1, min(len(bins), 500)).astype(int)
+    # ── reference-fit overlay (Chenomx-style compound-by-compound view) for one sample ──
+    idx = np.linspace(0, len(_grid) - 1, min(len(_grid), 500)).astype(int)
+    # each top contributor's INDIVIDUAL modeled trace (reference × its concentration)
+    contrib_order = sorted(range(n_target), key=lambda i: -float(target_conc[0][i]))
+    per_compound = []
+    for i in contrib_order:
+        if target_conc[0][i] <= null_level or target_names[i].lower() in INTERNAL_STANDARDS:
+            continue
+        trace = R_target[i] * target_conc[0][i]
+        per_compound.append({
+            "metabolite": target_names[i],
+            "trace": [round(float(trace[j]), 5) for j in idx],
+        })
+        if len(per_compound) >= 8:
+            break
     fit_overlay = {
         "sample": str(X.index[0]),
-        "ppm": [round(float(bins[i]), 4) for i in idx],
+        "ppm": [round(float(_grid[i]), 4) for i in idx],
         "observed": [round(float(s0[i]), 5) for i in idx],
         "fitted": [round(float(fit0[i]), 5) for i in idx],
+        "per_compound": per_compound,   # per-metabolite modeled Gaussian contribution
     }
 
     return {
@@ -531,6 +830,140 @@ def deconvolve(
         "decoy_null_level": round(null_level, 6),
         "metabolites": metabolites,
         "fit_overlay": fit_overlay,
+        # honesty gate — exactly what the µM/relative number is and is NOT (vs Chenomx).
+        "concentration_caveats": {
+            "calibration": (f"{std_key.upper()} internal standard @ {standard_um} µM"
+                            if cal_factor else "relative (no internal standard detected)"),
+            "model": "unit-area Gaussian reference peaks — singlets only, NOT J-coupling multiplets",
+            "baseline": "flat baseline assumed; not modeled from residuals",
+            "solvent": "no water-suppression / solvent-shift correction applied",
+            "status": ("RUO — DSS-referenced, approximate; not Chenomx-grade absolute quantification"
+                       if cal_factor else
+                       "RUO — scaled/relative abundances, NOT validated absolute quantification"),
+        },
+    }
+
+
+# ── F5: diagnostic-ppm selector (feature selection / important positions) ─────
+# Metabolite keyword → NCD relevance, so a selected ppm position is biologically
+# interpretable (Track-1 → Thai NCD story). Literature: BCAA/aromatic-AA → T2D
+# (Newgard 2009, Guasch-Ferré 2016, Würtz 2015); see docs/IMPACT_AND_VALIDATION.md.
+NCD_RELEVANCE = [
+    ("glucose", "hyperglycemia / diabetes (α-anomeric H1 ~5.23 ppm)"),
+    ("lactate", "glycolytic flux / insulin resistance"),
+    ("lactic", "glycolytic flux / insulin resistance"),
+    ("valine", "branched-chain amino acid — insulin resistance / incident T2D"),
+    ("leucine", "branched-chain amino acid — insulin resistance / incident T2D"),
+    ("isoleucine", "branched-chain amino acid — insulin resistance / incident T2D"),
+    ("alanine", "gluconeogenic amino acid — dysglycemia"),
+    ("tyrosine", "aromatic amino acid — T2D / cardiovascular risk"),
+    ("phenylalanine", "aromatic amino acid — T2D / CVD (Würtz 2015)"),
+    ("hydroxybutyrate", "ketone body — insulin deficiency / diabetes"),
+    ("citrate", "TCA-cycle intermediate — metabolic / renal"),
+    ("creatinine", "renal function — diabetic nephropathy"),
+    ("glutamine", "Gln/Glu balance — metabolic risk"),
+    ("glutamate", "Gln/Glu balance — metabolic risk"),
+    ("pyruvate", "glycolysis endpoint — dysglycemia"),
+]
+
+
+def _ncd_relevance(name: Optional[str]) -> Optional[str]:
+    if not name:
+        return None
+    low = name.lower()
+    for kw, txt in NCD_RELEVANCE:
+        if kw in low:
+            return txt
+    return None
+
+
+def _nearest_reference(ppm: float, refs: Dict[str, List[float]], tol: float = 0.05):
+    """Nearest reference metabolite (name, |Δppm|) to a ppm position, within tol."""
+    best_name, best_err = None, None
+    for nm, shifts in refs.items():
+        for s in shifts:
+            e = abs(float(s) - ppm)
+            if best_err is None or e < best_err:
+                best_err, best_name = e, nm
+    if best_err is not None and best_err <= tol:
+        return best_name, best_err
+    return None, best_err
+
+
+def select_diagnostic_ppm(
+    X: pd.DataFrame,
+    bin_ppm: np.ndarray,
+    *,
+    y: Optional[Sequence[int]] = None,
+    top_k: int = 25,
+    reference_shifts: Optional[Dict[str, List[float]]] = None,
+    min_separation_ppm: float = 0.02,
+) -> Dict:
+    """
+    Rank the most important ppm positions (spec approach 3: feature selection /
+    dimensionality reduction), each annotated to its nearest reference metabolite
+    and NCD relevance — turning ~20k anonymous bins into an interpretable,
+    biomarker-ready shortlist.
+
+    - **Supervised** (labels given): rank bins by association with the label
+      (point-biserial for binary, ANOVA-F for multi-class) via the leakage-safe
+      screen — these are the disease-discriminating positions.
+    - **Unsupervised** (no labels): rank by signal content (median × √variance) —
+      the positions carrying the most quantitative information.
+
+    The residual-water/HDO window is excluded (D2O consistency), and nearby bins
+    are de-duplicated so a single peak is not reported as a cluster.
+    """
+    bins = np.asarray(bin_ppm, dtype=float)
+    Xv = np.nan_to_num(X.values.astype(float))
+    refs = reference_shifts or REFERENCE_SHIFTS
+    if y is not None and len(np.unique(np.asarray(y))) >= 2:
+        try:
+            from . import biomarker_engine as be  # lazy — avoids import cycle
+        except ImportError:  # pragma: no cover
+            import biomarker_engine as be  # type: ignore
+        score, _p = be.screen_features(Xv, np.asarray(y))
+        mode = "supervised (disease-discriminating positions)"
+    else:
+        med = np.median(Xv, axis=0)
+        var = np.var(Xv, axis=0)
+        score = np.clip(med, 0, None) * np.sqrt(np.clip(var, 0, None))
+        mode = "unsupervised (signal-carrying positions)"
+    score = np.nan_to_num(score)
+
+    order = np.argsort(score)[::-1]
+    selected: List[Dict] = []
+    picked_ppm: List[float] = []
+    for j in order:
+        ppm = float(bins[j])
+        if idq.classify_shift(ppm) == "water_hdo":        # skip residual water
+            continue
+        if any(abs(ppm - p) < min_separation_ppm for p in picked_ppm):
+            continue                                       # de-duplicate one peak
+        name, err = _nearest_reference(ppm, refs)
+        selected.append({
+            "ppm": round(ppm, 4),
+            "importance": round(float(score[j]), 5),
+            "nearest_metabolite": name,
+            "ppm_error": round(float(err), 4) if err is not None else None,
+            "ncd_relevance": _ncd_relevance(name),
+        })
+        picked_ppm.append(ppm)
+        if len(selected) >= top_k:
+            break
+
+    ncd_hits = [s for s in selected if s["ncd_relevance"]]
+    return {
+        "mode": mode,
+        "n_bins": int(len(bins)),
+        "n_selected": len(selected),
+        "top_positions": selected,
+        "ncd_relevant_positions": ncd_hits,
+        "note": ("Residual-water/HDO region excluded; each position annotated to the "
+                 "nearest reference ¹H shift for interpretability. Supervised mode ranks "
+                 "positions by whole-cohort univariate association (DISPLAY/interpretation "
+                 "only — not a held-out validated panel; do not feed into a model without a "
+                 "fold-internal screen); unsupervised uses signal content."),
     }
 
 
@@ -591,8 +1024,11 @@ def parse_identified_peaks(raw: bytes) -> Dict[float, str]:
 # ── Track 2: metadata join (Table 1 metabolites + Table 2 metadata) ──────────
 def parse_metadata(raw: bytes) -> pd.DataFrame:
     """Load a metadata table (Table 2). Rows = samples, columns = phenotypes."""
+    from .pipeline import sniff_separator
     text = raw.decode("utf-8", errors="replace")
-    sep = "\t" if text[:2048].count("\t") >= text[:2048].count(",") else ","
+    # keep_default_na only (no extra numeric tokens): metadata is categorical, so
+    # "-" / "nd" may be legitimate category values and must not be nulled out.
+    sep = sniff_separator(text[:8192])
     return pd.read_csv(io.StringIO(text), sep=sep, low_memory=False)
 
 
@@ -614,34 +1050,93 @@ def derive_labels(
     label_column: Optional[str] = None,
     sample_column: Optional[str] = None,
     positive_class: Optional[str] = None,
+    multiclass: bool = False,
 ) -> Tuple[Dict[str, int], Dict]:
     """
-    Join metadata to samples and derive a binary label map.
+    Join metadata to samples and derive a label map.
 
     Auto-detects the sample-id column and (if not given) the most informative
-    binary-izable phenotype column. Returns ({sample: 0/1}, info).
+    phenotype column. By default returns a BINARY map ({sample: 0/1}, rarer class
+    = positive). With ``multiclass=True`` it keeps ALL classes present (up to 6),
+    coded 0..K-1 by frequency, so any clean multi-group table (e.g. control /
+    diabetes / hypertension) can be analysed without collapsing to two groups.
     """
     sample_column = sample_column or _guess_sample_column(meta, sample_ids)
     if sample_column is None:
         raise ValueError("Could not match a metadata column to the sample IDs.")
     m = meta.set_index(meta[sample_column].astype(str))
 
-    # choose label column: explicit, else the categorical column with 2 classes
-    candidates = [c for c in m.columns if c != sample_column]
-    if label_column is None:
-        scored = []
-        for c in candidates:
-            vals = m[c].dropna().astype(str)
-            nun = vals.nunique()
-            if 2 <= nun <= 6:
-                scored.append((c, nun))
-        if not scored:
-            raise ValueError("No categorical phenotype column with 2–6 classes found.")
-        scored.sort(key=lambda x: x[1])   # prefer fewest classes (cleanest task)
-        label_column = scored[0][0]
+    # Restrict to the samples actually being analyzed BEFORE scoring/selecting a
+    # label column. Real metadata tables often mix subjects/matrices that aren't
+    # all present in Table 1 (e.g. a study collecting both blood and urine, with
+    # only serum concentrations provided) — scoring on the full metadata table
+    # can pick a column that looks like a clean 2-class split overall but
+    # collapses to a single class once restricted to the real sample set.
+    # Confirmed concretely: MTBLS1497 auto-picked "Organism part" (blood serum
+    # vs urine, balanced across all 975 metadata rows) over the intended
+    # "Sampling time" (0 vs 6) factor, because Table 1 here is serum-only —
+    # after restricting, only "Sampling time" still has both classes.
+    wanted = {str(s) for s in sample_ids}
+    m_sub = m[m.index.isin(wanted)]
+    if m_sub.empty:
+        raise ValueError("Could not match a metadata column to the sample IDs.")
 
-    series = m[label_column].astype(str)
+    # choose label column: explicit, else the categorical column with 2 classes.
+    # ISA-Tab (the MetaboLights sample-file format) pairs every real phenotype
+    # column ("Characteristics[...]"/"Factor Value[...]") with ontology-plumbing
+    # companions ("Term Source REF", "Term Accession Number", "Protocol REF" —
+    # pandas may suffix repeats as ".1", ".2"). Those plumbing columns often
+    # coincidentally also have 2-6 unique values (they're ontology codes, not a
+    # real biological factor) and must not outrank a genuine phenotype column.
+    # Confirmed concretely: without this, auto-detection picked "Term Accession
+    # Number.1" (BRENDA Tissue Ontology codes) over the intended disease/timepoint
+    # factor on a real MetaboLights file.
+    _PLUMBING = re.compile(
+        r'^(Term Source REF|Term Accession Number|Protocol REF|Unit)(\.\d+)?$')
+    all_candidates = [c for c in m_sub.columns if c != sample_column]
+    semantic = [c for c in all_candidates
+                if c.startswith("Characteristics[") or c.startswith("Factor Value[")]
+    fallback = [c for c in all_candidates if not _PLUMBING.match(str(c))]
+    if label_column is None:
+        for tier in (semantic, fallback):
+            scored = []
+            for c in tier:
+                vals = m_sub[c].dropna().astype(str)
+                nun = vals.nunique()
+                if 2 <= nun <= 6:
+                    scored.append((c, nun))
+            if scored:
+                scored.sort(key=lambda x: x[1])   # prefer fewest classes (cleanest task)
+                label_column = scored[0][0]
+                break
+        else:
+            raise ValueError("No categorical phenotype column with 2–6 classes found "
+                              "among the samples present in Table 1.")
+
+    series = m_sub[label_column].astype(str)
     counts = series.value_counts()
+
+    if multiclass:
+        # keep every class present (cap at 6), coded 0..K-1 by descending frequency
+        classes = list(counts.index[:6])
+        idx = {c: i for i, c in enumerate(classes)}
+        label_map = {}
+        for sid in sample_ids:
+            v = series.get(str(sid))
+            if v in idx:
+                label_map[str(sid)] = idx[v]
+        info = {
+            "sample_column": sample_column,
+            "label_column": label_column,
+            "classes": classes,
+            "class_names": {int(i): c for c, i in idx.items()},
+            "n_classes": len(classes),
+            "n_labeled": len(label_map),
+            "class_balance": {k: int(counts[k]) for k in classes},
+            "multiclass": True,
+        }
+        return label_map, info
+
     if positive_class is None:
         # two largest classes define the binary task; rarer = positive
         top2 = list(counts.index[:2])

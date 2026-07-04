@@ -1,0 +1,11 @@
+# RuuPhenome F8 (GISSMO quantifier) — H100/LiCO training dependencies.
+# Lower bounds match the dev environment; newer patch releases are fine.
+# TORCH: install the CUDA build that matches the H100 node's driver. If the node
+# already has a working torch (most LiCO images do), skip installing it here —
+# do NOT let pip replace a working CUDA torch with a CPU wheel.
+numpy>=1.26
+scipy>=1.11
+pandas>=2.1
+scikit-learn>=1.3
+requests>=2.31
+# torch>=2.1        # <-- prefer the node's preinstalled CUDA build; uncomment only if absent

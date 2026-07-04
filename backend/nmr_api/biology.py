@@ -440,17 +440,40 @@ def annotate(name: str) -> Optional[Dict]:
     }
 
 
+def _bh_qvalues(pvals: Sequence[float]) -> List[float]:
+    """Benjamini-Hochberg adjusted p-values (q-values), monotone-corrected, in the
+    input order. Pure-python twin of biomarker_engine.bh_qvalues so this module
+    stays dependency-light — used to FDR-correct enrichment across all TESTED
+    pathways (the multiple-testing family), consistent with every other Track-2 test."""
+    n = len(pvals)
+    if n == 0:
+        return []
+    order = sorted(range(n), key=lambda i: pvals[i])   # ascending p
+    q = [0.0] * n
+    prev = 1.0
+    for rank in range(n, 0, -1):                        # largest p (rank n) → smallest
+        i = order[rank - 1]
+        prev = min(prev, pvals[i] * n / rank)
+        q[i] = min(1.0, prev)
+    return q
+
+
 def pathway_enrichment(
     biomarkers: Sequence[str],
     background: Optional[Sequence[str]] = None,
     *,
     min_overlap: int = 2,
+    alpha: float = 0.05,
 ) -> List[Dict]:
     """
-    Hypergeometric over-representation test.
+    Hypergeometric over-representation test with Benjamini-Hochberg FDR control.
 
     Asks, for each pathway: are the biomarkers enriched in this pathway more
     than expected by chance, given the background set of measured metabolites?
+    Raw hypergeometric p-values are BH-corrected across all tested pathways, and
+    `significant` is gated on the FDR q-value (not the raw p) — matching the
+    differential/discovery modules so a reviewer sees consistent multiple-testing
+    handling.
     """
     bm = {normalize(b) for b in biomarkers if normalize(b)}
     if background:
@@ -482,11 +505,16 @@ def pathway_enrichment(
             "overlap": k,
             "pathway_size": K,
             "fold_enrichment": round(fold_enrichment, 2),
-            "significant": p_value < 0.05,
             "metabolites": sorted(hits),
         })
 
-    results.sort(key=lambda r: (r["p_value"], -r["overlap"]))
+    # BH-FDR across all tested pathways; significance is gated on q, not raw p.
+    qs = _bh_qvalues([r["p_value"] for r in results])
+    for r, q in zip(results, qs):
+        r["q_value"] = round(q, 5)
+        r["significant"] = q < alpha
+
+    results.sort(key=lambda r: (r["q_value"], r["p_value"], -r["overlap"]))
     return results
 
 
@@ -519,6 +547,7 @@ def interpret_panel(
             "total": len(annotations),
         },
         "n_significant_pathways": n_significant,
+        "enrichment_multiple_testing": "benjamini_hochberg",
         "top_pathway": enrichment[0]["pathway"] if enrichment else None,
         "top_pathway_significant": bool(enrichment and enrichment[0]["significant"]),
     }

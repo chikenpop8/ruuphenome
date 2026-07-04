@@ -70,7 +70,8 @@ def build_library(tsv_bytes: bytes) -> Dict:
     """
     df_meta, _df_abund, sample_cols = load_domain2(tsv_bytes)
 
-    smiles_list = df_meta["smiles"].fillna("").tolist()
+    smiles_list = (df_meta["smiles"].fillna("").tolist()
+                   if "smiles" in df_meta.columns else [""] * len(df_meta))
     predicted, backend = predict_shifts(smiles_list)
 
     # Scale mean abundance into a readable pseudo-concentration (µM).
@@ -118,7 +119,8 @@ def build_library(tsv_bytes: bytes) -> Dict:
     return {
         "spectrometer": {
             "frequency_mhz": 599.48,   # typical 600 MHz serum metabolomics rig
-            "ph": 7.00,
+            "ph": 7.00,                # assumed physiological default — NOT measured
+            "ph_measured": False,      # nothing in this pipeline reads real sample pH yet
             "compound_count": len(compounds),
             "sample_count": len(sample_cols),
             "prediction_backend": backend,

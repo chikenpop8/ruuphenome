@@ -1,0 +1,21 @@
+{
+  "corpus_path": "/Applications/Vibing coding/Noom copy cat/backend/nmr_api/open_data/bmrb_1h_corpus.npz",
+  "n_spectra": 12,
+  "n_points": 4096,
+  "labels": [
+    "L-alanine",
+    "L-glutamine",
+    "L-histidine",
+    "L-leucine",
+    "L-phenylalanine",
+    "L-tyrosine",
+    "L-valine",
+    "citrate",
+    "glycine",
+    "creatinine",
+    "L-lactic acid",
+    "D-glucose"
+  ],
+  "failures": [],
+  "provenance_path": "/Applications/Vibing coding/Noom copy cat/backend/nmr_api/open_data/provenance.json"
+}

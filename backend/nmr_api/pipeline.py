@@ -42,6 +42,44 @@ _NAME_ALIASES = {
     "name", "compound", "compound_name", "identification",
 }
 
+# Extra missing-value tokens common in real concentration exports. Added ON TOP OF
+# pandas' defaults so a blank / "n.d." / "<LOD" cell becomes NaN instead of a
+# spurious 0 or a text value that silently coerces to NaN with no trace. Kept to
+# tokens that only ever mean "no measurement" in a NUMERIC column — so this list
+# is applied to Table 1 (concentrations), not to the categorical metadata table.
+NUMERIC_MISSING_TOKENS = [
+    "n.d.", "N.D.", "nd", "ND", "n/d", "N/D",
+    "<LOD", "<lod", "<LLOQ", "<lloq", "BLQ", "BDL", "b.d.l.",
+    "-", "--", "—", "not detected", "Not Detected", "NOT DETECTED",
+]
+
+
+def sniff_separator(head: str) -> str:
+    """Most likely delimiter among tab, semicolon, comma (handles EU-style CSVs)."""
+    counts = {"\t": head.count("\t"), ";": head.count(";"), ",": head.count(",")}
+    best = max(counts, key=counts.get)
+    return best if counts[best] > 0 else ","
+
+
+def coerce_numeric(frame: "pd.DataFrame") -> "pd.DataFrame":
+    """to_numeric that also rescues European decimals ('12,34' -> 12.34).
+
+    A comma is only treated as a decimal point when the WHOLE cell is a single
+    decimal number ('^\\d+,\\d+$'). Thousands-separated ('1,234') or list-like
+    ('a,b') values are left untouched and simply coerce to NaN as before, so this
+    can never corrupt data that was already clean.
+    """
+    def _fix(col):
+        # Any non-numeric column may hold "12,34" text (pandas may type it as
+        # object OR the newer 'str' dtype — check "not numeric", not "== object").
+        if not pd.api.types.is_numeric_dtype(col):
+            s = col.astype(str).str.strip()
+            mask = s.str.match(r"^\d+,\d+$")
+            if mask.any():
+                col = s.where(~mask, s.str.replace(",", ".", regex=False))
+        return pd.to_numeric(col, errors="coerce")
+    return frame.apply(_fix)
+
 
 def read_results_table(raw: bytes) -> pd.DataFrame:
     """
@@ -52,9 +90,9 @@ def read_results_table(raw: bytes) -> pd.DataFrame:
     to the canonical ``metabolite_identification``. Sample columns are left as-is.
     """
     text = raw.decode("utf-8", errors="replace")
-    head = text[:8192]
-    sep = "\t" if head.count("\t") >= head.count(",") else ","
-    df = pd.read_csv(io.StringIO(text), sep=sep, low_memory=False)
+    sep = sniff_separator(text[:8192])
+    df = pd.read_csv(io.StringIO(text), sep=sep, low_memory=False,
+                     na_values=NUMERIC_MISSING_TOKENS, keep_default_na=True)
 
     rename: Dict[str, str] = {}
     for col in df.columns:
@@ -193,7 +231,8 @@ def analyze(
     peaks = observed_peaks or DEFAULT_DOMAIN1_PEAKS
     df_meta, _df_abund, sample_cols = load_domain2(tsv_bytes)
 
-    smiles_list = df_meta["smiles"].fillna("").tolist()
+    smiles_list = (df_meta["smiles"].fillna("").tolist()
+                   if "smiles" in df_meta.columns else [""] * len(df_meta))
     predicted, backend = predict_shifts(smiles_list)
 
     df_scores = score_candidates(df_meta, predicted, peaks, tolerance_ppm)

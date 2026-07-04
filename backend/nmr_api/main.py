@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 
 if not os.environ.get("LOKY_MAX_CPU_COUNT"):
@@ -22,6 +23,8 @@ try:
         biology,
         biomarker_engine,
         biomarkers,
+        correlation,
+        differential,
         dimensionality,
         enrich,
         laboratory_workflow,
@@ -31,6 +34,7 @@ try:
         open_data,
         pipeline,
         profile_workflow,
+        provenance as provenance_mod,
         self_supervised,
         signal_processing,
         spectral_cohort,
@@ -41,6 +45,8 @@ except ImportError:  # pragma: no cover - direct script execution fallback
     import biology  # type: ignore
     import biomarker_engine  # type: ignore
     import biomarkers  # type: ignore
+    import correlation  # type: ignore
+    import differential  # type: ignore
     import dimensionality  # type: ignore
     import enrich  # type: ignore
     import laboratory_workflow  # type: ignore
@@ -50,6 +56,7 @@ except ImportError:  # pragma: no cover - direct script execution fallback
     import open_data  # type: ignore
     import pipeline  # type: ignore
     import profile_workflow  # type: ignore
+    import provenance as provenance_mod  # type: ignore
     import self_supervised  # type: ignore
     import signal_processing  # type: ignore
     import spectral_cohort  # type: ignore
@@ -114,6 +121,16 @@ DATASETS = {
         "class_names": {0: "healthy", 1: "APS patient"},
         "source": "MetaboLights MTBLS356 (¹H NMR, serum; 27 APS patients vs 27 healthy donors)",
     },
+    "mtbls6213": {
+        "label": "MTBLS6213 — rheumatoid arthritis vs control (serum NMR)",
+        "kind": "labeled",
+        "tsv": _OPEN / "demo_mtbls6213.tsv",
+        "labels": _OPEN / "demo_mtbls6213_labels.json",
+        "task": "rheumatoid arthritis vs control",
+        "class_names": {0: "control", 1: "rheumatoid arthritis"},
+        "source": ("MetaboLights MTBLS6213 (¹H NMR, serum; 700 MHz CPMG, Chenomx-quantified; "
+                   "45 RA vs 7 control — small control arm, low statistical power)"),
+    },
 }
 
 # NCD screening panel — maps Thailand's major non-communicable diseases to a real,
@@ -144,6 +161,17 @@ NCD_PANEL = {
             "events are stroke and heart attack — showing the pipeline detects a "
             "vascular-disease metabolic signature (a true ischemic-heart-disease cohort, "
             "MTBLS395, has its outcome labels ethically withheld and cannot be used)."
+        ),
+    },
+    "rheumatoid_arthritis": {
+        "ncd": "Rheumatoid arthritis (autoimmune / inflammatory)",
+        "dataset": "mtbls6213",
+        "thai_burden": (
+            "RA affects ~0.3–1% of adults and is a major driver of chronic disability and "
+            "elevated cardiovascular risk. This 700 MHz serum ¹H-NMR cohort adds the "
+            "inflammatory axis the panel previously lacked. NOTE: 45 RA vs only 7 controls — "
+            "a small control arm, so the AUC is low-power (wide CI); read as signal-present, "
+            "not a validated screen."
         ),
     },
 }
@@ -186,7 +214,7 @@ app = FastAPI(
         "them against annotated spectrum peaks to identify and rank metabolites."
     ),
 )
-_PROFILE_STATE: dict = {"qc": None, "auto": None}
+_PROFILE_STATE: dict = {"qc": None, "auto": None, "auto_thresholds": None}
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -268,8 +296,14 @@ def plugins():
             "ready": _ver("sklearn") is not None,
             "models": model_suite.dependency_status(),
         },
+        "track1_identification": {
+            "deterministic": "reference-shift matching + NNLS deconvolution + target-decoy FDR (always on)",
+            "learned_pscnn": _pscnn_status(),
+            "active": ("deterministic + pSCNN (hybrid)" if _pscnn_status().get("trained")
+                       else "deterministic only (train pSCNN to enable the hybrid channel)"),
+        },
         "domain2_dimensionality": dimensionality.dependency_status(),
-        "structure_rendering": {"smilesdrawer": "frontend (CDN)", "rdkit": _ver("rdkit")},
+        "structure_rendering": {"smilesdrawer": "frontend (CDN)"},
         "web": {"fastapi": _ver("fastapi"), "pandas": _ver("pandas"), "numpy": _ver("numpy")},
     }
 
@@ -564,6 +598,9 @@ async def profile_auto(
             result["spectrum_meta"]["qc_override"] = {"reason": reason}
         _PROFILE_STATE["qc"] = qc
         _PROFILE_STATE["auto"] = result
+        # remember the thresholds the user actually profiled with, so the report
+        # re-buckets with the SAME hi/lo instead of drifting to the defaults.
+        _PROFILE_STATE["auto_thresholds"] = {"hi": hi, "lo": lo}
         return result
     except HTTPException:
         raise
@@ -588,7 +625,10 @@ def profile_report(signed_by: str | None = None):
     auto = _PROFILE_STATE.get("auto")
     if not auto:
         raise HTTPException(status_code=404, detail="Run POST /profile/auto first.")
-    triaged = profile_workflow.triage(auto["metabolites"])
+    th = _PROFILE_STATE.get("auto_thresholds") or {}
+    triaged = profile_workflow.triage(
+        auto["metabolites"], hi=th.get("hi", 0.85), lo=th.get("lo", 0.5)
+    )
     return profile_workflow.report_payload(
         qc=_PROFILE_STATE.get("qc"),
         auto=auto,
@@ -796,13 +836,24 @@ def _dimensionality_task(
     return result
 
 
+def _dataset_matrix(v: dict) -> str:
+    """Biofluid/NMR sample type for a dataset (serum / urine / plasma / …), read from
+    its source/label so the UI can group cohorts by what kind of ¹H-NMR they are."""
+    s = (str(v.get("source", "")) + " " + str(v.get("label", ""))).lower()
+    for m in ("serum", "urine", "plasma", "csf", "tissue", "cell"):
+        if m in s:
+            return m
+    return "other"
+
+
 @app.get("/datasets")
 def list_datasets():
-    """Selectable bundled demo datasets for the UI switcher."""
+    """Selectable bundled demo datasets for the UI switcher (grouped by NMR matrix)."""
     return {
         "datasets": [
             {"id": k, "label": v["label"], "kind": v["kind"],
-             "available": Path(v["tsv"]).exists()}
+             "matrix": _dataset_matrix(v), "task": v.get("task"),
+             "source": v.get("source"), "available": Path(v["tsv"]).exists()}
             for k, v in DATASETS.items()
         ]
     }
@@ -858,8 +909,9 @@ _NCD_CACHE: dict = {}
 @app.get("/ncd-screen")
 def ncd_screen(repeats: int = 3):
     """Screen Thailand's major NCDs. Each disease is backed by a leakage-safe model on
-    a real public MetaboLights cohort; returns per-NCD validation AUC, top biomarkers
-    and an honest signal-strength flag. First call warms a cache (~1 min)."""
+    a single public MetaboLights cohort; returns per-NCD INTERNAL cross-validated AUC
+    (not clinical/diagnostic accuracy, not externally validated), top biomarkers and an
+    honest signal-strength flag. First call warms a cache (~1 min)."""
     import numpy as np
 
     panel = []
@@ -892,36 +944,257 @@ def ncd_screen(repeats: int = 3):
         panel.append(entry)
     return {
         "panel": panel,
-        "note": ("Each NCD model is validated leakage-safe on its own public cohort. "
-                 "Screening a new sample requires matrix-matched data and is subject to "
-                 "batch effects — this is a research screen, not a clinical diagnosis."),
+        "auc_type": "internal_cross_validation",
+        "note": ("Each AUC is INTERNAL cross-validation (leakage-safe nested CV) on a SINGLE "
+                 "public cohort — it measures internal discrimination, NOT clinical or "
+                 "diagnostic accuracy, and is not external-cohort validated. Screening a new "
+                 "sample requires matrix-matched data and is subject to batch effects. "
+                 "Research use only — not a clinical diagnosis."),
     }
 
 
+def _canonical_name(name: str) -> str:
+    """Best-effort canonical form for cross-scheme metabolite-name matching.
+
+    The bundled cohorts and REFERENCE_SHIFTS disagree on naming for the SAME
+    molecule — confirmed concretely across all 5 demo files, e.g. 'L-Lactic
+    acid' (dashboard/MetaboLights) vs 'lactate' (Track-1 REFERENCE_SHIFTS),
+    'Citric acid' vs 'citrate', '(R)-3-Hydroxybutyric acid' vs
+    '3-hydroxybutyrate'. Two patterns account for the mismatches seen: stereo-
+    descriptor prefixes (L-/D-/(R)-/(S)-/(+)-/(-)-) and the '-ic acid' <->
+    '-ate' suffix pair. This is name normalization, not an ontology/synonym
+    lookup — it only strips these specific patterns, so chemically distinct
+    metabolites that merely share a root word are not accidentally collapsed.
+    Names outside these two patterns (e.g. 'N-acetylglutamate') pass through
+    unchanged and may still fail to match a differently-named entry — this is
+    a known limitation (see HANDOFF.md "Known gaps").
+    """
+    n = str(name).strip().lower()
+    if not n:
+        return n
+    n = re.sub(r'^[\(\[]?[rsRS±+\-/]{1,4}[\)\]]?-\s*', '', n)    # (R)-, (S)-, (+)-, (-)-, (+/-)-
+    n = re.sub(r'^[ld]-', '', n)                                  # L-, D-
+    n = n.strip()
+    n = re.sub(r'\s+acid$', '', n)                                # "citric acid" -> "citric"
+    if n.endswith('ic'):
+        n = n[:-2] + 'ate'                                        # "citric" -> "citrate"
+    return re.sub(r'\s+', ' ', n).strip()
+
+
+def _ncd_reference_panel(key: str, cfg: dict, repeats: int = 3) -> dict:
+    """The honest biomarker panel + AUC for one NCD (same computation
+    /ncd-screen exposes; reuses its cache so this is free after warm-up)."""
+    cache_key = (key, repeats)
+    if cache_key not in _NCD_CACHE:
+        try:
+            Xs, y, patients, task = _load_dataset_task(cfg["dataset"])
+            import numpy as np
+            res = biomarker_engine.discover(
+                Xs.values, np.asarray(y), k=8, repeats=repeats,
+                feature_names=list(Xs.columns), groups=patients)
+            _NCD_CACHE[cache_key] = {
+                "auc": round(float(res.get("honest_roc_auc", 0.0)), 3),
+                "top_biomarkers": (res.get("stable_panel") or [])[:8],
+            }
+        except Exception as exc:
+            _NCD_CACHE[cache_key] = {"error": str(exc), "auc": 0.0, "top_biomarkers": []}
+    return _NCD_CACHE[cache_key]
+
+
+def _ncd_relevance(discovered_panel: list, present_metabolites: list) -> list:
+    """For each Thai NCD, report (a) its own INTERNAL cross-validated AUC (leakage-safe
+    nested CV on a single public cohort — not clinical/diagnostic accuracy) + biomarker
+    signature (computed live on that NCD's public cohort), and (b) a per-
+    metabolite match/no-match of that signature against the metabolites
+    detected in THIS loaded sample — so it is obvious what is the same and
+    what is not. Name matching goes through _canonical_name(), which strips
+    stereo-prefixes (L-/D-/(R)-/(S)-) and reconciles "-ic acid" <-> "-ate" —
+    confirmed necessary: e.g. the dashboard's 'L-Lactic acid' and Track-1's
+    'lactate' are the same molecule but did not match under plain casefold."""
+    present_set = {_canonical_name(m) for m in present_metabolites}
+    disc_set = {_canonical_name(m) for m in discovered_panel}
+    out = []
+    for key, cfg in NCD_PANEL.items():
+        ref = _ncd_reference_panel(key, cfg)
+        metabs = []
+        n_present = 0
+        n_disc = 0
+        for m in ref.get("top_biomarkers", []):
+            mk = _canonical_name(m)
+            present = mk in present_set
+            in_disc = mk in disc_set
+            if present:
+                n_present += 1
+            if in_disc:
+                n_disc += 1
+            metabs.append({"name": m, "present": present, "in_discovered_panel": in_disc})
+        out.append({
+            "ncd": cfg["ncd"],
+            "dataset": cfg["dataset"],
+            "ncd_auc": ref.get("auc"),
+            "auc_type": "internal_cross_validation",
+            "metabolites": metabs,
+            "n_total": len(metabs),
+            "n_present": n_present,
+            "n_in_discovered": n_disc,
+            "relevant": n_present > 0 or n_disc > 0,
+        })
+    # Most relevant first: those whose biomarkers this sample actually contains.
+    out.sort(key=lambda e: (-e["n_in_discovered"], -e["n_present"]))
+    return out
+
+
 # ── Track 1: binned-spectra cohort pipeline (annotate → visualize → bridge) ──
+def _pscnn_status() -> dict:
+    """pSCNN availability/trained status for the /status endpoint (lazy import)."""
+    try:
+        from . import pscnn
+        return pscnn.status()
+    except Exception as exc:
+        return {"available": False, "trained": False, "error": str(exc)}
+
+
+# Serve-time pSCNN identification channel — loaded once if a checkpoint is present.
+_PSCNN_BUNDLE = None
+_PSCNN_LOADED = False
+
+
+def _load_pscnn():
+    """Load models/pscnn_identifier.pt once (cached). None if absent/unavailable —
+    the pipeline then runs deterministic-only, exactly like the SSL encoder."""
+    global _PSCNN_BUNDLE, _PSCNN_LOADED
+    if _PSCNN_LOADED:
+        return _PSCNN_BUNDLE
+    _PSCNN_LOADED = True
+    try:
+        from . import pscnn
+        if pscnn.available() and pscnn.CHECKPOINT_PATH.exists():
+            _PSCNN_BUNDLE = pscnn.load_checkpoint()
+    except Exception:
+        _PSCNN_BUNDLE = None
+    return _PSCNN_BUNDLE
+
+
+def _identification_channels(Xn, bin_ppm, annotate_present, deconv):
+    """Deterministic identification + (if a pSCNN checkpoint exists) a learned
+    channel, blended into the hybrid — the honest 'deterministic + pSCNN' winner,
+    now reachable from the app (was benchmark-only). The deterministic CORE is the
+    FDR-confirmed deconvolution set (trustworthy), matching the benchmark's hybrid
+    rule (FDR ∪ pSCNN); the permissive annotate count is reported separately."""
+    fdr = sorted({m["metabolite"] for m in deconv.get("metabolites", []) if m.get("passes_fdr")})
+    ch = {"method": "deterministic (NNLS + target-decoy FDR)",
+          "deterministic_present": fdr,
+          "annotate_present_count": len(set(annotate_present))}
+    try:
+        from . import pscnn
+        ch["pscnn_status"] = pscnn.status()
+        bundle = _load_pscnn()
+        if bundle is not None:
+            # 0.6 (not 0.5) for the hybrid contribution — matches the benchmark's
+            # precision-respecting hybrid rule; the pSCNN is a recall booster.
+            learned = pscnn.identify_cohort(bundle, Xn, bin_ppm, present_threshold=0.6)
+            hybrid = sorted(set(fdr) | set(learned["present"]))
+            ch.update({
+                "method": "deterministic + pSCNN (hybrid)",
+                "learned_present": learned["present"],
+                "hybrid_present": hybrid,
+                "hybrid_added_by_pscnn": sorted(set(learned["present"]) - set(fdr)),
+                "learned_detail": {"panel_size": learned["panel_size"],
+                                   "detection_rate": learned["detection_rate"]},
+            })
+    except Exception as exc:  # never let the learned channel break the pipeline
+        ch["pscnn_error"] = str(exc)
+    return ch
+
+
 def _run_cohort_pipeline(X, bin_ppm, label_map=None, normalize="pqn",
-                         include_biomarkers=True, identified_peaks=None, fdr=0.05):
-    """Shared engine: binned matrix → normalize → annotate → (optional) Track 2."""
+                         include_biomarkers=True, identified_peaks=None, fdr=0.05,
+                         provenance=None):
+    """Shared engine: binned matrix → normalize → annotate → (optional) Track 2.
+
+    `provenance` (from provenance.build_provenance) drives CONDITION-AWARE behaviour:
+    its conditions.apply_d2o_guard decides whether the D₂O exchangeable-proton rule is
+    applied in annotate (True for aqueous/D₂O, False for organic solvents)."""
     import numpy as np
+    apply_d2o_guard = True
+    matrix = None
+    if provenance:
+        conds = provenance.get("conditions", {})
+        apply_d2o_guard = bool(conds.get("apply_d2o_guard", True))
+        matrix = conds.get("sample_type")
+    # Matrix-gated physiological whitelist: for a known serum/urine matrix, restrict the
+    # reference set to real biofluid metabolites (cuts over-annotation vs the ~578 BMRB
+    # library so the deterministic FDR can confirm real compounds). Unknown → full library.
+    panel_ref = spectral_cohort.panel_reference_shifts(matrix)
+    n_full = len(spectral_cohort.REFERENCE_SHIFTS)
     Xn = (spectral_cohort.pqn_normalize(X) if normalize == "pqn"
           else spectral_cohort.total_area_normalize(X) if normalize == "total_area"
           else X)
-    ann = spectral_cohort.annotate(Xn, bin_ppm, identified_peaks=identified_peaks)
+    ann = spectral_cohort.annotate(Xn, bin_ppm, reference_shifts=panel_ref,
+                                   identified_peaks=identified_peaks,
+                                   apply_d2o_guard=apply_d2o_guard)
     M = ann.pop("annotated_matrix")
     # ASICS-style NNLS deconvolution → overlap-resolved quantification + FDR
-    deconv = spectral_cohort.deconvolve(Xn, bin_ppm, fdr=fdr)
-    deconv.pop("concentrations", None)        # drop the matrix (not JSON-serializable)
+    deconv = spectral_cohort.deconvolve(Xn, bin_ppm, reference_shifts=panel_ref, fdr=fdr)
+    conc_M = deconv.pop("concentrations", None)   # the overlap-resolved, FDR-gated matrix
     out = {
         "annotation": ann,
         "quantification": deconv,
         "visualization": spectral_cohort.overlay_traces(Xn),
         "normalization": normalize,
+        "reference_panel": {
+            "matrix": matrix,
+            "restricted": panel_ref is not None,
+            "n_reference": len(panel_ref) if panel_ref is not None else n_full,
+            "n_full_library": n_full,
+        },
         "sample_metabolite_shape": list(M.shape),
     }
-    if include_biomarkers and label_map and not M.empty:
-        rows = [s for s in M.index if str(s) in label_map]
+    if provenance is not None:
+        out["provenance"] = provenance
+    present_metabolites = [m.get("metabolite") for m in ann.get("metabolites", [])]
+    # Identification channels: deterministic + (if a checkpoint exists) pSCNN hybrid.
+    out["identification"] = _identification_channels(Xn, bin_ppm, present_metabolites, deconv)
+    # ── Track-2 input SAFETY ──────────────────────────────────────────────────
+    # Feed Track 2 ONLY the FDR-CONFIRMED, overlap-resolved concentrations (the
+    # trustworthy identifications), NOT every NNLS-fitted or permissively-annotated
+    # metabolite. Fall back to the annotate abundance only when nothing passes FDR,
+    # and flag that as low-confidence so downstream results are not oversold.
+    fdr_names = {m["metabolite"] for m in deconv.get("metabolites", []) if m.get("passes_fdr")}
+    fit_r2 = deconv.get("mean_fit_r2")
+    conc_fdr = None
+    if conc_M is not None and fdr_names:
+        cols = [c for c in conc_M.columns if c in fdr_names]
+        if cols:
+            conc_fdr = conc_M[cols]
+    if conc_fdr is not None and not conc_fdr.empty:
+        disc_M, src = conc_fdr, "nnls_fdr_confirmed"
+    else:
+        disc_M, src = M, "annotate_abundance_fallback"
+    # Whole-spectrum fit R² is NOT a meaningful confidence signal under a restricted
+    # physiological panel: a targeted serum/urine panel intentionally does not model the
+    # water peak, lipids, or unmodeled regions, so R² collapses by design. Gate confidence
+    # on the FDR-confirmed count there, not on reconstruction of the whole spectrum.
+    restricted = bool((out.get("reference_panel") or {}).get("restricted"))
+    r2_low = (fit_r2 is not None and fit_r2 < 0.3) and not restricted
+    low_quality = (src == "annotate_abundance_fallback") or len(fdr_names) < 3 or r2_low
+    out["discovery_matrix_source"] = src
+    out["track1_quality"] = {
+        "n_fdr_confirmed": len(fdr_names),
+        "mean_fit_r2": fit_r2,
+        "discovery_input": src,
+        "confidence": "low" if low_quality else "high",
+        "warning": (None if not low_quality else
+                    "Low Track-1 identification quality (few/no FDR-confirmed metabolites or poor "
+                    "reconstruction fit). Downstream biomarker/pathway results are built on "
+                    "low-confidence identifications and should be treated as EXPLORATORY, not "
+                    "high-confidence."),
+    }
+    stable_panel = []
+    if include_biomarkers and label_map and not disc_M.empty:
+        rows = [s for s in disc_M.index if str(s) in label_map]
         if len(set(label_map[str(s)] for s in rows)) >= 2 and len(rows) >= 8:
-            sub = M.loc[rows]
+            sub = disc_M.loc[rows]
             y = np.array([label_map[str(s)] for s in rows])
             groups = np.array([str(s) for s in rows])
             disc = biomarker_engine.discover(
@@ -929,7 +1202,30 @@ def _run_cohort_pipeline(X, bin_ppm, label_map=None, normalize="pqn",
                 feature_names=list(sub.columns), groups=groups)
             disc["biological_interpretation"] = biology.interpret_panel(
                 disc.get("stable_panel", []), background=list(sub.columns))
+            disc["track1_input_confidence"] = out["track1_quality"]["confidence"]
+            if low_quality:
+                disc["low_confidence_warning"] = out["track1_quality"]["warning"]
+            stable_panel = disc.get("stable_panel", [])
             out["biomarkers"] = disc
+    out["ncd_relevance"] = _ncd_relevance(stable_panel, present_metabolites)
+    # Feature selection (Track-1 fn 3): most informative ppm positions. Supervised
+    # on the LABELED SUBSET (was all-or-nothing → one unlabeled sample silently
+    # downgraded the whole cohort to unsupervised); unsupervised when no labels.
+    try:
+        sel_X, y_arr, note = Xn, None, None
+        if label_map:
+            pairs = [(i, label_map.get(str(s))) for i, s in enumerate(Xn.index)]
+            lab = [(i, v) for i, v in pairs if v is not None]
+            if len(lab) >= 4 and len({v for _, v in lab}) >= 2:
+                sel_X = Xn.iloc[[i for i, _ in lab]]
+                y_arr = np.array([v for _, v in lab])
+                if len(lab) < len(pairs):
+                    note = f"supervised on {len(lab)}/{len(pairs)} labeled samples"
+        out["diagnostic_ppm"] = spectral_cohort.select_diagnostic_ppm(sel_X, bin_ppm, y=y_arr, top_k=8)
+        if note:
+            out["diagnostic_ppm"]["labeled_note"] = note
+    except Exception:
+        pass
     return out
 
 
@@ -941,7 +1237,11 @@ def spectral_demo_pipeline():
     Shows the full automated pipeline without any upload.
     """
     X, bin_ppm, labels = spectral_cohort.make_demo_binned()
-    result = _run_cohort_pipeline(X, bin_ppm, label_map=labels, normalize="pqn")
+    profile = spectral_cohort.profile_matrix(X, bin_ppm)
+    prov = provenance_mod.build_provenance(
+        profile, {"solvent": "d2o", "sample_type": "unknown", "field_mhz": "600"},
+        normalization_applied="pqn")
+    result = _run_cohort_pipeline(X, bin_ppm, label_map=labels, normalize="pqn", provenance=prov)
     result["task"] = "demo: simulated case vs control (BCAA signal planted)"
     result["note"] = "Synthetic cohort for pipeline demonstration, not real data."
     return result
@@ -1013,26 +1313,199 @@ async def spectral_pipeline(
         raise HTTPException(status_code=422, detail=f"Pipeline failed: {exc}")
 
 
-def _concentration_csv(X, bin_ppm) -> str:
+def _concentration_csv(X, bin_ppm, provenance=None) -> str:
     """Deconvolve a binned cohort and return the sample × metabolite µM table
-    as CSV — Chenomx's signature deliverable."""
+    as CSV — Chenomx's signature deliverable. When `provenance` is supplied, its
+    conditions + warnings are written as comment lines so the export is self-describing."""
     Xn = spectral_cohort.pqn_normalize(X)
     dec = spectral_cohort.deconvolve(Xn, bin_ppm)
     conc = dec["concentrations"]
     keep = [m["metabolite"] for m in dec["metabolites"] if m["passes_fdr"]] \
         or list(conc.columns)
     conc = conc[[c for c in keep if c in conc.columns]].round(3)
-    header = f"# RuuPhenome concentration table — units: {dec['units']}"
+    lines = [f"# RuuPhenome concentration table — units: {dec['units']}"]
     if dec.get("internal_standard"):
-        header += f" (calibrated to {dec['internal_standard'].upper()} @ {dec['standard_um']} µM)"
-    return header + "\n" + conc.to_csv()
+        lines[0] += f" (calibrated to {dec['internal_standard'].upper()} @ {dec['standard_um']} µM)"
+    if provenance:
+        c = provenance.get("conditions", {})
+        lines.append("# provenance — conditions (from user/metadata; a binned matrix carries none):")
+        for k in ("solvent_label", "ph", "temperature_c", "field_mhz", "sample_type",
+                  "normalization", "excluded_regions", "internal_standard"):
+            v = c.get(k)
+            if v not in (None, ""):
+                lines.append(f"#   {k}: {v}")
+        lines.append(f"#   D2O exchangeable-proton guard applied: {c.get('apply_d2o_guard')}")
+        for w in provenance.get("warnings", []):
+            lines.append(f"# warning: {w}")
+        lines.append(f"# {provenance.get('honesty', '')}")
+    return "\n".join(lines) + "\n" + conc.to_csv()
+
+
+# Standalone /track2/* endpoints run on an EXTERNALLY-quantified table the user
+# uploads directly — they bypass RuuPhenome's Track-1 identification + target-decoy
+# FDR gate. Attach this so no downstream consumer mistakes these for FDR-confirmed,
+# in-app identifications (mirrors the pipeline's track1_quality provenance).
+_EXTERNAL_TABLE_PROVENANCE = {
+    "input_source": "externally-quantified concentration table (uploaded directly)",
+    "track1_fdr_gate": False,
+    "confidence": "uploader_responsibility",
+    "note": ("These results are computed on the concentrations exactly as uploaded — the "
+             "metabolites were NOT identified or FDR-confirmed by RuuPhenome's Track-1 "
+             "pipeline. Identification/quantification quality is the uploader's "
+             "responsibility. Treat findings as research-use hypotheses, not validated "
+             "biomarkers, and not a clinical result."),
+}
+
+
+@app.post("/track2/biomarkers")
+async def track2_biomarkers(
+    concentrations: UploadFile = File(...),
+    metadata: UploadFile = File(...),
+    label_column: str | None = Form(default=None),
+    k: int = Form(default=8),
+    repeats: int = Form(default=3),
+    multiclass: bool = Form(default=False),
+):
+    """
+    Track 2, exactly as specified: Table 1 = substance names + measured
+    concentrations, processed data (rows = detected chemical names, columns =
+    samples); Table 2 = separate per-sample metadata. Finds biomarkers that
+    indicate the samples' condition via leakage-safe nested CV — reuses the
+    same build_matrix/parse_metadata/derive_labels/discover building blocks
+    already proven on 5+ real MetaboLights cohorts this project, just wired
+    for two SEPARATE uploaded tables instead of one embedded/bundled pair.
+    No training required: biomarker_engine.discover() is classical ML
+    (elastic-net/SVM/HistGB/XGBoost) that fits fresh on this upload in CPU
+    seconds — no pretrained model, no GPU.
+    """
+    conc_raw = await concentrations.read()
+    meta_raw = await metadata.read()
+    if not conc_raw or not meta_raw:
+        raise HTTPException(status_code=400, detail="Both Table 1 and Table 2 are required.")
+    try:
+        X, _names, _groups = biomarkers.build_matrix(conc_raw)  # samples x metabolites
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Could not parse Table 1 (concentrations): {exc}")
+    try:
+        meta = spectral_cohort.parse_metadata(meta_raw)
+        label_map, info = spectral_cohort.derive_labels(
+            meta, [str(s) for s in X.index], label_column=label_column,
+            multiclass=multiclass)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Could not join Table 2 (metadata): {exc}")
+
+    rows = [s for s in X.index if str(s) in label_map]
+    if len(set(label_map[str(s)] for s in rows)) < 2 or len(rows) < 8:
+        raise HTTPException(status_code=422, detail=(
+            f"Need >=2 classes and >=8 labeled samples for leakage-safe discovery; "
+            f"got {len(rows)} matched samples. Check that Table 2's sample-id column "
+            f"matches Table 1's sample columns."))
+
+    import numpy as np
+    sub = X.loc[rows]
+    y = np.array([label_map[str(s)] for s in rows])
+    groups = np.array([str(s) for s in rows])   # one sample = one patient here
+    try:
+        res = biomarker_engine.discover(
+            sub.values, y, k=k, repeats=repeats,
+            feature_names=list(sub.columns), groups=groups)
+        res["biological_interpretation"] = biology.interpret_panel(
+            res.get("stable_panel", []), background=list(sub.columns))
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Discovery failed: {exc}")
+    res["label_info"] = info
+    res["n_samples"] = int(sub.shape[0])
+    res["n_metabolites"] = int(sub.shape[1])
+    res["input_provenance"] = dict(_EXTERNAL_TABLE_PROVENANCE)
+    return res
+
+
+@app.post("/track2/preview")
+async def track2_preview(
+    concentrations: UploadFile = File(...),
+    metadata: UploadFile = File(...),
+    label_column: str | None = Form(default=None),
+):
+    """
+    Pre-flight check for Track 2 — read both tables and report exactly what was
+    detected (sample/metabolite counts, the auto-picked condition column, its
+    classes and balance, how many sample IDs matched between the two tables, and
+    any warnings) WITHOUT running discovery. Lets the analyst catch a mis-read
+    file — wrong delimiter, swapped rows/columns, mismatched sample IDs, mostly
+    empty cells — in seconds, before trusting a result.
+    """
+    import numpy as np
+    conc_raw = await concentrations.read()
+    meta_raw = await metadata.read()
+    if not conc_raw or not meta_raw:
+        raise HTTPException(status_code=400, detail="Both Table 1 and Table 2 are required.")
+    try:
+        X, _names, _groups = biomarkers.build_matrix(conc_raw)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Could not parse Table 1 (concentrations): {exc}")
+
+    n_samples, n_metabolites = int(X.shape[0]), int(X.shape[1])
+    warnings: list[str] = []
+
+    finite = np.isfinite(X.values)
+    frac_missing = float(1.0 - finite.mean()) if finite.size else 1.0
+    empty_metabolites = int((~finite.any(axis=0)).sum()) if finite.size else n_metabolites
+    if empty_metabolites:
+        warnings.append(f"{empty_metabolites} metabolite(s) are entirely empty across all samples.")
+    if frac_missing > 0.5:
+        warnings.append(f"{frac_missing*100:.0f}% of concentration cells are missing — "
+                        "check the file and delimiter.")
+    if n_metabolites < 6 and n_samples > 20:
+        warnings.append(f"Detected only {n_metabolites} metabolites but {n_samples} samples — "
+                        "Table 1 may be transposed (expected rows = metabolites, columns = samples).")
+
+    preview = {
+        "n_samples": n_samples,
+        "n_metabolites": n_metabolites,
+        "fraction_missing": round(frac_missing, 4),
+        "sample_ids_preview": [str(s) for s in list(X.index)[:8]],
+        "metabolites_preview": [str(c) for c in list(X.columns)[:8]],
+        "label_detected": False,
+        "ready_to_run": False,
+    }
+    try:
+        meta = spectral_cohort.parse_metadata(meta_raw)
+        label_map, info = spectral_cohort.derive_labels(
+            meta, [str(s) for s in X.index], label_column=label_column, multiclass=True)
+        n_matched = len(label_map)
+        preview["label_detected"] = True
+        preview["label_info"] = info
+        preview["n_matched_samples"] = int(n_matched)
+        preview["metadata_columns"] = [str(c) for c in meta.columns][:40]
+        if n_matched < n_samples:
+            warnings.append(
+                f"Only {n_matched} of {n_samples} Table-1 samples matched a Table-2 row by ID "
+                f"(column '{info['sample_column']}') — unmatched samples are dropped.")
+        bal = info.get("class_balance", {})
+        if bal and min(bal.values()) < 3:
+            warnings.append(f"Smallest class has only {min(bal.values())} sample(s) — "
+                            "discovery needs a few per class to be meaningful.")
+        if n_matched < 8:
+            warnings.append(f"Only {n_matched} labeled samples — need at least 8 for "
+                            "leakage-safe discovery.")
+        preview["ready_to_run"] = bool(n_matched >= 8 and len(bal) >= 2 and min(bal.values()) >= 2)
+    except Exception as exc:
+        preview["label_error"] = str(exc)
+        warnings.append(f"Could not derive a condition column yet: {exc}")
+
+    preview["warnings"] = warnings
+    return preview
 
 
 @app.get("/spectral/demo-concentrations.csv")
 def spectral_demo_concentrations():
     """Download the demo cohort's per-sample metabolite concentration table (CSV)."""
     X, bin_ppm, _ = spectral_cohort.make_demo_binned()
-    csv = _concentration_csv(X, bin_ppm)
+    profile = spectral_cohort.profile_matrix(X, bin_ppm)
+    prov = provenance_mod.build_provenance(
+        profile, {"solvent": "d2o", "sample_type": "unknown", "field_mhz": "600"},
+        normalization_applied="pqn")
+    csv = _concentration_csv(X, bin_ppm, provenance=prov)
     return Response(content=csv, media_type="text/csv", headers={
         "Content-Disposition": "attachment; filename=ruuphenome_concentrations.csv"})
 
@@ -1041,48 +1514,188 @@ def spectral_demo_concentrations():
 async def spectral_export_concentrations(
     binned_matrix: UploadFile = File(...),
     identified_peaks: UploadFile | None = File(default=None),
+    provenance_file: UploadFile | None = File(default=None),
+    solvent: str | None = Form(default=None),
+    ph: str | None = Form(default=None),
+    temperature: str | None = Form(default=None),
+    field_mhz: str | None = Form(default=None),
+    sample_type: str | None = Form(default=None),
+    normalization: str | None = Form(default=None),
+    excluded_regions: str | None = Form(default=None),
+    internal_standard: str | None = Form(default=None),
 ):
-    """Upload a binned matrix → download the per-sample µM concentration table (CSV)."""
+    """Upload a binned matrix → download the per-sample µM concentration table (CSV),
+    with optional condition/provenance fields written into the CSV header."""
     raw = await binned_matrix.read()
     if not raw:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    file_fields = await _read_condition_file(provenance_file)
+    form_fields = _condition_user_fields(
+        solvent=solvent, ph=ph, temperature=temperature, field_mhz=field_mhz,
+        sample_type=sample_type, normalization=normalization,
+        excluded_regions=excluded_regions, internal_standard=internal_standard)
+    user_fields = {**file_fields, **form_fields}
     try:
-        X, bin_ppm = spectral_cohort.load_binned_matrix(raw)
-        csv = _concentration_csv(X, bin_ppm)
+        X, bin_ppm, matrix_profile = spectral_cohort.load_binned_matrix_profiled(raw)
+        prov = provenance_mod.build_provenance(matrix_profile, user_fields,
+                                               normalization_applied="pqn")
+        csv = _concentration_csv(X, bin_ppm, provenance=prov)
         return Response(content=csv, media_type="text/csv", headers={
             "Content-Disposition": "attachment; filename=ruuphenome_concentrations.csv"})
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Export failed: {exc}")
 
 
+def _condition_user_fields(**kw) -> dict:
+    """Keep only the condition fields the user actually filled in (drop None/blank)."""
+    return {k: v for k, v in kw.items() if v not in (None, "")}
+
+
+async def _read_condition_file(f: "UploadFile | None") -> dict:
+    if f is None:
+        return {}
+    raw = await f.read()
+    return provenance_mod.parse_condition_file(raw) if raw else {}
+
+
 @app.post("/spectral/pipeline-file")
 async def spectral_pipeline_file(
     binned_matrix: UploadFile = File(...),
+    identified_peaks: UploadFile | None = File(default=None),
+    provenance_file: UploadFile | None = File(default=None),
     normalize: str = Form(default="pqn"),
     fdr: float = Form(default=0.05),
+    # ── condition / provenance fields (all OPTIONAL — a binned matrix carries none) ──
+    solvent: str | None = Form(default=None),
+    ph: str | None = Form(default=None),
+    temperature: str | None = Form(default=None),
+    field_mhz: str | None = Form(default=None),
+    sample_type: str | None = Form(default=None),
+    buffer_notes: str | None = Form(default=None),
+    salt_ionic_strength: str | None = Form(default=None),
+    sample_concentration: str | None = Form(default=None),
+    excluded_regions: str | None = Form(default=None),
+    internal_standard: str | None = Form(default=None),   # ADVANCED/optional only
 ):
     """
     One-file Track 1 → Track 2 pipeline. Accepts a binned matrix (sample × ppm-bin)
-    that may include an inline label column (Class/Group/Condition). Runs
-    annotate → quantify → (if a label is found) biomarker discovery + biology.
-    This is the simplest entry point: upload one CSV, get the full analysis.
+    that may include an inline label column (Class/Group/Condition), an OPTIONAL
+    organizer-provided compound-annotation file ({ppm: metabolite}) used as
+    authoritative pins, and OPTIONAL sample-condition/provenance fields (or a small
+    conditions file). A binned matrix carries no pH/solvent/temperature/prep, so these
+    come from the user or a metadata file and drive condition-aware behaviour (notably
+    whether the D₂O exchangeable-proton guard applies). Missing fields never fail —
+    they produce warnings. Runs annotate → quantify → (if a label is found) discovery.
     """
     raw = await binned_matrix.read()
     if not raw:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    pins = None
+    if identified_peaks is not None:
+        praw = await identified_peaks.read()
+        if praw:
+            try:
+                pins = spectral_cohort.parse_identified_peaks(praw)
+            except Exception as exc:
+                raise HTTPException(status_code=422,
+                                    detail=f"Could not parse the annotations file: {exc}")
+    # Condition fields: explicit form fields win; a conditions file fills any gaps.
+    file_fields = await _read_condition_file(provenance_file)
+    form_fields = _condition_user_fields(
+        solvent=solvent, ph=ph, temperature=temperature, field_mhz=field_mhz,
+        sample_type=sample_type, buffer_notes=buffer_notes,
+        salt_ionic_strength=salt_ionic_strength, sample_concentration=sample_concentration,
+        excluded_regions=excluded_regions, internal_standard=internal_standard)
+    user_fields = {**file_fields, **form_fields}
     try:
-        X, bin_ppm = spectral_cohort.load_binned_matrix(raw)
+        X, bin_ppm, matrix_profile = spectral_cohort.load_binned_matrix_profiled(raw)
+        prov = provenance_mod.build_provenance(matrix_profile, user_fields,
+                                               normalization_applied=normalize)
         label_map, info = spectral_cohort.extract_embedded_labels(
             raw, [str(s) for s in X.index])
         result = _run_cohort_pipeline(
             X, bin_ppm, label_map=label_map, normalize=normalize,
-            include_biomarkers=label_map is not None, fdr=fdr)
+            include_biomarkers=label_map is not None, identified_peaks=pins, fdr=fdr,
+            provenance=prov)
         result["label_info"] = info
+        result["organizer_pins_used"] = int(len(pins)) if pins else 0
         result["task"] = (f"{info['classes'][0]} vs {info['classes'][1]}"
                           if info else "no label column found — annotation only")
         return result
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Pipeline failed: {exc}")
+
+
+@app.post("/spectral/serum")
+async def spectral_serum(
+    spectra: UploadFile = File(...),
+    metadata: UploadFile = File(...),
+    label: str = Form(default="rheumatoid_arthritis"),
+    fdr: float = Form(default=0.05),
+):
+    """Human-Serum Track-1 from TWO separate uploads: the ppm×Var spectra matrix
+    (Human_Serum/spectra_intensity_ppm.csv) + the sample metadata
+    (Human_Serum/MTBLS6213_Metadata.csv or ISA-Tab). Transposes ppm×Var → samples×bins,
+    joins Var_i to metadata row i BY ORDER, uses Factor Value[Rheumatoid arthritis] as
+    the main label (Anti-TNF therapy kept as SECONDARY metadata), runs annotate → FDR →
+    pSCNN hybrid, and returns SAFE aggregate metrics only. Fails LOUDLY on a
+    spectra/metadata sample-count mismatch — never silently mis-joins or guesses labels."""
+    try:
+        from . import lico_loader
+    except ImportError:  # pragma: no cover
+        import lico_loader  # type: ignore
+    raw_s = await spectra.read()
+    raw_m = await metadata.read()
+    if not raw_s or not raw_m:
+        raise HTTPException(status_code=400,
+                            detail="Both a spectra file and a metadata file are required.")
+    try:
+        ds = lico_loader.load_serum_bytes(raw_s, raw_m)
+    except ValueError as exc:      # loud positional-join / parse failure
+        raise HTTPException(status_code=422, detail=f"Serum join failed: {exc}")
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Could not read the serum files: {exc}")
+
+    tasks = ds.get("tasks", {})
+    main = tasks.get(label)
+    usable = bool(main and main.get("label_map"))
+    if main is None:
+        label_status = (f"Requested label '{label}' not found in the metadata. Available: "
+                        f"{[k for k in ('rheumatoid_arthritis', 'anti_tnf_therapy') if k in tasks]}. "
+                        f"Running annotation/quantification without discovery — no label guessed.")
+    elif not usable:
+        label_status = (f"Requested label '{label}' has only one class in these samples "
+                        f"({main.get('note')}). Running annotation/quantification without "
+                        f"discovery — no label guessed.")
+    else:
+        label_status = "ok"
+
+    metrics = lico_loader.run_track1(ds, task=(label if usable else None), fdr=fdr)
+    metrics["requested_label"] = label
+    metrics["label_status"] = label_status
+    # SECONDARY metadata (anti-TNF etc.) — safe counts / one-class note only, never rows
+    metrics["secondary_labels"] = {
+        k: (v.get("class_balance") or {"note": v.get("note")})
+        for k, v in tasks.items() if k != label}
+    return metrics
+
+
+@app.get("/spectral/panels")
+def spectral_panels():
+    """Sizes of the matrix-gated physiological reference panels (serum/urine) vs the full
+    library — lets the UI show a DATA-DRIVEN candidate pool per sample type instead of a
+    hardcoded compound count."""
+    serum = spectral_cohort.panel_reference_shifts("serum")
+    urine = spectral_cohort.panel_reference_shifts("urine")
+    return {
+        "serum": {"n": len(serum) if serum else 0,
+                  "source": "Psychogios et al. 2011 (Human Serum Metabolome)"},
+        "urine": {"n": len(urine) if urine else 0,
+                  "source": "Bouatra et al. 2013 (Human Urine Metabolome)"},
+        "full": len(spectral_cohort.REFERENCE_SHIFTS),
+    }
 
 
 @app.post("/track2/metadata-columns")
@@ -1148,6 +1761,115 @@ async def track2_with_metadata(
         return disc
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Discovery failed: {exc}")
+
+
+def _track2_class_names(info: dict) -> dict | None:
+    """Build a {class_index: name} map from derive_labels info (binary or multiclass)."""
+    cn = info.get("class_names")
+    if cn:
+        return {int(k): v for k, v in cn.items()}
+    pos = info.get("positive_class")
+    classes = info.get("classes", [])
+    if pos is not None and classes:
+        other = next((c for c in classes if c != pos), None)
+        return {1: pos, 0: other}
+    return None
+
+
+def _track2_build(conc_raw: bytes, meta_raw: bytes, label_column, multiclass: bool):
+    """Shared Track-2 assembly: parse Table 1 + Table 2, derive labels, and return
+    (samples×metabolites DataFrame restricted to labeled rows, y, info)."""
+    import numpy as np
+    X, _names, _g = biomarkers.build_matrix(conc_raw)
+    meta = spectral_cohort.parse_metadata(meta_raw)
+    label_map, info = spectral_cohort.derive_labels(
+        meta, [str(s) for s in X.index], label_column=label_column, multiclass=multiclass)
+    rows = [s for s in X.index if str(s) in label_map]
+    if len(rows) < 6 or len(set(label_map[str(s)] for s in rows)) < 2:
+        raise ValueError(
+            f"Need ≥2 classes and ≥6 labeled samples; matched {len(rows)}. Check that "
+            f"Table 2's sample-id column matches Table 1's sample columns.")
+    sub = X.loc[rows].dropna(axis=1, how="all")
+    y = np.array([label_map[str(s)] for s in rows])
+    return sub, y, info
+
+
+@app.post("/track2/differential")
+async def track2_differential(
+    concentrations: UploadFile = File(...),
+    metadata: UploadFile = File(...),
+    label_column: str | None = Form(default=None),
+    multiclass: bool = Form(default=True),
+):
+    """
+    Differential-abundance analysis (Track 2): for EVERY metabolite, compute
+    per-group means, log2 fold-change (2-group), a hypothesis test (Mann-Whitney U
+    + Welch t for two groups; Kruskal-Wallis + ANOVA for >2), Benjamini-Hochberg
+    q-values across all metabolites, an effect size, and a volcano array.
+    Descriptive (full-cohort) — complements the leakage-safe discovery engine.
+    Auto-handles binary and multi-group tables.
+    """
+    conc_raw = await concentrations.read()
+    meta_raw = await metadata.read()
+    if not conc_raw or not meta_raw:
+        raise HTTPException(status_code=400, detail="Both Table 1 and Table 2 are required.")
+    try:
+        sub, y, info = _track2_build(conc_raw, meta_raw, label_column, multiclass)
+        result = differential.differential_analysis(
+            sub.values, y, list(sub.columns), class_names=_track2_class_names(info))
+        result["label_info"] = info
+        result["n_samples"] = int(sub.shape[0])
+        result["input_provenance"] = dict(_EXTERNAL_TABLE_PROVENANCE)
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Differential analysis failed: {exc}")
+
+
+@app.post("/track2/correlation")
+async def track2_correlation(
+    concentrations: UploadFile = File(...),
+    metadata: UploadFile | None = File(default=None),
+    method: str = Form(default="spearman"),
+    covariate_column: str | None = Form(default=None),
+    r_threshold: float = Form(default=0.3),
+):
+    """
+    Correlation & network analysis (Track 2): a pairwise correlation heatmap
+    (Pearson/Spearman, FDR-controlled) plus a partial-correlation Gaussian
+    Graphical Model network (direct associations only, Krumsiek et al. 2011).
+    Optionally correlate every metabolite against one numeric metadata covariate.
+    Needs only the concentration table; metadata is optional (for the covariate).
+    """
+    import pandas as pd
+    conc_raw = await concentrations.read()
+    if not conc_raw:
+        raise HTTPException(status_code=400, detail="Table 1 (concentrations) is required.")
+    try:
+        X, _names, _g = biomarkers.build_matrix(conc_raw)
+        result = correlation.analyze(
+            X.values, list(X.columns), method=method, r_threshold=r_threshold)
+        if metadata is not None and covariate_column:
+            meta_raw = await metadata.read()
+            meta = spectral_cohort.parse_metadata(meta_raw)
+            samp_col = spectral_cohort._guess_sample_column(meta, [str(s) for s in X.index])
+            if samp_col and covariate_column in meta.columns:
+                m = meta.set_index(meta[samp_col].astype(str))
+                m = m[~m.index.duplicated()]
+                cov = pd.to_numeric(m[covariate_column], errors="coerce") \
+                    .reindex([str(s) for s in X.index]).values
+                result["covariate_correlation"] = correlation.covariate_correlation(
+                    X.values, list(X.columns), cov, covariate_column, method=method)
+            else:
+                result["covariate_error"] = (
+                    f"Could not match covariate '{covariate_column}' to samples.")
+        result["input_provenance"] = dict(_EXTERNAL_TABLE_PROVENANCE)
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Correlation analysis failed: {exc}")
 
 
 @app.get("/enrich-names")
@@ -1294,6 +2016,42 @@ def biomarkers_projection(
         raise
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Projection failed: {exc}")
+
+
+@app.get("/biomarkers-correlation")
+def biomarkers_correlation(
+    dataset: str = "mtbls242",
+    method: str = "spearman",
+    r_threshold: float = 0.3,
+    alpha: float = 0.05,
+):
+    """Metabolite correlation + partial-correlation (GGM) network on a bundled cohort.
+
+    Runs on the FULL samples×metabolites concentration matrix (all samples). The
+    network is a Gaussian Graphical Model: edges are DIRECT partial correlations —
+    each pair conditioned on all other metabolites (Ledoit-Wolf shrinkage,
+    Krumsiek et al. 2011) — FDR-controlled. Descriptive, RUO.
+    """
+    try:
+        cfg = DATASETS.get(dataset)
+        if cfg is None:
+            raise HTTPException(status_code=404, detail=f"Unknown dataset '{dataset}'.")
+        tsv = Path(cfg["tsv"])
+        if not tsv.exists():
+            raise HTTPException(status_code=404, detail=f"Dataset '{dataset}' not bundled.")
+        X, names, _ = biomarkers.build_matrix(tsv.read_bytes())
+        result = correlation.analyze(
+            X.values, names, method=method, r_threshold=r_threshold, alpha=alpha)
+        result["dataset"] = dataset
+        result["cohort_label"] = cfg.get("label", dataset)
+        result["input_provenance"] = (
+            "Externally-quantified metabolite table (MetaboLights) — descriptive "
+            "co-variation among metabolites, not a Track-1 FDR-confirmed input. RUO.")
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Correlation network failed: {exc}")
 
 
 @app.post("/biomarkers-projection-upload")

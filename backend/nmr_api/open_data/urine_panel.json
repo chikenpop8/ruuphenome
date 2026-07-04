@@ -1,0 +1,14 @@
+{
+  "name": "Human urine ¹H-NMR physiological panel",
+  "source": "Bouatra et al. 2013, The Human Urine Metabolome (PLoS ONE 8:e73076) — abundant NMR-quantified core",
+  "url": "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0073076",
+  "note": "Restricts urine annotation/deconvolution candidates to real urinary metabolites. A broad 0.8–1.3 ppm lipid envelope in a urine sample is a matrix-mismatch flag (urine has no lipoproteins).",
+  "metabolites": [
+    "creatinine", "citrate", "glycine", "formate", "hippurate", "guanidoacetate",
+    "acetate", "glycolate", "creatine", "glutamine", "alanine", "lysine", "glucose",
+    "trimethylamine n-oxide", "ethanolamine", "lactate", "taurine", "threonine",
+    "dimethylamine", "trimethylamine", "trigonelline", "serine", "histidine", "tyrosine",
+    "dimethylglycine", "2-oxoglutarate", "succinate", "betaine", "carnitine",
+    "3-hydroxybutyrate", "acetoacetate", "phenylacetylglutamine", "fumarate"
+  ]
+}

@@ -41,7 +41,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.inspection import permutation_importance
 
-from .pipeline import NON_SAMPLE_COLS, META_COLS, read_results_table
+from .pipeline import NON_SAMPLE_COLS, META_COLS, read_results_table, coerce_numeric
 
 
 _GROUP_RE = re.compile(r"^(\d+)[_-]")
@@ -78,7 +78,7 @@ def build_matrix(tsv_bytes: bytes) -> Tuple[pd.DataFrame, List[str], Dict[str, i
     sample_cols = [c for c in df.columns if c not in NON_SAMPLE_COLS]
     names = df["metabolite_identification"].fillna("unknown").tolist()
 
-    X = df[sample_cols].apply(pd.to_numeric, errors="coerce").T  # samples × metabolites
+    X = coerce_numeric(df[sample_cols]).T  # samples × metabolites (rescues EU decimals)
     X.columns = names
     groups = _sample_groups(sample_cols)
     return X, names, groups
@@ -135,6 +135,7 @@ def discover(
 
     ranked = sorted(
         [{
+            "idx": i,
             "metabolite": feat_names[i],
             "coefficient": round(float(coefs[i]), 4),
             "abs_coefficient": round(float(abs(coefs[i])), 4),
@@ -147,8 +148,12 @@ def discover(
 
     # minimal panel: smallest set of non-zero markers, retrain, report AUC
     nonzero = [r for r in ranked if r["abs_coefficient"] > 0][:max_panel]
-    panel_names = [r["metabolite"] for r in nonzero] or [ranked[0]["metabolite"]]
-    panel_idx = [feat_names.index(n) for n in panel_names]
+    panel = nonzero or [ranked[0]]
+    panel_names = [r["metabolite"] for r in panel]
+    # Select by integer column position, not by name: duplicate names (e.g. two
+    # blank 'unknown' metabolites) collapse under feat_names.index() to a single
+    # column, silently dropping a real marker and inflating the panel AUC.
+    panel_idx = [r["idx"] for r in panel]
     panel_model = Pipeline([
         ("impute", SimpleImputer(strategy="median")),
         ("scale", StandardScaler()),

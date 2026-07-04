@@ -1,0 +1,14 @@
+{
+  "name": "Human serum ¹H-NMR physiological panel",
+  "source": "Psychogios et al. 2011, The Human Serum Metabolome (PLoS ONE 6:e16957) — NMR-quantified subset",
+  "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3040193/",
+  "note": "Restricts serum annotation/deconvolution candidates to real serum metabolites (cuts over-annotation vs the ~578 generic BMRB library). Urea omitted (all-exchangeable → D2O-invisible). Broad lipid/lipoprotein envelope is a matrix feature, not a discrete metabolite.",
+  "metabolites": [
+    "2-hydroxybutyrate", "3-hydroxybutyrate", "acetate", "acetoacetate", "acetone",
+    "alanine", "arginine", "asparagine", "aspartate", "betaine", "carnitine", "choline",
+    "citrate", "creatine", "creatinine", "formate", "glucose", "glutamate", "glutamine",
+    "glycerol", "glycine", "histidine", "isoleucine", "lactate", "leucine", "lysine",
+    "methionine", "myo-inositol", "ornithine", "phenylalanine", "proline", "pyruvate",
+    "serine", "threonine", "tryptophan", "tyrosine", "valine"
+  ]
+}

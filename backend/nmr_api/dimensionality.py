@@ -145,7 +145,11 @@ def project(
             )
         points.append(point)
 
-    explained = pca.explained_variance_ratio_
+    # A zero-variance cohort makes explained_variance_ratio_ NaN, which is not
+    # JSON-compliant (Starlette rejects it → HTTP 500). Sanitize to 0.0.
+    explained = np.nan_to_num(
+        np.asarray(pca.explained_variance_ratio_, dtype=float), nan=0.0
+    )
     return {
         "n_samples": int(len(X)),
         "n_features": int(X.shape[1]),

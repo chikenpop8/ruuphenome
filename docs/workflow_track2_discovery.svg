@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 1396" width="940" height="1396" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif">
+<rect width="940" height="1396" fill="#FFFFFF"/>
+<rect x="0" y="0" width="940" height="120" fill="#7C4DD1"/>
+<text x="40" y="46" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="24" font-weight="700" fill="#FFFFFF">Track 2 — Leakage-safe biomarker discovery</text>
+<text x="40" y="80" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" fill="#FFFFFFCC">The &#x27;honest AUC&#x27;: find a minimal biomarker panel with an accuracy number that cannot be</text>
+<text x="40" y="97" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" fill="#FFFFFFCC">inflated by data leakage.</text>
+<rect x="40" y="146" width="860" height="82" rx="12" fill="#F3EDFB" stroke="#7C4DD1" stroke-width="1"/>
+<text x="58" y="168" font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="10.5" letter-spacing="1.5" fill="#7C4DD1" font-weight="700">DATA IN</text>
+<text x="58" y="188" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#17171A">Concentration matrix (samples × metabolites) + class labels + patient IDs. Worked example: MTBLS1 —</text>
+<text x="58" y="204" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#17171A">132 urine samples, type-2 diabetes vs control, 220 metabolites.</text>
+<line x1="470.0" y1="226" x2="470.0" y2="244" stroke="#7C4DD1" stroke-width="2"/>
+<path d="M465.0,239 L470.0,246 L475.0,239 Z" fill="#7C4DD1"/>
+<rect x="40" y="250" width="860" height="106" rx="11" fill="#FFFFFF" stroke="#E4E6EC" stroke-width="1"/>
+<rect x="40" y="250" width="6" height="106" rx="3" fill="#7C4DD1"/>
+<circle cx="68" cy="278" r="14" fill="#F3EDFB" stroke="#7C4DD1" stroke-width="1.4"/>
+<text x="68" y="282.5" text-anchor="middle" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="13" font-weight="700" fill="#7C4DD1">1</text>
+<text x="86" y="276" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="15" font-weight="700" fill="#17171A">Variance filter</text>
+<text x="86" y="296" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">Drop constant / dead metabolites before any statistics.</text>
+<text x="86" y="318" font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="11.5" font-weight="600" fill="#7C4DD1">variance &gt; 1e-8</text>
+<text x="86" y="333" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#8A8A93">→ produces: non-constant feature set</text>
+<line x1="470.0" y1="354" x2="470.0" y2="372" stroke="#7C4DD1" stroke-width="2"/>
+<path d="M465.0,367 L470.0,374 L475.0,367 Z" fill="#7C4DD1"/>
+<rect x="40" y="378" width="860" height="106" rx="11" fill="#FFFFFF" stroke="#E4E6EC" stroke-width="1"/>
+<rect x="40" y="378" width="6" height="106" rx="3" fill="#7C4DD1"/>
+<circle cx="68" cy="406" r="14" fill="#F3EDFB" stroke="#7C4DD1" stroke-width="1.4"/>
+<text x="68" y="410.5" text-anchor="middle" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="13" font-weight="700" fill="#7C4DD1">2</text>
+<text x="86" y="404" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="15" font-weight="700" fill="#17171A">Repeated patient-grouped CV</text>
+<text x="86" y="424" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">StratifiedGroupKFold — whole patients are held out together, so no patient appears in both train and test.</text>
+<text x="86" y="446" font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="11.5" font-weight="600" fill="#7C4DD1">5 folds × 2 repeats (seeded)</text>
+<text x="86" y="461" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#8A8A93">→ produces: train/test splits with no patient overlap</text>
+<line x1="470.0" y1="482" x2="470.0" y2="500" stroke="#7C4DD1" stroke-width="2"/>
+<path d="M465.0,495 L470.0,502 L475.0,495 Z" fill="#7C4DD1"/>
+<rect x="40" y="506" width="860" height="122" rx="11" fill="#FFFFFF" stroke="#E4E6EC" stroke-width="1"/>
+<rect x="40" y="506" width="6" height="122" rx="3" fill="#7C4DD1"/>
+<circle cx="68" cy="534" r="14" fill="#F3EDFB" stroke="#7C4DD1" stroke-width="1.4"/>
+<text x="68" y="538.5" text-anchor="middle" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="13" font-weight="700" fill="#7C4DD1">3</text>
+<text x="86" y="532" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="15" font-weight="700" fill="#17171A">In-fold feature selection</text>
+<text x="86" y="552" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">INSIDE each training fold only: univariate screen (point-biserial for 2 classes, ANOVA-F for ≥3) → Benjamini–Hochberg FDR</text>
+<text x="86" y="568" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">→ keep the top-k. Test fold never seen.</text>
+<text x="86" y="590" font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="11.5" font-weight="600" fill="#7C4DD1">k = 8 · BH-FDR α = 0.05</text>
+<text x="86" y="605" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#8A8A93">→ produces: 8 selected metabolites per fold</text>
+<line x1="470.0" y1="626" x2="470.0" y2="644" stroke="#7C4DD1" stroke-width="2"/>
+<path d="M465.0,639 L470.0,646 L475.0,639 Z" fill="#7C4DD1"/>
+<rect x="40" y="650" width="860" height="106" rx="11" fill="#FFFFFF" stroke="#E4E6EC" stroke-width="1"/>
+<rect x="40" y="650" width="6" height="106" rx="3" fill="#7C4DD1"/>
+<circle cx="68" cy="678" r="14" fill="#F3EDFB" stroke="#7C4DD1" stroke-width="1.4"/>
+<text x="68" y="682.5" text-anchor="middle" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="13" font-weight="700" fill="#7C4DD1">4</text>
+<text x="86" y="676" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="15" font-weight="700" fill="#17171A">Fit &amp; predict (held-out)</text>
+<text x="86" y="696" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">Median-impute (train only) → z-score scale → Logistic Regression; predict probability on the held-out test fold.</text>
+<text x="86" y="718" font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="11.5" font-weight="600" fill="#7C4DD1">L2 · max_iter 2000</text>
+<text x="86" y="733" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#8A8A93">→ produces: out-of-fold probabilities</text>
+<line x1="470.0" y1="754" x2="470.0" y2="772" stroke="#7C4DD1" stroke-width="2"/>
+<path d="M465.0,767 L470.0,774 L475.0,767 Z" fill="#7C4DD1"/>
+<rect x="40" y="778" width="860" height="122" rx="11" fill="#FFFFFF" stroke="#E4E6EC" stroke-width="1"/>
+<rect x="40" y="778" width="6" height="122" rx="3" fill="#7C4DD1"/>
+<circle cx="68" cy="806" r="14" fill="#F3EDFB" stroke="#7C4DD1" stroke-width="1.4"/>
+<text x="68" y="810.5" text-anchor="middle" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="13" font-weight="700" fill="#7C4DD1">5</text>
+<text x="86" y="804" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="15" font-weight="700" fill="#17171A">Pool out-of-fold predictions</text>
+<text x="86" y="824" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">Collect every prediction from the fold in which that sample was held out, averaged across repeats. This is what makes the</text>
+<text x="86" y="840" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">AUC honest.</text>
+<text x="86" y="862" font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="11.5" font-weight="600" fill="#7C4DD1">pooled OOF, not per-fold means</text>
+<text x="86" y="877" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#8A8A93">→ produces: one honest score per sample</text>
+<line x1="470.0" y1="898" x2="470.0" y2="916" stroke="#7C4DD1" stroke-width="2"/>
+<path d="M465.0,911 L470.0,918 L475.0,911 Z" fill="#7C4DD1"/>
+<rect x="40" y="922" width="860" height="106" rx="11" fill="#FFFFFF" stroke="#E4E6EC" stroke-width="1"/>
+<rect x="40" y="922" width="6" height="106" rx="3" fill="#7C4DD1"/>
+<circle cx="68" cy="950" r="14" fill="#F3EDFB" stroke="#7C4DD1" stroke-width="1.4"/>
+<text x="68" y="954.5" text-anchor="middle" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="13" font-weight="700" fill="#7C4DD1">6</text>
+<text x="86" y="948" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="15" font-weight="700" fill="#17171A">Honest AUC + CI + permutation p</text>
+<text x="86" y="968" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">ROC-AUC on the pooled OOF scores; 1000× patient-level bootstrap for a 95% CI; 200× label-permutation for a null p-value.</text>
+<text x="86" y="990" font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="11.5" font-weight="600" fill="#7C4DD1">bootstrap B = 1000 · 200 permutations</text>
+<text x="86" y="1005" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#8A8A93">→ produces: AUC 0.932 (0.90–0.98), permutation p = 0.005</text>
+<line x1="470.0" y1="1026" x2="470.0" y2="1044" stroke="#7C4DD1" stroke-width="2"/>
+<path d="M465.0,1039 L470.0,1046 L475.0,1039 Z" fill="#7C4DD1"/>
+<rect x="40" y="1050" width="860" height="122" rx="11" fill="#FFFFFF" stroke="#E4E6EC" stroke-width="1"/>
+<rect x="40" y="1050" width="6" height="122" rx="3" fill="#7C4DD1"/>
+<circle cx="68" cy="1078" r="14" fill="#F3EDFB" stroke="#7C4DD1" stroke-width="1.4"/>
+<text x="68" y="1082.5" text-anchor="middle" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="13" font-weight="700" fill="#7C4DD1">7</text>
+<text x="86" y="1076" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="15" font-weight="700" fill="#17171A">Stable panel + leaky-AUC exhibit</text>
+<text x="86" y="1096" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">Keep features chosen in ≥50% of folds (Jaccard stability); ALSO compute the LEAKY AUC (select on all data) to expose the</text>
+<text x="86" y="1112" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#55555E">inflation gap you&#x27;d get by cheating.</text>
+<text x="86" y="1134" font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="11.5" font-weight="600" fill="#7C4DD1">stable ≥50% folds · leaky ≤ honest = no inflation</text>
+<text x="86" y="1149" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#8A8A93">→ produces: stable biomarker panel + leakage_inflation</text>
+<line x1="470.0" y1="1172" x2="470.0" y2="1188" stroke="#7C4DD1" stroke-width="2"/>
+<path d="M465.0,1183 L470.0,1190 L475.0,1183 Z" fill="#7C4DD1"/>
+<rect x="40" y="1196" width="860" height="122" rx="12" fill="#7C4DD1"/>
+<text x="58" y="1220" font-family="'SF Mono', ui-monospace, Menlo, Consolas, monospace" font-size="10.5" letter-spacing="1.5" fill="#FFFFFFDD" font-weight="700">HOW WE GET THE ANSWER</text>
+<text x="58" y="1242" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" fill="#FFFFFF">The honest AUC uses ONLY predictions on held-out folds, with feature selection redone inside</text>
+<text x="58" y="1259" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" fill="#FFFFFF">each fold — so nothing peeks at the test set. On MTBLS1 the engine independently selected</text>
+<text x="58" y="1276" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" fill="#FFFFFF">isoleucine + 2-oxoisovalerate at AUC 0.932 — the same branched-chain amino acids landmark</text>
+<text x="58" y="1293" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="12.5" fill="#FFFFFF">clinical cohorts tie to diabetes.</text>
+<text x="40" y="1338" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="10.5" fill="#8A8A93">Grounded in: Benjamini &amp; Hochberg 1995 (FDR)  ·  Diaz-Uriarte 2022 (leakage)  ·  Vabalas 2019 (small-n validation)  ·</text>
+<text x="40" y="1353" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="10.5" fill="#8A8A93">Westerhuis 2008 (permutation test)  ·  Würtz 2015 (BCAA &amp; diabetes)</text>
+<text x="900" y="1376" text-anchor="end" font-family="-apple-system, 'Helvetica Neue', Segoe UI, Roboto, Arial, sans-serif" font-size="10" fill="#8A8A93">RuuPhenome · research use only (RUO)</text>
+</svg>

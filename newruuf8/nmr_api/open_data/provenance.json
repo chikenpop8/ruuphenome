@@ -1,0 +1,140 @@
+{
+  "dataset": "RuuPhenome curated BMRB 1D 1H reference corpus",
+  "source": "Biological Magnetic Resonance Bank metabolomics standards",
+  "data_policy": "Publicly available free of charge; preserve entry attribution and DOI.",
+  "policy_url": "https://bmrb.io/metabolomics/data_policy.shtml",
+  "entries": [
+    {
+      "id": "bmse000028",
+      "name": "L-alanine",
+      "experiment": 1,
+      "doi": "10.13018/BMSE000028",
+      "download_url": "https://bmrb.io/metabolomics/mol_summary/zip_entry_directory.php?experiment=1&id=bmse000028",
+      "source_page": "https://bmrb.io/metabolomics/mol_summary/show_data.php?id=bmse000028",
+      "local_file": "open_data/bmrb_raw/bmse000028_1.zip",
+      "bytes": 569037,
+      "sha256": "3ba8ed5e57f014f2539371408451b81136334eba099d867038d39cbaa4b17c83"
+    },
+    {
+      "id": "bmse000038",
+      "name": "L-glutamine",
+      "experiment": 1,
+      "doi": "10.13018/BMSE000038",
+      "download_url": "https://bmrb.io/metabolomics/mol_summary/zip_entry_directory.php?experiment=1&id=bmse000038",
+      "source_page": "https://bmrb.io/metabolomics/mol_summary/show_data.php?id=bmse000038",
+      "local_file": "open_data/bmrb_raw/bmse000038_1.zip",
+      "bytes": 571630,
+      "sha256": "0ab5d8ab15a328b8b2aace9aec1e6bc6962ee043df7d0db473e0f25f5386a2ea"
+    },
+    {
+      "id": "bmse000039",
+      "name": "L-histidine",
+      "experiment": 1,
+      "doi": "10.13018/BMSE000039",
+      "download_url": "https://bmrb.io/metabolomics/mol_summary/zip_entry_directory.php?experiment=1&id=bmse000039",
+      "source_page": "https://bmrb.io/metabolomics/mol_summary/show_data.php?id=bmse000039",
+      "local_file": "open_data/bmrb_raw/bmse000039_1.zip",
+      "bytes": 968168,
+      "sha256": "deb8ac7b6b74ac545b960d102fee33a7fa34afaed6471a28d631b130bac0aa4f"
+    },
+    {
+      "id": "bmse000042",
+      "name": "L-leucine",
+      "experiment": 1,
+      "doi": "10.13018/BMSE000042",
+      "download_url": "https://bmrb.io/metabolomics/mol_summary/zip_entry_directory.php?experiment=1&id=bmse000042",
+      "source_page": "https://bmrb.io/metabolomics/mol_summary/show_data.php?id=bmse000042",
+      "local_file": "open_data/bmrb_raw/bmse000042_1.zip",
+      "bytes": 436626,
+      "sha256": "1e11bdfdff73be20dfea9e4ddf3d6025dfd05ec6ff14aee05feb0f93b28d2cfc"
+    },
+    {
+      "id": "bmse000045",
+      "name": "L-phenylalanine",
+      "experiment": 1,
+      "doi": "10.13018/BMSE000045",
+      "download_url": "https://bmrb.io/metabolomics/mol_summary/zip_entry_directory.php?experiment=1&id=bmse000045",
+      "source_page": "https://bmrb.io/metabolomics/mol_summary/show_data.php?id=bmse000045",
+      "local_file": "open_data/bmrb_raw/bmse000045_1.zip",
+      "bytes": 432786,
+      "sha256": "88f11ed4e45271b377898c9b1154fc0596622104b9b2f00bc61b661de7d69901"
+    },
+    {
+      "id": "bmse000051",
+      "name": "L-tyrosine",
+      "experiment": 1,
+      "doi": "10.13018/BMSE000051",
+      "download_url": "https://bmrb.io/metabolomics/mol_summary/zip_entry_directory.php?experiment=1&id=bmse000051",
+      "source_page": "https://bmrb.io/metabolomics/mol_summary/show_data.php?id=bmse000051",
+      "local_file": "open_data/bmrb_raw/bmse000051_1.zip",
+      "bytes": 432196,
+      "sha256": "e09a06228307489df1fff644fc7883e1950f8d32d21c47ddf18fffade8e2b4a4"
+    },
+    {
+      "id": "bmse000052",
+      "name": "L-valine",
+      "experiment": 1,
+      "doi": "10.13018/BMSE000052",
+      "download_url": "https://bmrb.io/metabolomics/mol_summary/zip_entry_directory.php?experiment=1&id=bmse000052",
+      "source_page": "https://bmrb.io/metabolomics/mol_summary/show_data.php?id=bmse000052",
+      "local_file": "open_data/bmrb_raw/bmse000052_1.zip",
+      "bytes": 438051,
+      "sha256": "34f09c3aea8bf6cc3efb9b7ffebc9e14051f0221fd6dc56e7fed9d56afc18438"
+    },
+    {
+      "id": "bmse000076",
+      "name": "citrate",
+      "experiment": 1,
+      "doi": "10.13018/BMSE000076",
+      "download_url": "https://bmrb.io/metabolomics/mol_summary/zip_entry_directory.php?experiment=1&id=bmse000076",
+      "source_page": "https://bmrb.io/metabolomics/mol_summary/show_data.php?id=bmse000076",
+      "local_file": "open_data/bmrb_raw/bmse000076_1.zip",
+      "bytes": 567339,
+      "sha256": "67063c0ec0b9805a2b1746b95a8defb2cdbafff818521d81a7c926436b31431a"
+    },
+    {
+      "id": "bmse000089",
+      "name": "glycine",
+      "experiment": 1,
+      "doi": "10.13018/BMSE000089",
+      "download_url": "https://bmrb.io/metabolomics/mol_summary/zip_entry_directory.php?experiment=1&id=bmse000089",
+      "source_page": "https://bmrb.io/metabolomics/mol_summary/show_data.php?id=bmse000089",
+      "local_file": "open_data/bmrb_raw/bmse000089_1.zip",
+      "bytes": 565993,
+      "sha256": "d6ea24aed94ef20331e139ef9780e7e25fca015c657e57d94ca3ff9bb3e1121c"
+    },
+    {
+      "id": "bmse000155",
+      "name": "creatinine",
+      "experiment": 1,
+      "doi": "10.13018/BMSE000155",
+      "download_url": "https://bmrb.io/metabolomics/mol_summary/zip_entry_directory.php?experiment=1&id=bmse000155",
+      "source_page": "https://bmrb.io/metabolomics/mol_summary/show_data.php?id=bmse000155",
+      "local_file": "open_data/bmrb_raw/bmse000155_1.zip",
+      "bytes": 567667,
+      "sha256": "5404a49626efd21e028a508b5d0936c5e22aeccafdd3923f7ddc20d022e8b294"
+    },
+    {
+      "id": "bmse000208",
+      "name": "L-lactic acid",
+      "experiment": 1,
+      "doi": "10.13018/BMSE000208",
+      "download_url": "https://bmrb.io/metabolomics/mol_summary/zip_entry_directory.php?experiment=1&id=bmse000208",
+      "source_page": "https://bmrb.io/metabolomics/mol_summary/show_data.php?id=bmse000208",
+      "local_file": "open_data/bmrb_raw/bmse000208_1.zip",
+      "bytes": 433746,
+      "sha256": "49dccb5aa33a9a0e0cedcb949847c17884d748b1d631fc3a9c1c1e9fdff350b2"
+    },
+    {
+      "id": "bmse000015",
+      "name": "D-glucose",
+      "experiment": 1,
+      "doi": "10.13018/BMSE000015",
+      "download_url": "https://bmrb.io/metabolomics/mol_summary/zip_entry_directory.php?experiment=1&id=bmse000015",
+      "source_page": "https://bmrb.io/metabolomics/mol_summary/show_data.php?id=bmse000015",
+      "local_file": "open_data/bmrb_raw/bmse000015_1.zip",
+      "bytes": 699557,
+      "sha256": "70237d06ff33f5a43ab6dc9781f07d3cee8811af3d6470201f93007acf4a0a60"
+    }
+  ]
+}

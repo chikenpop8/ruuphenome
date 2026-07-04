@@ -186,7 +186,15 @@ def estimate_noise(y: np.ndarray) -> float:
     median = np.median(differences)
     mad = np.median(np.abs(differences - median))
     sigma = 1.4826 * mad / math.sqrt(2.0)
-    return float(sigma if sigma > 0 else np.std(differences) / math.sqrt(2.0))
+    if sigma <= 0:
+        sigma = float(np.std(differences) / math.sqrt(2.0))
+    # Floor the estimate relative to the signal amplitude. A clean or synthetic,
+    # essentially noise-free spectrum drives σ→0 and would report SNR in the
+    # millions. Real ¹H noise is ≳0.01% of peak height (SNR ≲ 1e4), so keeping
+    # σ ≥ 1e-4 × peak height caps a degenerate SNR at a believable "excellent"
+    # value without ever binding on a genuine experimental spectrum.
+    amplitude = float(np.max(np.abs(y)))
+    return float(max(sigma, 1e-4 * amplitude))
 
 
 def _region_for_ppm(ppm: float, regions: Sequence[Dict]) -> Optional[str]:

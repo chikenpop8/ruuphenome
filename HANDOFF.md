@@ -1,7 +1,402 @@
 # RuuPhenome — Current Project Handoff
 
-Last verified: **June 26, 2026**  
+Last verified: **July 4, 2026** · Pre-ship bug hunt + fixes, verified bibliography **2026-07-04** (111 tests passing)  
 Active app root: `/Applications/Vibing coding/Noom copy cat/ruuphenome`
+
+> **2026-07-02 — Track 2 analytics expansion (items 1–5).** The biomarker engine
+> and model suite now report the **full classification metric set** (accuracy,
+> sensitivity, specificity, precision, recall + **confusion matrix**; macro forms
+> for multi-class), a **top-1/3/5/10 minimal-panel sweep**, and **multi-class
+> (≥3 group) support** end-to-end (macro one-vs-rest AUC, per-class recall,
+> multinomial LR; `derive_labels(multiclass=True)` preserves all groups instead of
+> collapsing to two). Added `random_forest` to the model suite. New modules
+> `differential.py` (`/track2/differential`: Mann-Whitney/Welch + Kruskal/ANOVA,
+> BH q-values, volcano) and `correlation.py` (`/track2/correlation`: pairwise +
+> **partial-correlation GGM network** per Krumsiek 2011, via Ledoit-Wolf
+> shrinkage). UI (`profiler.html`) surfaces all of these. **No training required —
+> all classical statistics/ML that fit fresh per upload.** The binary path is
+> byte-for-byte unchanged, so prior numbers reproduce.
+
+> **2026-07-02 — Judge-proofing (Impact + Phenome track).** Added **bootstrap 95%
+> CIs** on every AUC (`discover()` → `honest_roc_auc_ci95`, group-level percentile
+> bootstrap; flagged approximate per Bengio & Grandvalet 2004) — shown in the UI.
+> Added a one-command **external cross-cohort validation** tool
+> (`python -m nmr_api.external_validation`, RUO, open-data) that runs the
+> leakage-safe engine on unseen MetaboLights cohorts; validated on **MTBLS161
+> (ME/CFS)** — serum AUC 0.742 [0.62–0.87], urine 0.720 [0.56–0.85], both perm
+> p=0.015, no leakage inflation. Recorded honest bundled-cohort numbers **with
+> CIs**: MTBLS1 diabetes **0.932 [0.90–0.98]** (panel recovered isoleucine +
+> 2-oxoisovalerate = the BCAA signature), MTBLS356 0.792, MTBLS424 0.572 (honest
+> weak-signal exhibit). Pinned deps (`requirements.lock.txt` + `.python-version`).
+> New fully-cited **`docs/IMPACT_AND_VALIDATION.md`** (Thai NCD burden [IDF/NHES7],
+> metabolite→pathway→disease biology, validation methods, datasets/commands,
+> limitations, rubric map). 55 tests pass. No unseen open diabetes ¹H-NMR
+> disease/control cohort was found for external testing (most are MS-based,
+> access-gated, or empty MAFs) — see docs §7.
+>
+> The impact/validation doc now also carries: **§9 per-function workflow / impact /
+> innovation** (with an SVG diagram `docs/track2_workflow.svg`), **§10 completed
+> score-focused upgrades**, and **§11 pitch talking points + demo script**. Dataset
+> search extended across MetaboLights FTP (118 studies MTBLS2–119) **and
+> Metabolomics Workbench REST**: **no** open *binary* T2D-vs-control ¹H-NMR cohort
+> with a populated per-sample table exists (diabetes metabolomics is overwhelmingly
+> MS-based). **Added ST004325** (Metabolomics Workbench; 1D ¹H-NMR in **D₂O** @ 600
+> MHz; T1D urine, 3 duration groups, 247 samples) as a second external cohort — it
+> exercises the **multi-class** path on real NMR data: macro-AUC 0.598 [0.56–0.67],
+> **leakage inflation 0.0003**, perm p 0.005. `external_validation.py` now loads both
+> MetaboLights (FTP MAF) and Metabolomics Workbench (REST) cohorts (`_build_tables` /
+> `_build_tables_mw`). Both are pipeline-validation demos, not clinical (docs §4b,
+> §7). Also fixed: `screen_features` is now NaN-safe (multi-class `f_classif` needs
+> finite input).
+
+> **2026-07-02 — Track-1 plan + honesty layer (started).** Full plan in
+> **`docs/TRACK1_PLAN.md`** (grounded, scored; strategy = supervised pSCNN classifier as an
+> *added evidence channel* + one H100 hero = **GISSMO-simulated-mixture quantifier**; L→H
+> super-resolution rejected as hero). **Governance decided:** provided competition
+> annotations may be used for supervised Track-1 fine-tuning **only inside the offline VM**
+> (`NMR_OFFLINE=1`), never exported; open/simulated = pretraining. **Built the honesty layer:**
+> new `identification_quality.py` (MSI levels — library match = **Level 2, never Level 1**
+> without an authentic standard; + **D2O exchangeable-proton guard** — residual-water/HDO
+> 4.70–4.90 ppm and >9.5 ppm matches excluded from evidence, identification requires a
+> non-exchangeable C-H resonance, DSS anchor), wired into `spectral_cohort.annotate()`, plus
+> **authoritative organizer pins** (provided `{ppm:metabolite}` now bypass the occupancy gate
+> instead of being silently dropped). Demo: 268→259 metabolites, MSI 186×L2 + 73×L3, 0×L1.
+> Also built **F7** (20k-bin NNLS scaling — coarse fit grid, `_NNLS_BIN_CAP`; 188s→~11s,
+> demo path unchanged), **F5** (`spectral_cohort.select_diagnostic_ppm` — ranks important
+> ppm positions, annotated to nearest metabolite + NCD relevance), and the **benchmark
+> harness** (`track1_benchmark.py`). **Deterministic baseline** (in-distribution synthetic):
+> `annotate` F1 **0.11** (precision 0.058 — over-permissive), **`deconvolve`+target-decoy
+> FDR F1 0.896** (precision 0.839, recall 0.973) — the bar the supervised classifier must
+> beat; held-out REAL benchmark still needed (honesty caveat in docs §8). How the layer
+> improves Bioinformatics-correctness + Biological-interpretation is documented in
+> `docs/TRACK1_PLAN.md §8`. **66 tests pass.** NEXT: F2 pSCNN (added evidence channel via
+> `hybridize()`), then F8 GISSMO H100 hero.
+
+> **2026-07-02 — Track-1 F2 pSCNN + comparison (built).** New `pscnn.py` — pseudo-Siamese
+> 1D-CNN compound identifier (BatchNorm towers + `r·s`/`|r−s|` matching head; open synthetic
+> mixtures with ppm-drift augmentation; D2O-guarded; **OPTIONAL** — no checkpoint → off). CLI
+> `python -m nmr_api.pscnn --mixtures 20000 --epochs 200 --grid 4096` trains + saves. **3-way
+> comparison** (`track1_benchmark --compare`): EASY (clean) deterministic F1 **0.96** > pSCNN
+> 0.71; HARD (0.04-ppm drift) deterministic **collapses to 0.24** while pSCNN holds **0.55**
+> and **hybrid 0.59** — the honest value case for a learned channel (robustness to drift), NOT
+> a replacement. **Held-out real datasets sourced + verified** (docs §9): **BMRB** (~1,100 D₂O
+> standards, peak-list endpoints), **GISSMO** (1,286 sim compounds — also F8 data), **MTBLS1**
+> (real spectra + identified-metabolite MAF). **F8 GISSMO H100 command spec** in docs §9
+> (trainer still to build). Caveat everywhere: F1 numbers are **synthetic/in-distribution, not
+> clinical**; real BMRB/GISSMO held-out is the decisive test. **68 tests pass.** NEXT: F8
+> trainer, F3 on-VM fine-tune loader, real held-out validation.
+
+> **2026-07-02 — Real held-out GISSMO validation (DONE).** New `external_reference.py` fetches
+> physically-exact ¹H shifts from **GISSMO** (spin systems fit to experimental BMRB; verified
+> `GISSMO_IDS` map, cached). `track1_benchmark.run_real_validation` (`--validate-real`) is
+> HELD-OUT by construction: library + pSCNN training use our HMDB shifts; TEST spectra use the
+> INDEPENDENT GISSMO real shifts (17 compounds incl. all BCAAs + aromatic AAs). **Result: on
+> real shifts the deterministic matcher COLLAPSES (F1 0.16, recall 0.12), pSCNN ~doubles it
+> (0.33), hybrid is best (0.40)** — the pSCNN's value proven on REAL, not just synthetic drift;
+> clean narrative = deterministic best on clean, pSCNN helps under real drift/noise, hybrid is
+> the practical winner (docs §9). Low absolutes = honest sim-to-real gap (simplified library is
+> the bottleneck) → motivates F8 (train on real GISSMO patterns). **70 tests pass.** NEXT: F8
+> GISSMO H100 trainer, F3 on-VM fine-tune loader.
+
+> **2026-07-02 — F8 GISSMO transformer quantifier (BUILT + runnable).** `gissmo_corpus.py`
+> (`build_corpus` fetches GISSMO ¹H shifts off-VM → bundled `open_data/gissmo_corpus.json`,
+> **94 compounds**; `load_corpus`; on-the-fly `simulate_batch` with concentration labels +
+> ppm-drift aug), `quantifier.py` (Conv patch-embed → Transformer encoder → softplus per-compound
+> relative concentration; identity = conc>threshold; OPTIONAL, no checkpoint → off), and
+> `train_on_h100.py --supervised gissmo-quant` (config-tagged checkpoints, no download on node).
+> Verified end-to-end (loss ↓, recovers planted compounds). **The exact H100 command + 7-point
+> run spec is in `docs/TRACK1_PLAN.md §9`** (`python -m nmr_api.train_on_h100 --supervised
+> gissmo-quant --field-mhz <F> --mixtures 250000 --epochs 200 --batch-size 256 --n-bins 4096`;
+> outputs `models/gissmo_quantifier*.pt` + report JSON; send those 2 files back). **Honest
+> caveat kept:** real held-out F1 still low; F8 closes the sim-to-real gap; its fair eval is on a
+> real source it did NOT train on (BMRB/MTBLS1). **71 tests pass.** NEXT: run F8 on H100 → eval on
+> BMRB/MTBLS1; F3 on-VM fine-tune loader.
+
+> **2026-07-03 — Track 2 UI ship-ready polish (profiler.html only).** Rebuilt the biomarker /
+> differential / correlation result views into a premium, demo-ready layer while keeping the data
+> flow and all four endpoints (`/track2/preview|biomarkers|differential|correlation`) unchanged.
+> Added: **hero metric cards** (accent ROC-AUC card with 95% CI + permutation-p + a coloured
+> confidence dot [strong/moderate/weak/exploratory], cohort, stable-panel, Q²/classes), a
+> **colour-coded confusion matrix** (green diagonal = correct, red off-diagonal = confused, alpha
+> scaled by row fraction), **direction pills**, animated staggered table rows, cleaner spacing
+> (new `.t2-*` CSS layer), larger/smoother modal, and **back-navigation** between results ↔
+> differential ↔ correlation. **Bugs fixed:** `downloadT2Panel` stuffed the entire result JSON
+> into an `onclick` attribute (fragile on quotes/size) → now reads a stashed `LAST_T2_RESULT`;
+> added **Escape-to-close** (backdrop-click already existed); differential group-mean labels now
+> use `class_labels` names. Verified end-to-end on a generated 44-sample × 25-metabolite Table 1
+> + Table 2 (metadata): discovery recovered the planted BCAA/aromatic-AA + glucose signature
+> (AUC 1.0, perm p 0.0099), all four endpoints 200, all views render with **no console errors**,
+> back-nav + Escape + non-significant-row dimming all work. Ready to test on the real data table
+> + metadata. No backend/`.py` changes in this task.
+
+> **2026-07-02 — Track-1 required-functions map.** New **`docs/TRACK1_REQUIRED_FUNCTIONS.md`**
+> re-frames Track 1 by the **five capabilities the spec actually asks for** (not by code
+> modules): **1. Compound Classification · 2. Pattern Recognition / ML · 3. Feature Selection ·
+> 4. Biomarker Discovery · 5. Automated Workflow Development.** Each section gives meaning,
+> input→software→output→next-step data flow, which modules/functions support it, what's built
+> vs missing, the Phenome-rubric value (Technical/Innovation/Impact/Bioinformatics/Biology/
+> Reproducibility), and honesty caveats — grounded in the Track-1 data context (cleaned ¹H
+> spectra, ~20k intensity×ppm features, TSV/CSV, some training annotations, overlapping-signal
+> challenge). Ends with a one-row-per-function summary table. **Read this first for "what does
+> Track 1 do";** `docs/TRACK1_PLAN.md` remains the strategy/H100 doc.
+> **Update:** each function now has a **"Correctness in bioinformatics & chemistry"** block with
+> **29 verified literature/database citations** (HMDB, BMRB, GISSMO, Sumner MSI, IUPAC DSS,
+> D2O-shake; GISSMO QM sims + chemical-shift-drift physics + NMRQNet/DL-NMR benchmarks; glucose/
+> lactate/BCAA assignments + Wang 2011/Newgard 2009 BCAA→T2D + Ambroise 2002 leakage; ASICS/
+> BQuant deconvolution + Benjamini-Hochberg + target-decoy FDR; PQN/Beckonert protocol + MSI
+> reporting). Citations were gathered then **independently re-fetched by a separate adversarial
+> checker** (2 fabricated/mislabeled dropped) and every URL mechanically HTTP-checked live
+> (25/26 → 200; the B-H 1995 DOI resolves in-browser only). Links prefer PubMed/PMC/official DB.
+
+> **2026-07-03 — Independent REAL held-out validation (BMRB experimental).** New
+> `bmrb_experimental.py` fetches **BMRB metabolomics *experimental* 1D ¹H peak lists** (real
+> measured positions + intensities + multiplet structure, DSS-referenced) — a source
+> independent of both the HMDB-derived library and GISSMO sims. Three fetch routes (raw
+> `peaklist.xml`; set-level `transitions/1H.list`; peak-pick of the reconstructed Bruker
+> `1r` spectrum for entries that ship only the binary, e.g. valine/isoleucine). Bundled
+> off-VM to `open_data/bmrb_experimental_peaks.json` (**18 compounds** incl. full
+> glucose/lactate/alanine + **BCAA triad**). New `track1_benchmark.run_bmrb_validation()` +
+> `--validate-bmrb` renders test mixtures from the real peaks and scores 4 methods. **Honest
+> result (real data):** permissive `annotate` recall 0.96 / precision 0.49 / **F1 0.64**;
+> FDR `deconvolve` precision 0.64 / recall 0.15 / **F1 0.24**; pSCNN **F1 0.42**; **hybrid F1
+> 0.53 at precision 0.70** and most robust to a 0.03 ppm referencing offset. Framing:
+> permissive over-calls, strict FDR misses most on real spectra, **hybrid is the best
+> precision-respecting method** — not clinical. 2 network-free tests added. **73 tests pass.**
+> Source data source discovery was a 3-way parallel probe (BMRB/HMDB/MetaboLights); BMRB won.
+
+> **2026-07-03 — Track-1 UI surfacing + end-to-end integration hardening.** **(UI)**
+> `profiler.html renderSpectralPipeline` now surfaces the Track-1 identification quality the
+> backend already computed but hid: per-metabolite **MSI level badge** + **D₂O-reliability
+> badge** (reliable/caution/weak, with the exchangeable-proton caveat on hover) + **📌
+> organizer-pin** provenance, an **Identification** header row (MSI standard · D₂O-guarded ·
+> pin count), and a new **Feature selection — diagnostic ppm** section (Track-1 fn 3, NCD-
+> anchored; e.g. leucine→BCAA/T2D). `_run_cohort_pipeline` now calls `select_diagnostic_ppm`
+> (supervised when a full label vector is present, else unsupervised). **(Integration)** New
+> `tests/test_integration_pipeline.py` exercises the real `/spectral/pipeline-file` spine
+> (load_binned_matrix → extract_embedded_labels → _run_cohort_pipeline) on organizer-style
+> inputs: both orientations, `ppm`-suffixed headers, tab/comma, inline label column, and a
+> **20k-bin** matrix (must stay <90 s via the F7 downsample). Asserts Track-1 quality fields
+> carry through and the result is `jsonable_encoder`-safe. **Bug found + fixed:**
+> `extract_embedded_labels` could mistake a continuous ppm-bin column for a label in small
+> cohorts (low cardinality) → now requires a label to cover a majority of samples. **78 tests
+> pass.** NEXT: run F8 on the H100 (export/train spec below), then wire the trained quantifier
+> into `--validate-bmrb`; task 4 (realistic GISSMO lineshapes) still open.
+
+> **2026-07-03 — F8 actually uses the GPU (was a CPU-only bug) + 24× faster data-gen.**
+> `quantifier.train` and `pscnn.train` never moved the model/tensors off CPU — the H100 would
+> have sat idle while `_device_summary()` merely *reported* CUDA. Fixed: `_pick_device()`
+> (cuda→mps→cpu), `model.to(device)`, batches via `torch.as_tensor(..., device=device)`,
+> on-device indexing, and TF32 + **bf16 autocast** on CUDA (Hopper speedup); `predict`/`identify`
+> run on the model's device. `train_on_h100` now prints the training device and records
+> `trained_on_device` in the report. **Data-gen bottleneck fixed:** drift augmentation used to
+> recompute each fingerprint's Gaussian sum per peak per step (~640 ms/batch → **34.6 h** data-gen
+> for the full run, starving the GPU). A ppm drift is just a translation on a uniform grid, so
+> `gissmo_corpus._translate` (one interp) + a per-epoch `build_drift_bank` (O(1) indexed sampling)
+> cut it to **~1.45 h** (full run) / **~4 min** (lico1h). Verified on MPS: models train on-device,
+> loss ↓, cross-device inference OK. **78 tests pass.** Pack `ruuphenome_f8_lico_pack.tar.gz`
+> rebuilt with the fixes. Also: reviewed the user's LiCO Run Script (3-lens workflow) — real risks
+> = compute-node internet + cu118-vs-Hopper (use cu124); gave a hardened script that prefers the
+> node's preinstalled CUDA torch.
+
+> **2026-07-03 — F8 TRAINED on H100 + quantifier wired into `--validate-bmrb`.** First real run
+> completed on an **NVIDIA H100 80GB (sm_90), CUDA confirmed** (`trained_on_device: cuda`):
+> lico1h profile (40k mixtures × 60 epochs, 94 compounds, n_bins 4096, batch 256), **528 s**,
+> loss **0.038 → 0.0072**, checkpoint `gissmo_quantifier_60ep_cuda_b256.pt` (599 KB). **Honest
+> note:** GPU util sat at **8–11%** (3.5/80 GB) the whole run — CPU mixture-generation is the
+> bottleneck, so the H100 is under-used; fine for lico1h, matters if scaling to the full run
+> (moving data-gen onto the GPU is the fix — offered, not yet built). **Wiring:** `run_bmrb_validation`
+> now scores the trained GISSMO quantifier + a `hybrid+quant` channel on the real BMRB held-out set
+> it never trained on — loads ONLY if `models/gissmo_quantifier.pt` is present (else skipped, so the
+> benchmark still runs). Added `_canonical()` to map the quantifier's 94 GISSMO names to the panel's
+> library keys (verified **17/18 panel compounds map**; avoids the 'alanine' ⊂ 'phenylalanine'
+> collision). CLI prints the quantifier rows + loaded status; report now records
+> `steps_per_epoch_actual`. **To evaluate the real checkpoint:** drop `gissmo_quantifier.pt` into
+> `backend/nmr_api/models/` and run `python -m nmr_api.track1_benchmark --validate-bmrb`.
+> **78 tests pass** (wiring guarded by checkpoint presence; throwaway test checkpoint removed so
+> `status().trained` stays honest).
+
+> **2026-07-03 — F8 REAL held-out result: it does NOT help (honest negative).** Ran the trained
+> H100 checkpoint through `--validate-bmrb` on real BMRB experimental spectra (17/18 vocab mapped).
+> Clean condition F1: deterministic-permissive 0.64, deterministic-FDR 0.23, pSCNN 0.43, **hybrid
+> 0.48**, **quantifier (F8) 0.13** (P 0.21 / R 0.10), **hybrid+quant 0.49** (P 0.52 / R 0.48).
+> **Verdict:** the GISSMO-trained quantifier is the WORST standalone method and does not generalize
+> to real spectra; `hybrid+quant` only matches `hybrid` and does so by trading precision for recall
+> (wrong direction for an ID table). **F8 did NOT close the sim-to-real gap.** Root cause: it trains
+> on fixed-width single-Gaussian GISSMO fingerprints (no J-multiplets / real intensities) that real
+> BMRB spectra have. **Decision (per user's "validate-first" plan): do NOT scale the run or build
+> GPU data-gen — it isn't warranted.** The practical winner remains **hybrid = deterministic +
+> pSCNN**. F8 is now an honest negative exhibit (rigorous held-out test → clear negative → reported
+> plainly), which strengthens the scientific-honesty / bioinformatics-correctness story rather than
+> a headline claim. If F8 is ever revisited, realistic lineshapes (task 4: J-multiplets + field-
+> dependent width) is the only thing that could plausibly close the gap — but only worth it with a
+> reason to believe it will pay off.
+
+> **2026-07-03 — Track-1 prototype-ready sprint (fixed the audit's blockers).** A 7-stream code
+> audit found real gaps; fixed the P0/P1 + key P2:
+> • **P0 `annotate()` was broken on real data** — the occupancy gate was a relative 0.75-quantile
+>   that called ~25% of bins occupied on ANY input (verified: **103/578 metabolites on pure noise,
+>   575/578 on a sparse spectrum**). Replaced with an **absolute noise floor** (`_occupancy_floor`:
+>   median + 5·1.4826·MAD, frac-of-max fallback for degenerate/cleaned baselines). Now **0/578 on
+>   noise**, recovers only planted compounds on sparse. Added `AnnotateNoiseFloorTests`.
+> • **P0 the hybrid winner was benchmark-only** — pSCNN was imported nowhere in `main.py`, no
+>   checkpoint existed, and the app's "hybrid" was a different (off) nmrformer thing. Now:
+>   `pscnn.default_panel()` (30 common metabolites), `pscnn.identify_cohort()`, **wired into
+>   `main._run_cohort_pipeline`** as `out["identification"]` (deterministic FDR core ∪ pSCNN@0.6 =
+>   hybrid), a **persisted checkpoint** `models/pscnn_identifier.pt` via new `train_on_h100.py
+>   --supervised pscnn`, surfaced in `/plugins` (`track1_identification`) and in the profiler UI
+>   (Identification-method section + pSCNN✓ badge). The honest hybrid is now reachable from the app.
+> • **P1 reproducibility** — `pscnn.train` now calls `torch.manual_seed` → `--validate-bmrb` returns
+>   identical F1 across runs (was 0.41 vs 0.44).
+> • **P1 organizer annotations in the UI** — `/spectral/pipeline-file` takes an optional
+>   `identified_peaks` file; a "＋ Attach organizer annotations" affordance threads it to the
+>   authoritative-pin path (verified: a non-library pinned compound is forced present with
+>   `provenance:organizer_pin`). The competition's headline feature is now demoable.
+> • **P2 concentration bridge** — pipeline now feeds the NNLS/FDR **concentration** matrix (not the
+>   raw bin-mean abundance) into discovery (`discovery_matrix_source`). Diagnostic-ppm goes
+>   supervised on the **labeled subset** (was all-or-nothing). Low-fit-R² UI caveat added.
+> • **F8 honesty** — demoted from "hero" to honest-negative across `quantifier.py` docstring +
+>   `status()`, `TRACK1_REQUIRED_FUNCTIONS.md`; `select_diagnostic_ppm` "leakage-safe" wording
+>   corrected to "display-only, whole-cohort".
+> **80 tests pass.** DEFERRED (low-risk P2, documented not done): decoy-wraparound in the FDR null,
+> confidence propagation into discovery, `annotate` dead `bin_ppm` arg, pH-aware tol, selector unit
+> tests. NEXT real ML: F3 on-VM fine-tune on the competition's provided annotations.
+
+> **2026-07-03 — Track-2 input safety + F3 loader prepped.** **(Safety)** `deconvolve`'s
+> concentration matrix contains ALL NNLS-fitted targets, not just FDR-passing — so
+> `_run_cohort_pipeline` now feeds Track 2 ONLY the **FDR-confirmed** concentration columns
+> (`discovery_input=nnls_fdr_confirmed`), falling back to annotate abundance only when nothing
+> passes FDR. Added a `track1_quality` block (`confidence high/low` from n_fdr_confirmed<3 or
+> fit_r2<0.3), a UI **low-confidence banner** ("results are EXPLORATORY"), and a
+> `low_confidence_warning` on the biomarkers object — so biomarker/pathway outputs are never
+> presented as high-confidence when Track-1 quality is poor (e.g. coarse/transformed inputs).
+> **(F3)** New `finetune_loader.py` — on-VM fine-tune path for organizer annotations:
+> `load_annotation_panel` (parses {ppm,metabolite} OR {metabolite,shifts}), `build_finetune_panel`,
+> `finetune_pscnn` (**gated on NMR_OFFLINE=1**, local read/write, **0 network imports**, saves to a
+> chosen path so the serve checkpoint isn't clobbered). Ready-to-use, **not trained**, no closed
+> data used. `pscnn.save_checkpoint` gained an optional `path`. **84 tests pass** (+4 F3). Final
+> readiness verification all green (annotate 0 on noise / 2 on sparse; hybrid wired + clear
+> fallback when checkpoint absent; Track-2 gets FDR-confirmed only + low-confidence warnings;
+> `--validate-bmrb` hybrid F1 0.50–0.535).
+
+> **2026-07-03 — Searchable/filterable metabolite browser (profiler.html).** When the pipeline
+> modal's annotation (up to 578) or quantification list is long, a "🔍 Search & filter all N …→"
+> button opens an in-modal browser: live name search + filter checkboxes (annotation: D₂O-reliable
+> only / organizer-pins only; quantification: passes-FDR only), a live "showing X of N" count, and
+> a "← Back to results" button that re-renders the summary (back-and-forth, no re-fetch). Result
+> stashed in `PIPELINE_VIEW`; reusable row builders `_annRowHtml`/`_quantRowHtml`; `openMetaboliteBrowser`
+> + `filterBrowser`. Verified on the demo (225 annotated → "glut" filters to 8, D₂O/pin filters +
+> back-nav work, no console errors). Track-2 tables can get the same pattern on request.
+
+> **2026-07-03 — Interactive metabolite correlation network (GGM UI).** Replaced the
+> static `ggmNetworkSvg(edges)` render with `initGgmNetwork(allEdges)`: a force-directed
+> layout (repulsion + spring + centering + damping, `requestAnimationFrame`-driven),
+> **draggable nodes**, **hover-to-trace** (hovering a node dims non-neighbor nodes/edges
+> so its own links stay legible), a **live "Min |partial r|" slider** that re-filters
+> edges in place, and an r/q **tooltip** per edge. `correlationNetwork` now calls
+> `GET /biomarkers-correlation?dataset=...&r_threshold=0.05` (new endpoint in `main.py`:
+> resolves the dataset TSV → `biomarkers.build_matrix` → `correlation.analyze`) and
+> renders the shell (`#ggm-thr` slider, `#ggm-host`/`#ggm-svg`/`#ggm-tip`) before wiring
+> the sim. Verified in-browser on `mtbls1` (12 direct edges; strongest creatine–
+> creatinine r=0.97): hover dims non-neighbors correctly, slider changes edge count live
+> (10 edges @ r≥0.15 → 3 @ r≥0.9), drag works, force loop is armed (only visually static
+> in a backgrounded preview tab due to rAF throttling — confirmed via `_ggmRAF`), no
+> console errors.
+
+> **2026-07-04 — Full verified bibliography (`docs/REFERENCES.md`, new).** Harvested
+> every academic/method citation across `backend/nmr_api/*.py`, `docs/*.md` and
+> `static/profiler.html` via a multi-agent workflow, then **web-verified each one**
+> (real DOI/PMID + does the paper's actual content support how RuuPhenome uses it) —
+> 111 of 115 raw citations confirmed real (the other 4 are textbook statistical
+> primitives, not literature citations). Result: **~60 distinct references**, organized
+> by what they ground — §A signal processing (Dieterle PQN, Eilers AsLS, ACME phase,
+> MAD noise), §B identification/quantification (NNLS, Elias & Gygi target-decoy FDR,
+> Sumner MSI levels, Wei 2022 pSCNN), §C reference data (HMDB 5.0, BMRB, GISSMO,
+> MetaboLights/Workbench), §D the Track-2 **leakage-safe methodology** (Ambroise &
+> McLachlan 2002, Vabalas 2019, Diaz-Uriarte 2022, Benjamini-Hochberg, the
+> bootstrap/permutation-CI literature, the full classifier-suite citations), §E the
+> **GGM** (Krumsiek 2011, Ledoit-Wolf, Fisher), §F PCA/UMAP, a new **§G "Biological
+> interpretation" section** explicitly grounding the NMR→biology step
+> (`biology.interpret_panel()`: HMDB cards + MetaboAnalyst/MetPA-style hypergeometric
+> pathway enrichment + KEGG + BH-FDR — this layer existed in code but had no citation
+> section before), §H the clinical/epidemiology grounding (Newgard 2009, Wang 2011,
+> Würtz 2015, Cheng 2012, Thai NCD-burden papers), and §I reproducibility standards
+> (Sandve 2013, FAIR, Model Cards). **3 citation corrections were flagged but are NOT
+> yet applied to code/docs/UI** — see "Pending citation corrections" below.
+
+> **2026-07-04 — Pre-ship bug hunt (adversarially verified) + all fixes applied.** A
+> workflow fanned 11 finders across every backend module cluster + the UI, then ran an
+> independent high-effort skeptic against every finding whose job was to REFUTE it
+> before it counted (default-to-refuted unless a concrete real trigger is confirmed
+> against the actual code). 19 raw findings → **9 survived** (7 confirmed, 2 plausible;
+> 10 refuted as unreachable-behind-an-existing-guard or a misread — see below). Plus one
+> found by direct smoke-test: `pytest` failed to **collect at all** when run from
+> `backend/` (all 16 test files import `backend.nmr_api.*`, and there was no
+> `conftest.py`/rootdir pin anywhere in the repo). **All 10 fixed and verified:**
+>
+> 1. **New `ruuphenome/pytest.ini`** (`pythonpath = .`, `testpaths`) — `pytest` now
+>    collects and passes from either `ruuphenome/` or `backend/nmr_api/`.
+> 2. `spectral_cohort.deconvolve()` — guarded the decoy-shift modulus (`decoy_span`)
+>    against `ppm_max <= 0` (was an unhandled `ZeroDivisionError` on an all-upfield or
+>    lone-0-ppm-column upload).
+> 3. `spectral_cohort.deconvolve()` — **target-decoy FDR selection is now monotone**:
+>    accepts the deepest-passing-threshold prefix instead of accepting/rejecting each
+>    concentration index independently, which could previously reject a strong
+>    metabolite while accepting a weaker one below it ("holes" in the accepted set) when
+>    a decoy happened to land on a real occupied peak.
+> 4. `biomarkers.py` minimal-panel selection now carries the **integer column index**
+>    through ranking instead of re-resolving the column by name afterward — two blank/
+>    `unknown` metabolite names no longer collapse the panel onto one duplicated column
+>    (was inflating the reported panel AUC and silently dropping a real second marker).
+> 5. `dimensionality.project()` — `explained_variance_ratio_` is now `nan_to_num`'d
+>    before rounding; a zero-variance (constant) cohort used to return `NaN` percentages,
+>    which Starlette's JSON renderer rejects outright → unhandled HTTP 500.
+> 6. `main.py` **`/profile/report` re-triage bug**: the report endpoint used to re-bucket
+>    the stored auto-profile with **default** thresholds (hi=0.85/lo=0.5) instead of the
+>    thresholds the user actually profiled with, silently flipping e.g. an accepted call
+>    to "review" — and `profile_workflow.triage()` mutated the shared stored result
+>    objects in place while doing it. Fixed both: `_PROFILE_STATE["auto_thresholds"]`
+>    now threads the real hi/lo into the report, and `triage()` no longer writes
+>    `result.status` (it buckets into accept/review/reject locally instead).
+> 7. `library.build_library()` / `pipeline.analyze()` — guarded the `df_meta["smiles"]`
+>    column access; a compound-upload table without a `smiles` column used to raise an
+>    uncaught `KeyError` (surfaced to the user as a cryptic HTTP 422).
+> 8. `static/profiler.html` `stepCompound()` — early-returns on an empty compound list;
+>    arrow-key compound stepping used to compute `i % 0` → `NaN` → an `undefined` deref
+>    on any dataset that yields zero compounds.
+> 9. `spectral_cohort.total_area_normalize()` — guards a non-finite scale factor; an
+>    all-zero/all-NaN cohort used to normalize to all-`NaN` (→ HTTP 500 on serialize).
+> 10. `signal_processing.estimate_noise()` — floors σ at `1e-4 × peak amplitude`; a
+>     clean/synthetic near-noise-free spectrum used to report **SNR in the millions**
+>     (σ→0 hit only a `1e-12` floor); now caps at a believable "excellent" ~10,000 and
+>     never binds on a real experimental spectrum (real ¹H noise is always ≳0.01% of
+>     peak height).
+>
+> **Verification:** app imports cleanly (53 routes); **111/111 tests pass** from both
+> `ruuphenome/` and `backend/nmr_api/`; each fix was re-checked against its exact
+> failure scenario (ppm_max=0 no longer throws; all-zero cohort normalizes finite;
+> duplicate-name panel keeps 2 distinct columns; constant-cohort PCA returns `0.0%` not
+> NaN; report status no longer mutates on re-triage; empty-compound arrow-stepping
+> verified in-browser with no console errors; clean-spectrum SNR reads 10,000 not 7.2M).
+> **3 latent-but-currently-unreachable issues were found and intentionally left AS-IS**
+> (each is already prevented by an upstream guard today, so fixing them is optional
+> hardening, not urgent — flag if a new endpoint bypasses the guard):
+> `differential_analysis` raises `IndexError` on <2 classes, but every real caller
+> enforces ≥2 classes first; `biomarker_engine.discover` crashes on a single-patient-
+> group class, but every user-upload endpoint wraps `discover()` in try/except → HTTP
+> 422 (and all 5 bundled datasets have ≥7 patient-groups per class); the GGM force-sim's
+> `requestAnimationFrame` isn't cancelled on modal-close (self-terminates in ~4s writing
+> to already-detached SVG nodes — no crash, no user-visible artifact, no lasting leak).
+>
+> **Pending citation corrections** (flagged in `docs/REFERENCES.md`, not yet applied to
+> code/UI — small, low-risk text edits): (a) the conditions-form help text in
+> `profiler.html` (~line 3532) mislabels a citation as "Everett 2016 (IUPAC)" — the
+> paper is actually **Dona et al. 2016** (Everett is a co-author, not first; it's a
+> metabolite-ID guide, not the IUPAC shift-convention paper — that's Harris 2008); (b)
+> "Ahola-Olli 2019" is sourced from **four Finnish cohorts**, not UK Biobank — fix any
+> "UK Biobank" phrasing tied to that citation; (c) Hand & Till 2001 defines one-vs-
+> **one** multi-class AUC but `model_suite.py` uses one-vs-**rest**
+> (`roc_auc_score(multi_class='ovr')`) — either reword the citation ("in the spirit of")
+> or switch to `'ovo'` to match the paper exactly.
 
 RuuPhenome is an open-source NMR metabolomics profiler for the Thailand
 National Phenome Institute / BDI Hackathon 2026 Track Phenome work. The product
@@ -395,8 +790,12 @@ validation.
 - `GET /biomarkers-projection`
 - `POST /biomarkers-projection-upload`
 - `GET /biomarkers-benchmark`
+- `POST /track2/biomarkers` — two-table discovery (full metrics + confusion matrix + top-1/3/5/10 panel sweep; `multiclass` form flag preserves ≥3 groups)
+- `POST /track2/preview`
 - `POST /track2/metadata-columns`
 - `POST /track2/discover-with-metadata`
+- `POST /track2/differential` — whole-matrix differential (Mann-Whitney+Welch for 2 groups; Kruskal-Wallis+ANOVA for >2; BH q-values; volcano)
+- `POST /track2/correlation` — pairwise (Pearson/Spearman, FDR) + partial-correlation Gaussian Graphical Model network (Krumsiek 2011); optional metabolite-vs-covariate correlation
 - `GET /biology`
 - `GET /enrich-names`
 
@@ -407,55 +806,149 @@ validation.
 
 ## Known gaps and bugs — do not overclaim
 
-1. **Inline numeric labels are missed.**  
-   `spectral_cohort.extract_embedded_labels()` currently skips numeric columns,
-   so `Class = 0/1` is ignored even when the column name is clearly a label.
-   String labels such as `control/case` work. Fix by allowing numeric label
-   columns when the column name matches a label synonym or when cardinality is
-   small and the values are not ppm bins.
+Split by the kind of judgment needed to fix it: **bioinformatics/domain-science**
+gaps need NMR/metabolomics chemistry knowledge (solvent behavior, referencing,
+biological validity); **tech/engineering** gaps are software correctness or
+missing infrastructure that don't require chemistry judgment to fix.
 
-2. **Annotation is currently over-permissive.**  
-   The demo annotates 268 metabolites from a 578-entry reference library. That
-   is useful for showing coverage, but real lab claims need stricter scoring,
-   duplicate/synonym collapsing, ambiguity handling, mixture validation and
-   comparison against manual/Chenomx-reviewed ground truth.
+### Bioinformatics / domain-science gaps
 
-3. **The strongest cohort pipeline assumes preprocessed/binned data.**  
+1. **Solvent mismatch risk: reference shifts vs. real D2O blood/serum samples.**  
+   The competition matrix is blood, run in D2O. `REFERENCE_SHIFTS`
+   (`spectral_cohort.py`, 578 entries) is sourced from **HMDB 5.0**, which is
+   biofluid-appropriate (HMDB's own reference spectra are conventionally
+   aqueous/D2O near physiological pH) — but **neither this dict nor
+   `open_data/bmrb_reference_shifts.json` records solvent/pH/temperature per
+   entry**, so no single shift value can currently be audited or trusted with
+   certainty. The bigger risk is **NMRformer**: public NMR shift-*prediction*
+   training corpora skew heavily DMSO-d6/CDCl3 (the default in general organic
+   chemistry characterization, not biofluid metabolomics), so an NMRformer
+   activated without D2O-specific validation would silently carry that bias.
+   NMRformer is confirmed **inactive by default** right now — keep it that way
+   for real blood data until it is fine-tuned/validated specifically on D2O
+   serum, per gap 5 below.  
+   **Fix:** flag/down-weight metabolites whose diagnostic peaks are
+   exchangeable protons (COOH/OH/NH/NH₂) — these shift by 0.1–1+ ppm or vanish
+   entirely via D/H exchange in D2O regardless of source database. Prefer each
+   metabolite's non-exchangeable shifts for D2O matching where available.
+
+2. **pH is a static display label, not an active correction.**  
+   The UI shows "pH 7.00" but nothing in the pipeline shifts reference peaks
+   for the sample's actual pH. This matters independently of the D2O/DMSO
+   question — e.g. histidine's imidazole protons alone move ~0.5 ppm across
+   physiological pH swings, and blood pH varies sample to sample.  
+   **Fix:** either wire real pH-dependent shift correction for the handful of
+   metabolites with known strong pH sensitivity, or stop displaying a pH value
+   as if it's already accounted for.
+
+3. **Matching tolerance is fixed and chemistry-blind.**  
+   `tol_ppm=0.03` in `spectral_cohort.annotate()` is one flat number for every
+   metabolite and every proton type. Aromatic/aliphatic CH shifts are
+   genuinely solvent/pH-insensitive at that scale; exchangeable protons are
+   not, and nothing currently distinguishes them.  
+   **Fix:** per-functional-group tolerance/confidence instead of one constant
+   (ties directly into gap 1's exchangeable-proton flagging).
+
+4. **Two metabolite-naming systems that don't reconcile.**  
+   Confirmed concretely this session on the same demo dataset: the dashboard
+   (Reference Card / compound table) shows names taken verbatim from the
+   original MetaboLights file's `metabolite_identification` column
+   (`L-alanine`, `L-Lactic acid`, `D-phenylalanine`); Track-1 annotation
+   (`REFERENCE_SHIFTS`) uses simplified generic names for the *same molecules*
+   (`alanine`, `lactate`, `phenylalanine`). Same compound, different string, in
+   two different parts of the same UI.  
+   **Fix:** a canonical-name normalization layer (strip `L-`/`D-`/`(R)-`/`(S)-`
+   stereo-prefixes, reconcile `"X acid"` ↔ `"X"`, small synonym table) applied
+   everywhere metabolite names are displayed or compared.
+
+5. **NCD-relevance match/no-match inherits the naming gap.**  
+   `_ncd_relevance()` in `main.py` matches by case-insensitive exact string
+   only. A real biomarker overlap (e.g. `lactate` vs `L-Lactic acid`) can be
+   silently reported as "✗ not found" purely from naming-scheme mismatch, not
+   because the biomarker is actually absent — this undermines the honesty the
+   rest of the NCD panel works to maintain.  
+   **Fix:** route through the same canonical-name layer once gap 4 is built.
+
+6. **Annotation is currently over-permissive.**  
+   The demo annotates 268 metabolites from the 578-entry reference library.
+   Useful for showing coverage, but real lab claims need stricter scoring,
+   duplicate/synonym collapsing (overlaps with gap 4), ambiguity handling,
+   mixture validation and comparison against manual/Chenomx-reviewed truth.
+
+7. **Concentration export is not yet laboratory-validated.**  
+   NNLS deconvolution and CSV export work, and the UI labels the table in µM
+   when internal-standard calibration is present — but internal-standard
+   (DSS/TSP) referencing only corrects field/frequency calibration drift, it
+   does **not** correct for solvent-induced shift differences between
+   molecules (a separate problem from gap 1). Treat outputs as Chenomx-style
+   estimates until validated with standards and manual review on the target
+   instrument/matrix.
+
+8. **NMRformer is bundled but not a free pass.**  
+   The files and adapter exist and ship pre-trained (~97.8% on 72 classes),
+   but direct startup does not activate it by default. Even when active, use
+   it as supporting evidence only, until target-matrix (D2O blood) validation
+   proves it improves assignments safely — see gap 1.
+
+9. **PCA/UMAP are exploratory, not predictive evidence.**  
+   Full-cohort PCA/UMAP separation is not classifier performance. Predictive
+   metrics must keep imputation, scaling, feature selection and PCA inside
+   training folds (the codebase already does this correctly for AUC/discovery
+   — just don't let a PCA plot substitute for it in a pitch).
+
+10. **Clinical/disease claims are limited by labels.**  
+   MTBLS242 is longitudinal surgery time points, not disease versus control.
+   MTBLS1, MTBLS424 and MTBLS356 provide labeled demos, but final clinical
+   claims need independent validation. Name each cohort's disease as it
+   actually is — e.g. MTBLS356 is antiphospholipid syndrome (a thrombotic
+   vascular disease), used as the cardiovascular panel slot, not a general
+   ischemic-heart-disease cohort. A true AMI cohort (MTBLS395) exists but its
+   outcome labels are ethically withheld and cannot be used. See "How to add a
+   new NCD cohort".
+
+### Tech / engineering gaps
+
+1. **No metadata schema for reference-library provenance.**  
+   Neither `REFERENCE_SHIFTS` (hardcoded dict in `spectral_cohort.py`) nor
+   `open_data/bmrb_reference_shifts.json` records solvent/pH/temperature per
+   shift value — flat `{name: [ppm, ppm, ...]}` only. This is the missing data
+   model blocking bioinformatics gap 1 above.  
+   **Fix:** extend both to `{name: [{"shift": ppm, "solvent": ..., "pH": ...,
+   "temp_k": ..., "source": ...}, ...]}` (or a parallel metadata file keyed the
+   same way), backfilling from BMRB's real experimental metadata where the
+   entry originated there.
+
+2. **In-memory-only caching, lost on every restart.**  
+   `_NCD_CACHE` (and any future persisted-model cache) lives only in the
+   running process. A server restart silently re-triggers the ~1 minute
+   `/ncd-screen` recompute on next call — the progress bar covers this UX-wise,
+   but it's worth knowing. Not urgent for a hackathon demo; note if it becomes
+   real friction.
+
+3. **Inline numeric labels are missed.**  
+   `spectral_cohort.extract_embedded_labels()` currently skips numeric
+   columns, so `Class = 0/1` is ignored even when the column name is clearly a
+   label. String labels such as `control/case` work. Fix by allowing numeric
+   label columns when the column name matches a label synonym or when
+   cardinality is small and the values are not ppm bins.
+
+4. **The strongest cohort pipeline assumes preprocessed/binned data.**  
    It matches the workshop request for binned NMR peak/spectral files. It is
    not yet a full raw multi-sample FID → alignment → binning production
    pipeline. Single-spectrum raw processing exists, but batch raw cohort
    alignment/binning is still a separate future feature.
 
-4. **Concentration export is not yet laboratory-validated.**  
-   NNLS deconvolution and CSV export work, and the UI labels the table in µM
-   when internal-standard calibration is present. Treat these as Chenomx-style
-   estimates until validated with standards, internal calibration and manual
-   review on the target instrument/matrix.
+5. **NMRformer startup/activation isn't clarified in docs/tests.**  
+   Separate from the D2O validation question (bioinformatics gap 1) — this is
+   purely "does `NMRFORMER_ADAPTER_MODULE` + the bundled adapter actually
+   wire up correctly." Add a small integration smoke test for when the adapter
+   is active, and document the exact env/config needed to activate it.
 
-5. **NMRformer is bundled but not a free pass.**  
-   The files and adapter exist. Direct startup may not activate it. Even when
-   active, use it as supporting evidence until target-matrix validation proves
-   it improves assignments safely.
-
-6. **PCA/UMAP are exploratory.**  
-   Full-cohort PCA/UMAP separation is not classifier performance. Predictive
-   metrics must keep imputation, scaling, feature selection and PCA inside
-   training folds.
-
-7. **Clinical/disease claims are limited by labels.**  
-   MTBLS242 is longitudinal surgery time points, not disease versus control.
-   MTBLS1, MTBLS424 and MTBLS356 provide labeled demos, but final clinical claims
-   need independent validation. Name each cohort's disease as it actually is —
-   e.g. MTBLS356 is antiphospholipid syndrome (a thrombotic vascular disease),
-   used as the cardiovascular panel slot, not a general ischemic-heart-disease
-   cohort. A true AMI cohort (MTBLS395) exists but its outcome labels are
-   ethically withheld and cannot be used. See "How to add a new NCD cohort".
-
-8. **The laboratory workflow is RUO design only.**  
+6. **The laboratory workflow is RUO design only.**  
    There is no full LIMS, authentication, electronic signature or durable
    append-only audit store.
 
-9. **Frontend is a large single-file app.**  
+7. **Frontend is a large single-file app.**  
    It works for a hackathon demo, but long-term maintainability would benefit
    from modularization.
 
@@ -630,18 +1123,70 @@ closed competition dataset is never used for training (see data-governance notes
 
 ## Recommended next work
 
-1. Fix numeric inline label detection in `spectral_cohort.extract_embedded_labels`.
-2. Tighten Track 1 annotation: synonym collapsing, minimum unique resonances,
-   ambiguity scoring, matrix-specific exclusions and external validation.
-3. Test `/spectral/pipeline` and `/spectral/pipeline-file` on the actual
+Priority order — the top 3 are the highest-leverage fixes surfaced by the D2O
+solvent-mismatch review (see "Known gaps and bugs" above for full detail on
+each):
+
+1. **[Bioinformatics] Flag exchangeable-proton-dependent metabolites** for D2O
+   matching (gap 1) — the single most consequential fix for real blood-sample
+   correctness. Requires adding solvent/exchangeability metadata (tech gap 1)
+   to `REFERENCE_SHIFTS` first.
+2. **[Bioinformatics] Build the canonical-name normalization layer** (gap 4) —
+   fixes both the dashboard/Track-1 display mismatch and the NCD-relevance
+   matching honesty gap (gap 5) in one change.
+3. **[Tech] Extend the reference-shift data model** to carry per-entry
+   solvent/pH/temperature/exchangeability (tech gap 1) — this unblocks #1 and
+   makes gap 1 auditable instead of just documented as a risk.
+4. Fix numeric inline label detection in `spectral_cohort.extract_embedded_labels`
+   (tech gap 3).
+5. Tighten Track 1 annotation: synonym collapsing (overlaps with #2 above),
+   minimum unique resonances, ambiguity scoring, matrix-specific exclusions and
+   external validation (bioinformatics gap 6).
+6. Test `/spectral/pipeline` and `/spectral/pipeline-file` on the actual
    organizer binned files and metadata, then record the expected file format.
-4. Validate quantification against internal standards/manual Chenomx-style
-   review before making strong concentration claims.
-5. Add a true raw cohort path if needed: batch import → common ppm grid →
-   alignment → water/artifact masking → adaptive/fixed binning → matrix export.
-6. Clarify NMRformer startup in docs/tests and add a small integration smoke
-   test when the adapter is active.
-7. Update this handoff after any major code or validation change.
+7. Validate quantification against internal standards/manual Chenomx-style
+   review before making strong concentration claims (bioinformatics gap 7).
+8. Add a true raw cohort path if needed: batch import → common ppm grid →
+   alignment → water/artifact masking → adaptive/fixed binning → matrix export
+   (tech gap 4).
+9. Clarify NMRformer startup in docs/tests (tech gap 5) — keep it inactive for
+   real blood data until D2O-specific validation (bioinformatics gap 1) passes.
+10. Update this handoff after any major code or validation change.
+
+## Git / repository state — read before committing or pushing
+
+- **Remote:** `origin` → `https://github.com/chikenpop8/ruuphenome_bdikku2026.git`
+  (same URL for fetch and push).
+- **Current branch:** `feat/open-data-corpus-builder`. Last commit on it:
+  `9041556 feat(models): commit pSCNN checkpoint so a clean clone reproduces the hybrid`.
+- **Nothing described in this handoff since that commit has been committed or pushed.**
+  Every changelog entry above from "F8 GISSMO transformer quantifier" onward through
+  today's bug-hunt fixes is a **single large uncommitted working-tree diff** — check
+  `git status --short` and `git diff --stat` before doing anything destructive. Expect
+  ~15 modified tracked files and ~40+ new untracked files (new modules under
+  `backend/nmr_api/`, new `docs/*.md` + SVGs, `docs/REFERENCES.md`, `pytest.ini`,
+  new `tests/test_*.py`, `requirements.lock.txt`, `.python-version`).
+- **Before committing, run the full suite once more** (now works from either directory
+  thanks to the new `pytest.ini`):
+  ```bash
+  cd "/Applications/Vibing coding/Noom copy cat/ruuphenome"
+  KMP_DUPLICATE_LIB_OK=TRUE backend/nmr_api/.venv/bin/python -m pytest -q
+  # expect: 111 passed
+  ```
+- **Check before staging — likely scratch, not meant to ship as-is:** four untracked
+  items look like redundant exports of the same H100/LiCO training-pack bundle:
+  `newruuf8/`, `ruuphenome_f8_lico_pack/`, `ruuphenome_f8_lico_pack 2/` (note the space
+  in the name), and `ruuphenome_f8_lico_pack.tar.gz` (each ~150–620 KB; `newruuf8/` and
+  `ruuphenome_f8_lico_pack/` are near-identical file listings). Don't blanket
+  `git add -A` without checking — confirm with the user which (if any) of these should
+  be committed, gitignored, or deleted, rather than shipping 3–4 copies of the same pack.
+- **`chulaemail.md`** (untracked, repo root) — a second, teammate-facing onboarding doc
+  (zero-context version of this file, apparently meant to be emailed to a collaborator
+  at Chulalongkorn University). Not sensitive; fine to commit, just note it duplicates
+  parts of this file and may drift out of sync with it over time.
+- Never force-push; never rewrite history on `main`. This repo backs a hackathon
+  submission — prefer opening/updating a PR over pushing straight to a shared branch
+  if the grading process expects a specific PR.
 
 ## Instructions for the next AI agent
 

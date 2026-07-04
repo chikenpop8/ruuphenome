@@ -337,10 +337,14 @@ def triage(results: Sequence[MetaboliteResult], *, hi: float = 0.85, lo: float =
     review = []
     rejected = []
     for result in results:
-        result.status = status_from_confidence(result.confidence, hi=hi, lo=lo)
-        if result.status == "accept":
+        # Bucket locally; do NOT write result.status. These objects are shared with
+        # the stored auto-profile, so mutating here would let a report (or a triage
+        # query with different thresholds) silently overwrite the status the user
+        # already saw. The canonical status stays as set at auto-profile time.
+        status = status_from_confidence(result.confidence, hi=hi, lo=lo)
+        if status == "accept":
             accepted.append(result)
-        elif result.status == "reject":
+        elif status == "reject":
             rejected.append(result)
         else:
             review.append(result)
