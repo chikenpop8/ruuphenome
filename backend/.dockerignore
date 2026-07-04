@@ -1,0 +1,24 @@
+# Never ship the macOS dev venv into a Linux image.
+nmr_api/.venv/
+**/__pycache__/
+**/*.pyc
+
+# Dev-only / not needed at runtime.
+nmr_api/tests/
+nmr_api/requirements.txt
+nmr_api/.python-version
+nmr_api/run.sh
+nmr_api/setup_nmrtransformer.sh
+
+# NMRformer: keep only what nmrformer_adapter.py actually loads at runtime
+# (net.py, dataGene.py, onedTrans_0.9782, all_meta.txt) — drop the rest.
+nmr_api/NMRformer/.git/
+nmr_api/NMRformer/NMRformer.ipynb
+nmr_api/NMRformer/example_data/
+nmr_api/NMRformer/metabolites_spectra.zip
+nmr_api/NMRformer/README.md
+nmr_api/NMRformer/LICENSE
+
+# Misc
+**/.DS_Store
+**/*.log

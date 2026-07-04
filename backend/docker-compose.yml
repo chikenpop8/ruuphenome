@@ -1,0 +1,25 @@
+services:
+  ruuphenome:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ruuphenome-nmr-api:latest
+    restart: unless-stopped
+    ports:
+      - "8100:8100"
+    environment:
+      # Set to 1 on the closed competition VM to guarantee zero outbound
+      # network calls (blocks PubChem enrichment + open-data downloads).
+      NMR_OFFLINE: "${NMR_OFFLINE:-0}"
+    volumes:
+      # Persist retrained SSL checkpoints and the open-data corpus across
+      # container rebuilds — drop a checkpoint from an H100 run here and
+      # restart, no image rebuild needed.
+      - ./nmr_api/models:/app/nmr_api/models
+      - ./nmr_api/open_data:/app/nmr_api/open_data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8100/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
